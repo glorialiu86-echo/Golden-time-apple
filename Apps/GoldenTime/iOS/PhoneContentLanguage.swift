@@ -79,18 +79,18 @@ enum GTCopy {
     static func compassCardLegend(_ lang: GTAppLanguage) -> String {
         switch lang {
         case .chinese:
-            return "圆盘外圈刻度；外缘每 30° 有标注：0/90/180/270 为东南西北（北为红色），其余为数字。无表盘内方位字。上边为手机前向。红色指北符号随真机航向指向真北；真机转过 30° 整刻度时轻触反馈（模拟器常无罗盘/无震动）。半透明扇区为当天本地时区内各段蓝调/金调对应的太阳方位。无日出日落硬线、无系统指南针顶部粗标线。"
+            return "外圈是方向刻度：每 30° 一处标注，正北、正东、正南、正西在 0°、90°、180°、270°（北为红色），其余为度数。圆盘朝上的一边表示你握手机时正对的方向。红色指北标指向真北。浅色半透明扇区表示今天各段蓝调、金调里太阳大致所在的方位。"
         case .english:
-            return "Outer ticks; every 30° is labeled: N/E/S/W at 0/90/180/270 (N in red), other marks show degrees. No inner cardinal letters. Top = device forward. Red north glyph = true north; light haptic when heading crosses each 30° tick on device (simulator often has no compass/haptics). Sectors = blue/golden clips for the local day. No sunrise/sunset radial lines, no thick top heading bar."
+            return "The outer ring shows direction: a label every 30°, with N, E, S, W at the cardinal points (N in red) and degree numbers in between. The top of the dial matches the way you’re facing. The red marker points to true north. Light shaded sectors show roughly where the sun sits during today’s blue hour and golden hour windows."
         }
     }
 
     static func compassCardFootnote(_ lang: GTAppLanguage) -> String {
         switch lang {
         case .chinese:
-            return "有网络路由时在罗盘圆盘下叠地图底图（不可缩放）；无网络时仅渐变底。角度均由本机推算。"
+            return "能加载地图时，罗盘背后会显示你当前位置附近的简图，仅供对照、不能缩放或拖动；无法加载时用柔和底色。太阳方位与罗盘角度均在手机上本地计算，不会把位置发到我们的服务器。"
         case .english:
-            return "With a network route, a non-interactive map sits under the compass; offline, only the gradient. Angles are computed on device."
+            return "When map tiles can load, a simple map of your area appears behind the dial for context only—you can’t pan or zoom. Otherwise you’ll see a soft colored backdrop. Sun bearings and compass angles are calculated on your device; we don’t send your location to our servers."
         }
     }
 

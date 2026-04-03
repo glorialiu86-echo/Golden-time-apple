@@ -9,6 +9,19 @@ private enum CompassMapMetrics {
     static let cameraDistance: CLLocationDistance = 980
 }
 
+/// Map disk sizing only; compass `Canvas` is unchanged.
+private enum CompassMapFrame {
+    static func outerRimDiameter(side: CGFloat) -> CGFloat {
+        let outerR = side / 2 - 20
+        return 2 * outerR * 0.985
+    }
+
+    /// Map slightly inside rim-synced diameter (inset ~5 pt on radius). No other layout changes.
+    static func mapDiskDiameter(side: CGFloat) -> CGFloat {
+        max(outerRimDiameter(side: side) - 10, 1)
+    }
+}
+
 private struct CompassMapUnderlay: UIViewRepresentable {
     var coordinate: CLLocationCoordinate2D
     /// True north clockwise; drives map rotation to match overlay geometry.
@@ -58,6 +71,8 @@ struct TwilightCompassCard: View {
     var compassInk: Color
     /// Arrow / label contrast stroke (e.g. `skin.panelStroke`).
     var compassStroke: Color
+    /// `true` for day shell (light backdrop); `false` for night / blue / golden shells (light ink on dark).
+    var chromeIsLight: Bool
     var uiLanguage: GTAppLanguage
     var coordinate: CLLocationCoordinate2D
     /// When `nil`, geometry assumes north-up (`0`) for simulator / no magnetometer.
@@ -77,10 +92,12 @@ struct TwilightCompassCard: View {
             let side = min(geo.size.width, geo.size.height)
             Group {
                 if showMapBase {
+                    let mapDiameter = CompassMapFrame.mapDiskDiameter(side: side)
                     ZStack {
                         CompassMapUnderlay(coordinate: coordinate, headingDegrees: heading)
-                            .frame(width: side, height: side)
-                        compassFaceLayers(side: side, basemapBehindFace: true)
+                            .frame(width: mapDiameter, height: mapDiameter)
+                            .clipShape(Circle())
+                        compassFaceLayers(side: side, basemapBehindFace: true, chromeIsLight: chromeIsLight)
                             .allowsHitTesting(false)
                     }
                 } else {
@@ -90,7 +107,7 @@ struct TwilightCompassCard: View {
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
-                        compassFaceLayers(side: side, basemapBehindFace: false)
+                        compassFaceLayers(side: side, basemapBehindFace: false, chromeIsLight: chromeIsLight)
                             .allowsHitTesting(false)
                     }
                 }
@@ -104,7 +121,7 @@ struct TwilightCompassCard: View {
     }
 
     @ViewBuilder
-    private func compassFaceLayers(side: CGFloat, basemapBehindFace: Bool) -> some View {
+    private func compassFaceLayers(side: CGFloat, basemapBehindFace: Bool, chromeIsLight: Bool) -> some View {
         ZStack {
             TwilightCompassDrawing(
                 compassInk: compassInk,
@@ -112,6 +129,7 @@ struct TwilightCompassCard: View {
                 headingDegrees: heading,
                 cardinals: GTCopy.compassCardinals(uiLanguage),
                 basemapBehindFace: basemapBehindFace,
+                chromeIsLight: chromeIsLight,
                 blueSectorArcAzimuths: blueSectorArcAzimuths,
                 goldenSectorArcAzimuths: goldenSectorArcAzimuths,
                 blueSectorColors: blueSectorColors,
@@ -182,20 +200,69 @@ private struct TwilightCompassDrawing: View {
     var compassStroke: Color
     var headingDegrees: Double
     var cardinals: (n: String, e: String, s: String, w: String)
-    /// When true, map fills the same circular face as the compass; bezel ink switches to dark so ticks stay visible on tiles.
     var basemapBehindFace: Bool
+    var chromeIsLight: Bool
     var blueSectorArcAzimuths: [(Double, Double)]
     var goldenSectorArcAzimuths: [(Double, Double)]
     var blueSectorColors: [Color]
     var goldenSectorColors: [Color]
 
-    private static let bezelInkOnBasemap = Color(red: 0.06, green: 0.06, blue: 0.08)
+    /// Tick / outer-ring numerals on map tiles — always dark for contrast.
+    private static let tickInkOnBasemap = Color(red: 0.06, green: 0.06, blue: 0.08)
+
+    private struct FacePaints {
+        var tickInk: Color
+        /// East / South / West and 30° numerals (north uses `northRed` separately).
+        var bezelLabelInk: Color
+        var bezelLabelHalo: Color
+        var northLabelHalo: Color
+        var outerRimInk: Color
+    }
+
+    /// Map on: ticks always `tickInkOnBasemap`; outer labels light on dark chrome, dark on light chrome. No map: single `compassInk` family.
+    private static func facePaints(basemap: Bool, chromeIsLight: Bool, compassInk: Color, compassStroke: Color) -> FacePaints {
+        if basemap {
+            let tick = tickInkOnBasemap
+            if chromeIsLight {
+                return FacePaints(
+                    tickInk: tick,
+                    bezelLabelInk: tick,
+                    bezelLabelHalo: Color.white.opacity(0.55),
+                    northLabelHalo: Color.black.opacity(0.34),
+                    outerRimInk: tick
+                )
+            }
+            let outer = Color.white.opacity(0.94)
+            return FacePaints(
+                tickInk: tick,
+                bezelLabelInk: outer,
+                bezelLabelHalo: Color.black.opacity(0.48),
+                northLabelHalo: Color.black.opacity(0.45),
+                outerRimInk: outer
+            )
+        }
+        let halo = compassStroke.opacity(0.42)
+        return FacePaints(
+            tickInk: compassInk,
+            bezelLabelInk: compassInk,
+            bezelLabelHalo: halo,
+            northLabelHalo: halo,
+            outerRimInk: compassInk
+        )
+    }
 
     var body: some View {
         Canvas { context, size in
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
             let outerR = min(size.width, size.height) / 2 - 20
             let sectorR = outerR * 0.935
+            let paints = Self.facePaints(
+                basemap: basemapBehindFace,
+                chromeIsLight: chromeIsLight,
+                compassInk: compassInk,
+                compassStroke: compassStroke
+            )
+            let northRed = Color(red: 0.92, green: 0.24, blue: 0.22)
 
             if !basemapBehindFace {
                 drawInnerFace(context: &context, center: center, radius: outerR * 0.94, ink: compassInk)
@@ -222,20 +289,20 @@ private struct TwilightCompassDrawing: View {
                 )
             }
 
-            let tickInk = basemapBehindFace ? Self.bezelInkOnBasemap : compassInk
-            drawDegreeTicks(context: &context, center: center, outerR: outerR, heading: headingDegrees, ink: tickInk)
+            drawDegreeTicks(context: &context, center: center, outerR: outerR, heading: headingDegrees, ink: paints.tickInk)
             drawBezelLabels(
                 context: &context,
                 center: center,
                 outerR: outerR,
                 heading: headingDegrees,
-                ink: basemapBehindFace ? Self.bezelInkOnBasemap : compassInk,
-                stroke: compassStroke,
-                cardinals: cardinals,
-                northRed: Color(red: 0.92, green: 0.24, blue: 0.22)
+                eswAndDigitInk: paints.bezelLabelInk,
+                eswAndDigitHalo: paints.bezelLabelHalo,
+                northRed: northRed,
+                northHalo: paints.northLabelHalo,
+                cardinals: cardinals
             )
 
-            drawOuterRim(context: &context, center: center, radius: outerR * 0.985, ink: compassInk)
+            drawOuterRim(context: &context, center: center, radius: outerR * 0.985, ink: paints.outerRimInk)
         }
     }
 
@@ -281,15 +348,16 @@ private struct TwilightCompassDrawing: View {
         center: CGPoint,
         outerR: CGFloat,
         heading: Double,
-        ink: Color,
-        stroke: Color,
-        cardinals: (n: String, e: String, s: String, w: String),
-        northRed: Color
+        eswAndDigitInk: Color,
+        eswAndDigitHalo: Color,
+        northRed: Color,
+        northHalo: Color,
+        cardinals: (n: String, e: String, s: String, w: String)
     ) {
         let tickEnd = outerR * 0.94
         let labelR = tickEnd + 12
-        let cardinalFont: CGFloat = cardinals.n == "北" ? 12.5 : 11.5
-        let digitFont: CGFloat = 8.5
+        let cardinalFont: CGFloat = cardinals.n == "北" ? 14 : 12.75
+        let digitFont: CGFloat = 9.75
 
         for d in stride(from: 0, through: 330, by: 30) {
             let geo = Double(d)
@@ -307,7 +375,7 @@ private struct TwilightCompassDrawing: View {
                     at: pt,
                     fontSize: cardinalFont,
                     fill: northRed,
-                    stroke: stroke,
+                    halo: northHalo,
                     fillOpacity: 1
                 )
             case 90:
@@ -316,8 +384,8 @@ private struct TwilightCompassDrawing: View {
                     label: cardinals.e,
                     at: pt,
                     fontSize: cardinalFont,
-                    fill: ink,
-                    stroke: stroke,
+                    fill: eswAndDigitInk,
+                    halo: eswAndDigitHalo,
                     fillOpacity: 0.9
                 )
             case 180:
@@ -326,8 +394,8 @@ private struct TwilightCompassDrawing: View {
                     label: cardinals.s,
                     at: pt,
                     fontSize: cardinalFont,
-                    fill: ink,
-                    stroke: stroke,
+                    fill: eswAndDigitInk,
+                    halo: eswAndDigitHalo,
                     fillOpacity: 0.9
                 )
             case 270:
@@ -336,20 +404,20 @@ private struct TwilightCompassDrawing: View {
                     label: cardinals.w,
                     at: pt,
                     fontSize: cardinalFont,
-                    fill: ink,
-                    stroke: stroke,
+                    fill: eswAndDigitInk,
+                    halo: eswAndDigitHalo,
                     fillOpacity: 0.9
                 )
             default:
                 let halo = Text("\(d)")
                     .font(.system(size: digitFont, weight: .semibold, design: .rounded))
                     .monospacedDigit()
-                    .foregroundStyle(stroke.opacity(0.38))
+                    .foregroundStyle(eswAndDigitHalo.opacity(0.72))
                 context.draw(halo, at: CGPoint(x: pt.x + 0.45, y: pt.y + 0.45), anchor: .center)
                 let t = Text("\(d)")
                     .font(.system(size: digitFont, weight: .semibold, design: .rounded))
                     .monospacedDigit()
-                    .foregroundStyle(ink.opacity(0.8))
+                    .foregroundStyle(eswAndDigitInk.opacity(0.82))
                 context.draw(t, at: pt, anchor: .center)
             }
         }
@@ -361,13 +429,13 @@ private struct TwilightCompassDrawing: View {
         at pt: CGPoint,
         fontSize: CGFloat,
         fill: Color,
-        stroke: Color,
+        halo: Color,
         fillOpacity: Double
     ) {
-        let halo = Text(label)
+        let haloLayer = Text(label)
             .font(.system(size: fontSize, weight: .bold, design: .rounded))
-            .foregroundStyle(stroke.opacity(0.42))
-        context.draw(halo, at: CGPoint(x: pt.x + 0.5, y: pt.y + 0.5), anchor: .center)
+            .foregroundStyle(halo)
+        context.draw(haloLayer, at: CGPoint(x: pt.x + 0.5, y: pt.y + 0.5), anchor: .center)
         let t = Text(label)
             .font(.system(size: fontSize, weight: .bold, design: .rounded))
             .foregroundStyle(fill.opacity(fillOpacity))

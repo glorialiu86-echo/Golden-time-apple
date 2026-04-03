@@ -87,6 +87,14 @@ private enum PhoneSkin: Equatable {
         [upper.opacity(0.42), lower.opacity(0.42)]
     }
 
+    /// Day shell reads as “light chrome”; other phases use light ink on deep backdrops (compass bezel copy).
+    var isLightChrome: Bool {
+        switch self {
+        case .day: return true
+        case .night, .blueHour, .goldenHour: return false
+        }
+    }
+
     /// Distinct blue-hour vs golden-hour card gradients per phase backdrop (keeps `ink` readable).
     func twilightCardGradient(blue: Bool) -> [Color] {
         switch self {
@@ -293,6 +301,7 @@ struct GoldenTimePhoneRootView: View {
                 chromeGradient: skin.chromeGradient,
                 compassInk: skin.ink,
                 compassStroke: skin.panelStroke,
+                chromeIsLight: skin.isLightChrome,
                 uiLanguage: lang,
                 coordinate: coord,
                 deviceHeadingDegrees: model.deviceHeadingDegrees,

@@ -71,6 +71,24 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         return f
     }()
 
+    #if DEBUG
+    /// Simulator follows the Mac clock; set `GOLDEN_TIME_OVERRIDE_NOW` (ISO 8601, e.g. `2026-04-04T05:00:00Z`) via `SIMCTL_CHILD_*` at launch to preview a fixed local solar context. Debug only.
+    private static func environmentOverrideNow() -> Date? {
+        guard let s = ProcessInfo.processInfo.environment["GOLDEN_TIME_OVERRIDE_NOW"], !s.isEmpty else { return nil }
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f.date(from: s) { return d }
+        f.formatOptions = [.withInternetDateTime]
+        return f.date(from: s)
+    }
+    #else
+    private static func environmentOverrideNow() -> Date? { nil }
+    #endif
+
+    private func nowForModel() -> Date {
+        Self.environmentOverrideNow() ?? Date()
+    }
+
     private func formatTwilightInstant(_ instant: Date, now: Date) -> String {
         GTDateFormatters.twilightInstantLabel(instant, now: now, lang: contentLanguage)
     }
@@ -128,7 +146,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             .store(in: &cancellables)
 
         locationReader.requestLocation()
-        let now = Date()
+        let now = nowForModel()
         if activeFix != nil {
             recomputeEngineIfNeeded(now: now, force: true)
         }
@@ -137,10 +155,11 @@ final class GoldenTimePhoneViewModel: ObservableObject {
 
         Timer.publish(every: 1, tolerance: 0.15, on: .main, in: .common)
             .autoconnect()
-            .sink { [weak self] date in
+            .sink { [weak self] _ in
                 guard let self else { return }
-                self.clockNow = date
-                self.refreshForTick(at: date)
+                let now = self.nowForModel()
+                self.clockNow = now
+                self.refreshForTick(at: now)
             }
             .store(in: &cancellables)
     }
@@ -190,7 +209,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         Self.saveCachedFix(fix)
         updateCoordLabels(lat: fix.latitude, lon: fix.longitude)
         recomputeStatusLine()
-        let now = Date()
+        let now = nowForModel()
         recomputeEngineIfNeeded(now: now, force: true)
         refreshWindows(at: now)
     }

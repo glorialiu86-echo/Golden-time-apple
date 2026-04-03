@@ -1,6 +1,6 @@
 # AGENTS.md — Golden Time（Apple）
 
-给在本仓库里改代码的 **AI Agent / 自动化助手** 用：改完要 **能编译、能装到模拟器、能自动打开 App**，方便人类在 Simulator 里直接看 UI。
+给在本仓库里改代码的 **AI Agent / 自动化助手** 用：改完要 **能编译、能装到模拟器**；若需人类看 UI，须走 **卸载 → 重装** 的完整流程（见 §2），**不要**假定「模拟器里再打开一下」就是新包。
 
 ---
 
@@ -24,14 +24,19 @@ cd "/path/to/Golden-time-apple"
 ./scripts/launch-golden-time-ios-simulator.sh
 ```
 
-脚本会：**打开 Simulator → 启动指定机型 → 用独立 DerivedData 编译 iOS App →（先卸载旧包）→ 安装 → 启动** `time.golden.GoldenTime`。
+脚本会：**打开 Simulator → 启动指定机型 → 用独立 DerivedData 编译 iOS App → `terminate` 旧进程 →（默认卸载旧包）→ 安装 →（默认再 `launch`）** `time.golden.GoldenTime`。
+
+**禁止只靠「在模拟器里点开 App」当验收（重要）**  
+多任务切回、仅 `simctl launch` 不重装、或覆盖安装不卸载，常会撞到 **旧进程 / 旧包 / 缓存**，界面像完全没更新。**要在模拟器里确认 UI，必须同一轮里完成：终止进程 → 卸载 → 安装**（本脚本已按此顺序执行）。
 
 **安装前必须先卸载（重要）**  
 模拟器里若直接覆盖安装，经常出现 **旧包 / 缓存** 不刷新，表现为 **改代码、换图标、改 Info 都像没生效**。因此验证 UI 或资源时务必 **先删 App 再装**：
 
+- 脚本在 `uninstall` 前会先 **`xcrun simctl terminate`**，避免已运行的旧实例占着会话。
 - 脚本默认会在 `simctl install` 之前执行 **`xcrun simctl uninstall <UDID> time.golden.GoldenTime`**（失败则忽略，例如尚未安装过）。
-- 若你**手写** `xcodebuild` + `simctl install`，请在 **`install` 前**自行执行同一条 `uninstall`，或先在模拟器主屏幕 **长按删除 App**。
+- 若你**手写** `xcodebuild` + `simctl install`，请在 **`install` 前**自行执行同一条 `terminate`（可选）+ `uninstall`，或先在模拟器主屏幕 **长按删除 App**。
 - 临时想跳过卸载（仅调试用，不推荐）：`GOLDEN_TIME_SKIP_UNINSTALL=1 ./scripts/launch-golden-time-ios-simulator.sh`
+- 若人类希望 **自己从主屏幕点图标冷启动**（不信任自动 `launch`）：`GOLDEN_TIME_SKIP_LAUNCH=1 ./scripts/launch-golden-time-ios-simulator.sh`（仍会完整卸载重装，只是不自动拉起进程）。
 
 说明：脚本里每次会 **`rm -rf` 独立 DerivedData**，这只保证 **编译产物干净**；**已装进模拟器的 .app 与部分缓存** 仍可能不更新，所以 **卸载步骤不能省**。
 
@@ -40,7 +45,7 @@ cd "/path/to/Golden-time-apple"
 - 可选指定 DerivedData 目录：  
   `GOLDEN_TIME_DERIVED="$HOME/tmp/GT-dd" ./scripts/launch-golden-time-ios-simulator.sh`
 
-**Agent 在回复里应简要说明**：已执行上述脚本（或等价的 `xcodebuild` + `simctl install` + `simctl launch`），以及是否 **BUILD SUCCEEDED**、是否 **launch 成功**（若失败，贴出末尾错误信息）。
+**Agent 在回复里应简要说明**：已执行上述完整脚本（含 **terminate + uninstall + install**；若未设 `GOLDEN_TIME_SKIP_LAUNCH` 则含 **launch**），以及是否 **BUILD SUCCEEDED**、安装是否成功。**不要**在回复里暗示「已帮你在模拟器里打开」若实际只做了 `simctl launch` 而未在同一轮重装。
 
 **限制说明**：Cursor 沙箱环境可能无法连接 CoreSimulator；若命令报 `CoreSimulatorService` / `Connection refused`，需要在 **非沙箱、可访问本机 Simulator 的终端** 重试，或请人类本地执行同一条脚本。Agent 仍应 **写出** 这条命令，保证流程可复现。
 
