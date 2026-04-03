@@ -1,0 +1,490 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 60;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		AC0000000000000000000001 /* GoldenTimeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000001 /* GoldenTimeApp.swift */; };
+		AC0000000000000000000002 /* GoldenTimeWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000002 /* GoldenTimeWatchApp.swift */; };
+		AC0000000000000000000003 /* GoldenTimeWatchRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000003 /* GoldenTimeWatchRootView.swift */; };
+		AC0000000000000000000004 /* GoldenTimeWatchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000004 /* GoldenTimeWatchViewModel.swift */; };
+		AC0000000000000000000005 /* WatchLocationReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000005 /* WatchLocationReader.swift */; };
+		AC0000000000000000000006 /* GoldenTimeWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000005 /* GoldenTimeWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AC0000000000000000000007 /* GoldenTimePhoneRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000006 /* GoldenTimePhoneRootView.swift */; };
+		AC0000000000000000000008 /* GoldenTimePhoneViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000007 /* GoldenTimePhoneViewModel.swift */; };
+		AC0000000000000000000009 /* PhoneLocationReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000008 /* PhoneLocationReader.swift */; };
+		AC0000000000000000000010 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000011 /* Assets.xcassets */; };
+		AC0000000000000000000011 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000011 /* Assets.xcassets */; };
+		AC0000000000000000000012 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000012 /* LaunchScreen.storyboard */; };
+		AC0000000000000000000013 /* PhoneContentLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000009 /* PhoneContentLanguage.swift */; };
+		AC0000000000000000000014 /* TwilightCompassCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000013 /* TwilightCompassCard.swift */; };
+		AC0000000000000000000015 /* NetworkReachability.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000014 /* NetworkReachability.swift */; };
+		AC0000000000000000000016 /* GTAppIconPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000015 /* GTAppIconPalette.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AA000000000000000000000E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA0000000000000000000003;
+			remoteInfo = "GoldenTime Watch App";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AA000000000000000000000C /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				AC0000000000000000000006 /* GoldenTimeWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		AB0000000000000000000001 /* GoldenTimeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldenTimeApp.swift; sourceTree = "<group>"; };
+		AB0000000000000000000002 /* GoldenTimeWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldenTimeWatchApp.swift; sourceTree = "<group>"; };
+		AB0000000000000000000003 /* GoldenTimeWatchRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldenTimeWatchRootView.swift; sourceTree = "<group>"; };
+		AB0000000000000000000004 /* GoldenTimeWatchViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldenTimeWatchViewModel.swift; sourceTree = "<group>"; };
+		AB0000000000000000000005 /* WatchLocationReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLocationReader.swift; sourceTree = "<group>"; };
+		AB0000000000000000000006 /* GoldenTimePhoneRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldenTimePhoneRootView.swift; sourceTree = "<group>"; };
+		AB0000000000000000000007 /* GoldenTimePhoneViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldenTimePhoneViewModel.swift; sourceTree = "<group>"; };
+		AB0000000000000000000008 /* PhoneLocationReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneLocationReader.swift; sourceTree = "<group>"; };
+		AB0000000000000000000009 /* PhoneContentLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneContentLanguage.swift; sourceTree = "<group>"; };
+		AB0000000000000000000011 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AB0000000000000000000012 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		AB0000000000000000000013 /* TwilightCompassCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TwilightCompassCard.swift; sourceTree = "<group>"; };
+		AB0000000000000000000014 /* NetworkReachability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkReachability.swift; sourceTree = "<group>"; };
+		AB0000000000000000000015 /* GTAppIconPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTAppIconPalette.swift; sourceTree = "<group>"; };
+		AA0000000000000000000004 /* GoldenTime.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GoldenTime.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA0000000000000000000005 /* GoldenTimeWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GoldenTimeWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AA0000000000000000000008 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0000000000000000000009 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AD0000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				AD0000000000000000000005 /* Shared */,
+				AD0000000000000000000002 /* iOS */,
+				AD0000000000000000000003 /* Watch */,
+				AD0000000000000000000004 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AD0000000000000000000005 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				AB0000000000000000000011 /* Assets.xcassets */,
+			);
+			path = Apps/GoldenTime/Shared;
+			sourceTree = "<group>";
+		};
+		AD0000000000000000000002 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				AB0000000000000000000012 /* LaunchScreen.storyboard */,
+				AB0000000000000000000001 /* GoldenTimeApp.swift */,
+				AB0000000000000000000006 /* GoldenTimePhoneRootView.swift */,
+				AB0000000000000000000007 /* GoldenTimePhoneViewModel.swift */,
+				AB0000000000000000000008 /* PhoneLocationReader.swift */,
+				AB0000000000000000000009 /* PhoneContentLanguage.swift */,
+				AB0000000000000000000013 /* TwilightCompassCard.swift */,
+				AB0000000000000000000014 /* NetworkReachability.swift */,
+				AB0000000000000000000015 /* GTAppIconPalette.swift */,
+			);
+			path = Apps/GoldenTime/iOS;
+			sourceTree = "<group>";
+		};
+		AD0000000000000000000003 /* Watch */ = {
+			isa = PBXGroup;
+			children = (
+				AB0000000000000000000002 /* GoldenTimeWatchApp.swift */,
+				AB0000000000000000000003 /* GoldenTimeWatchRootView.swift */,
+				AB0000000000000000000004 /* GoldenTimeWatchViewModel.swift */,
+				AB0000000000000000000005 /* WatchLocationReader.swift */,
+			);
+			path = Apps/GoldenTime/Watch;
+			sourceTree = "<group>";
+		};
+		AD0000000000000000000004 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000000000000000000004 /* GoldenTime.app */,
+				AA0000000000000000000005 /* GoldenTimeWatch.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AA0000000000000000000002 /* GoldenTime */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0000000000000000000010 /* Build configuration list for PBXNativeTarget "GoldenTime" */;
+			buildPhases = (
+				AA0000000000000000000006 /* Sources */,
+				AA0000000000000000000008 /* Frameworks */,
+				AA000000000000000000000A /* Resources */,
+				AA000000000000000000000C /* Embed Watch Content */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA000000000000000000000D /* PBXTargetDependency */,
+			);
+			name = GoldenTime;
+			packageProductDependencies = (
+				AE0000000000000000000002 /* GoldenTimeCore */,
+			);
+			productName = GoldenTime;
+			productReference = AA0000000000000000000004 /* GoldenTime.app */;
+			productType = "com.apple.product-type.application";
+		};
+		AA0000000000000000000003 /* GoldenTime Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0000000000000000000011 /* Build configuration list for PBXNativeTarget "GoldenTime Watch App" */;
+			buildPhases = (
+				AA0000000000000000000007 /* Sources */,
+				AA0000000000000000000009 /* Frameworks */,
+				AA000000000000000000000B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "GoldenTime Watch App";
+			packageProductDependencies = (
+				AE0000000000000000000002 /* GoldenTimeCore */,
+			);
+			productName = "GoldenTime Watch App";
+			productReference = AA0000000000000000000005 /* GoldenTimeWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AA0000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					AA0000000000000000000002 = {
+						CreatedOnToolsVersion = 26.0;
+					};
+					AA0000000000000000000003 = {
+						CreatedOnToolsVersion = 26.0;
+					};
+				};
+			};
+			buildConfigurationList = AA000000000000000000000F /* Build configuration list for PBXProject "GoldenTime" */;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = AD0000000000000000000001;
+			packageReferences = (
+				AE0000000000000000000001 /* XCLocalSwiftPackageReference "GoldenTimeApple" */,
+			);
+			productRefGroup = AD0000000000000000000004 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AA0000000000000000000002 /* GoldenTime */,
+				AA0000000000000000000003 /* GoldenTime Watch App */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AA000000000000000000000A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AC0000000000000000000010 /* Assets.xcassets in Resources */,
+				AC0000000000000000000012 /* LaunchScreen.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA000000000000000000000B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AC0000000000000000000011 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AA0000000000000000000006 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AC0000000000000000000001 /* GoldenTimeApp.swift in Sources */,
+				AC0000000000000000000007 /* GoldenTimePhoneRootView.swift in Sources */,
+				AC0000000000000000000008 /* GoldenTimePhoneViewModel.swift in Sources */,
+				AC0000000000000000000009 /* PhoneLocationReader.swift in Sources */,
+				AC0000000000000000000013 /* PhoneContentLanguage.swift in Sources */,
+				AC0000000000000000000014 /* TwilightCompassCard.swift in Sources */,
+				AC0000000000000000000015 /* NetworkReachability.swift in Sources */,
+				AC0000000000000000000016 /* GTAppIconPalette.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0000000000000000000007 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AC0000000000000000000002 /* GoldenTimeWatchApp.swift in Sources */,
+				AC0000000000000000000003 /* GoldenTimeWatchRootView.swift in Sources */,
+				AC0000000000000000000004 /* GoldenTimeWatchViewModel.swift in Sources */,
+				AC0000000000000000000005 /* WatchLocationReader.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AA000000000000000000000D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA0000000000000000000003 /* GoldenTime Watch App */;
+			targetProxy = AA000000000000000000000E /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		AA0000000000000000000012 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Golden Time";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "用于读取本机经纬度，在设备上用天文公式本地推算蓝调与金调；不访问互联网。";
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = time.golden.GoldenTime;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AA0000000000000000000013 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Golden Time";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "用于读取本机经纬度，在设备上用天文公式本地推算蓝调与金调；不访问互联网。";
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = time.golden.GoldenTime;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		AA0000000000000000000014 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Golden Time";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "用于读取本机经纬度，在手表上用天文公式本地推算蓝调与金调；不访问互联网。";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = time.golden.GoldenTime;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = time.golden.GoldenTime.watchkitapp;
+				PRODUCT_NAME = GoldenTimeWatch;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
+			};
+			name = Debug;
+		};
+		AA0000000000000000000015 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Golden Time";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "用于读取本机经纬度，在手表上用天文公式本地推算蓝调与金调；不访问互联网。";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = time.golden.GoldenTime;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = time.golden.GoldenTime.watchkitapp;
+				PRODUCT_NAME = GoldenTimeWatch;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
+			};
+			name = Release;
+		};
+		AA0000000000000000000016 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		AA0000000000000000000017 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AA000000000000000000000F /* Build configuration list for PBXProject "GoldenTime" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000000000000000000016 /* Debug */,
+				AA0000000000000000000017 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA0000000000000000000010 /* Build configuration list for PBXNativeTarget "GoldenTime" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000000000000000000012 /* Debug */,
+				AA0000000000000000000013 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA0000000000000000000011 /* Build configuration list for PBXNativeTarget "GoldenTime Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000000000000000000014 /* Debug */,
+				AA0000000000000000000015 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		AE0000000000000000000001 /* XCLocalSwiftPackageReference "GoldenTimeApple" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AE0000000000000000000002 /* GoldenTimeCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AE0000000000000000000001 /* XCLocalSwiftPackageReference "GoldenTimeApple" */;
+			productName = GoldenTimeCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = AA0000000000000000000001 /* Project object */;
+}
