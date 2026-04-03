@@ -1,0 +1,18 @@
+# Garmin Connect IQ build artifacts
+bin/
+gen/
+mir/
+internal-mir/
+*.prg
+*.prg.debug.xml
+*-settings.json
+
+# macOS
+.DS_Store
+
+# Developer key (sensitive)
+developer_key
+
+# IDE
+.vscode/
+.idea/
