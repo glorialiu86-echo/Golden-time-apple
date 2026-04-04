@@ -69,13 +69,13 @@ struct GoldenTwilightIOSWidgetView: View {
         switch family {
         case .systemSmall:
             smallContent
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(GTWidgetSurface.homeBackground, for: .widget)
         case .systemMedium:
             mediumContent
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(GTWidgetSurface.homeBackground, for: .widget)
         case .systemLarge:
             largeContent
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(GTWidgetSurface.homeBackground, for: .widget)
         case .accessoryCircular:
             ZStack {
                 AccessoryWidgetBackground()
@@ -88,28 +88,34 @@ struct GoldenTwilightIOSWidgetView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.45)
                 }
+                .foregroundStyle(GTWidgetSurface.accessoryPrimary)
                 .padding(.horizontal, 2)
             }
-            .containerBackground(.fill.tertiary, for: .widget)
+            .containerBackground(Color.clear, for: .widget)
         case .accessoryRectangular:
             VStack(alignment: .leading, spacing: 4) {
                 Text(GTCopy.widgetStackTitle(entry.lang))
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                twilightRows(font: .subheadline.weight(.medium), iconSize: 12)
+                    .foregroundStyle(GTWidgetSurface.accessorySecondary)
+                twilightRows(
+                    font: .subheadline.weight(.medium),
+                    iconSize: 12,
+                    rowForeground: GTWidgetSurface.accessoryPrimary
+                )
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(6)
-            .containerBackground(.fill.tertiary, for: .widget)
+            .containerBackground(Color.clear, for: .widget)
         case .accessoryInline:
             Text("\(entry.blueLine)  \(entry.goldenLine)")
                 .font(.caption2.monospacedDigit())
+                .foregroundStyle(GTWidgetSurface.accessoryPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.65)
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(Color.clear, for: .widget)
         @unknown default:
             mediumContent
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(GTWidgetSurface.homeBackground, for: .widget)
         }
     }
 
@@ -117,8 +123,12 @@ struct GoldenTwilightIOSWidgetView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(GTCopy.widgetStackTitle(entry.lang))
                 .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-            twilightRows(font: .caption2.weight(.medium), iconSize: 11)
+                .foregroundStyle(GTWidgetSurface.homeTitleMuted)
+            twilightRows(
+                font: .caption2.weight(.medium),
+                iconSize: 11,
+                rowForeground: GTWidgetSurface.homeBody
+            )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -127,7 +137,12 @@ struct GoldenTwilightIOSWidgetView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(GTCopy.widgetStackTitle(entry.lang))
                 .font(.subheadline.weight(.semibold))
-            twilightRows(font: .body.weight(.medium), iconSize: 14)
+                .foregroundStyle(GTWidgetSurface.homeBody)
+            twilightRows(
+                font: .body.weight(.medium),
+                iconSize: 14,
+                rowForeground: GTWidgetSurface.homeBody
+            )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -136,16 +151,21 @@ struct GoldenTwilightIOSWidgetView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(GTCopy.widgetStackTitle(entry.lang))
                 .font(.headline)
-            twilightRows(font: .title3.weight(.medium), iconSize: 18)
+                .foregroundStyle(GTWidgetSurface.homeBody)
+            twilightRows(
+                font: .title3.weight(.medium),
+                iconSize: 18,
+                rowForeground: GTWidgetSurface.homeBody
+            )
             Text(GTCopy.widgetOpenAppHint(entry.lang))
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(GTWidgetSurface.homeFootnote)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     @ViewBuilder
-    private func twilightRows(font: Font, iconSize: CGFloat?) -> some View {
+    private func twilightRows(font: Font, iconSize: CGFloat?, rowForeground: Color) -> some View {
         Label {
             Text(entry.blueLine)
                 .font(font.monospacedDigit())
@@ -155,6 +175,7 @@ struct GoldenTwilightIOSWidgetView: View {
             Image(systemName: "moon.stars.fill")
                 .font(iconSize.map { .system(size: $0) } ?? .caption2)
         }
+        .foregroundStyle(rowForeground)
         Label {
             Text(entry.goldenLine)
                 .font(font.monospacedDigit())
@@ -164,6 +185,7 @@ struct GoldenTwilightIOSWidgetView: View {
             Image(systemName: "sun.horizon.fill")
                 .font(iconSize.map { .system(size: $0) } ?? .caption2)
         }
+        .foregroundStyle(rowForeground)
     }
 }
 

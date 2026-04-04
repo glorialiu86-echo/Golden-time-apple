@@ -7,11 +7,10 @@ cd "$REPO_ROOT"
 SIM_NAME="${GOLDEN_TIME_SIM_DEVICE:-iPhone 17}"
 BUNDLE_ID="time.golden.GoldenHourCompass"
 DERIVED="${GOLDEN_TIME_DERIVED:-/tmp/GoldenHourCompass-derived}"
-# Default: Shanghai + China time for coherent local solar / twilight in Simulator (override with env if needed).
-DEFAULT_SIM_LOCATION="${GOLDEN_TIME_SIM_LOCATION:-31.230416,121.473701}"
+# Default: Shanghai pin for Simulator (People’s Square area). Override: GOLDEN_TIME_SIM_LOCATION=lat,lon
+SHANGHAI_SIM_LOCATION="31.230416,121.473701"
+DEFAULT_SIM_LOCATION="${GOLDEN_TIME_SIM_LOCATION:-$SHANGHAI_SIM_LOCATION}"
 DEFAULT_SIM_TZ="${GOLDEN_TIME_SIM_TZ:-Asia/Shanghai}"
-# iOS uses system wall clock by default. Optional fixed instant for Simulator QA (see `GTPreviewClock`):
-#   GOLDEN_TIME_DEBUG_NOW=2026-04-04T06:02:00+08:00 ./scripts/launch-golden-time-ios-simulator.sh
 # Set GOLDEN_TIME_NO_MAP_BASE=1 when invoking this script to force the gradient-only compass (no MapKit underlay), e.g. offline QA.
 # Optional: GOLDEN_TIME_SIM_LOCATION=lat,lon to override the default Shanghai pin.
 # The script forwards GOLDEN_TIME_NO_MAP_BASE to the Simulator process via SIMCTL_CHILD_* (see `simctl help launch`).
@@ -24,10 +23,29 @@ if [[ -z "${UDID}" ]]; then
   exit 1
 fi
 
+# Quit Simulator UI and shut down the device so the next boot picks up a clean session (no stale state).
+killall Simulator 2>/dev/null || true
+xcrun simctl shutdown "${UDID}" 2>/dev/null || true
+sleep 1
 open -a Simulator || true
 xcrun simctl boot "${UDID}" 2>/dev/null || true
 
+# Status bar time can be frozen by a prior `simctl status_bar override --time` (shows e.g. 13:01 while app uses real Date()).
+xcrun simctl status_bar "${UDID}" clear 2>/dev/null || true
+
+# Default sim location is San Francisco until set; clear any “scenario” then pin Shanghai.
+xcrun simctl location "${UDID}" clear 2>/dev/null || true
 xcrun simctl location "${UDID}" set "${DEFAULT_SIM_LOCATION}" 2>/dev/null || true
+
+# Cached GPS lives in the App Group plist and survives `simctl uninstall`; drop it so the next fix matches the pin above.
+shopt -s nullglob
+for plist in "${HOME}/Library/Developer/CoreSimulator/Devices/${UDID}/data/Containers/Shared/AppGroup"/*/Library/Preferences/group.time.golden.GoldenHourCompass.plist; do
+  [[ -f "${plist}" ]] || continue
+  /usr/libexec/PlistBuddy -c "Delete :gt.cached.latitude" "${plist}" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Delete :gt.cached.longitude" "${plist}" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Delete :gt.cached.timestamp" "${plist}" 2>/dev/null || true
+done
+shopt -u nullglob
 
 rm -rf "${DERIVED}"
 xcodebuild \
@@ -55,22 +73,17 @@ fi
 
 xcrun simctl install "${UDID}" "${APP}"
 
+# Re-apply pin after install (some runtimes only deliver the first CL update reliably after a fresh set).
+xcrun simctl location "${UDID}" set "${DEFAULT_SIM_LOCATION}" 2>/dev/null || true
+
 if [[ "${GOLDEN_TIME_NO_MAP_BASE:-}" == "1" ]]; then
   export SIMCTL_CHILD_GOLDEN_TIME_NO_MAP_BASE=1
 fi
 export SIMCTL_CHILD_TZ="${DEFAULT_SIM_TZ}"
 
-if [[ -n "${GOLDEN_TIME_DEBUG_NOW:-}" ]]; then
-  export SIMCTL_CHILD_GOLDEN_TIME_DEBUG_NOW="${GOLDEN_TIME_DEBUG_NOW}"
-fi
-
 if [[ -n "${GOLDEN_TIME_SKIP_LAUNCH:-}" ]]; then
   echo "Installed ${BUNDLE_ID} on ${SIM_NAME} (${UDID}); launch skipped (GOLDEN_TIME_SKIP_LAUNCH=1). Open the app from the Home Screen."
 else
   xcrun simctl launch "${UDID}" "${BUNDLE_ID}"
-  if [[ -n "${SIMCTL_CHILD_GOLDEN_TIME_DEBUG_NOW:-}" ]]; then
-    echo "Launched ${BUNDLE_ID} on ${SIM_NAME} (${UDID}) with TZ=${DEFAULT_SIM_TZ}, location=${DEFAULT_SIM_LOCATION}, GOLDEN_TIME_DEBUG_NOW=${SIMCTL_CHILD_GOLDEN_TIME_DEBUG_NOW}."
-  else
-    echo "Launched ${BUNDLE_ID} on ${SIM_NAME} (${UDID}) with TZ=${DEFAULT_SIM_TZ}, location=${DEFAULT_SIM_LOCATION}."
-  fi
+  echo "Launched ${BUNDLE_ID} on ${SIM_NAME} (${UDID}) with TZ=${DEFAULT_SIM_TZ}, location=${DEFAULT_SIM_LOCATION}."
 fi

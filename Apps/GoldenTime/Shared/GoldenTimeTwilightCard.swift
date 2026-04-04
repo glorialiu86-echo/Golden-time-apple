@@ -96,10 +96,10 @@ public struct GoldenTimeTwilightWindowCard: View {
             HStack(alignment: .firstTextBaseline, spacing: 7) {
                 Image(systemName: systemImage)
                     .font(m.symbolFont)
-                    .foregroundStyle(skin.muted)
+                    .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
                 Text(title)
                     .font(m.titleFont)
-                    .foregroundStyle(skin.ink)
+                    .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
             }
 
             Group {
@@ -108,18 +108,18 @@ public struct GoldenTimeTwilightWindowCard: View {
                         Text(clockStart)
                             .font(.system(size: m.timeFontSize, weight: .bold, design: .rounded))
                             .monospacedDigit()
-                            .foregroundStyle(skin.ink)
+                            .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
                             .lineLimit(1)
                             .minimumScaleFactor(0.42)
                         Image(systemName: "arrow.right")
                             .font(.system(size: m.timeFontSize * 0.58, weight: .bold, design: .rounded))
-                            .foregroundStyle(skin.muted.opacity(0.95))
+                            .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
                             .frame(width: max(18, m.timeFontSize * 0.75), alignment: .center)
                             .offset(y: -1)
                         Text(clockEnd)
                             .font(.system(size: m.timeFontSize, weight: .bold, design: .rounded))
                             .monospacedDigit()
-                            .foregroundStyle(skin.ink)
+                            .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
                             .lineLimit(1)
                             .minimumScaleFactor(0.42)
                     }
@@ -132,22 +132,22 @@ public struct GoldenTimeTwilightWindowCard: View {
                        let cd = GTTwilightCountdownLine.text(from: now, to: w.start, lang: lang)
                     {
                         let a11y = "\(GTCopy.countdownUntilStartLabel(lang)) \(cd)"
-                        countdownRow(label: GTCopy.countdownUntilStartLabel(lang), value: cd, a11y: a11y, skin: skin, m: m)
+                        countdownRow(label: GTCopy.countdownUntilStartLabel(lang), value: cd, a11y: a11y, blueCard: blue, skin: skin, m: m)
                     } else if nowTs < endTs,
                               let cd = GTTwilightCountdownLine.text(from: now, to: w.end, lang: lang)
                     {
                         let a11y = "\(GTCopy.countdownUntilEndLabel(lang)) \(cd)"
-                        countdownRow(label: GTCopy.countdownUntilEndLabel(lang), value: cd, a11y: a11y, skin: skin, m: m)
+                        countdownRow(label: GTCopy.countdownUntilEndLabel(lang), value: cd, a11y: a11y, blueCard: blue, skin: skin, m: m)
                     } else {
                         Text("—")
                             .font(.title3.weight(.bold))
-                            .foregroundStyle(skin.muted)
+                            .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     }
                 } else {
                     Text("—")
                         .font(.title3.weight(.bold))
-                        .foregroundStyle(skin.muted)
+                        .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
             }
@@ -174,18 +174,18 @@ public struct GoldenTimeTwilightWindowCard: View {
     }
 
     @ViewBuilder
-    private func countdownRow(label: String, value: String, a11y: String, skin: GTPhaseSkin, m: GoldenTimeTwilightCardMetrics) -> some View {
+    private func countdownRow(label: String, value: String, a11y: String, blueCard: Bool, skin: GTPhaseSkin, m: GoldenTimeTwilightCardMetrics) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
             Text(label)
                 .font(.system(size: m.countdownLabelFontSize, weight: .semibold, design: .rounded))
-                .foregroundStyle(skin.muted)
+                .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blueCard))
                 .lineLimit(1)
                 .minimumScaleFactor(0.65)
                 .layoutPriority(-1)
             Text(value)
                 .font(.system(size: m.timeFontSize, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(skin.ink)
+                .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blueCard))
                 .lineLimit(1)
                 .minimumScaleFactor(0.42)
                 .layoutPriority(1)

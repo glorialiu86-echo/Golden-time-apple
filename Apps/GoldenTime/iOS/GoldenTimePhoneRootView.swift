@@ -100,7 +100,7 @@ struct GoldenTimePhoneRootView: View {
                     Spacer(minLength: 0)
                     Text("\(GTCopy.currentCoordinatesPrefix(lang))\(model.latitudeText), \(model.longitudeText)")
                         .font(.body.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(skin.muted)
+                        .foregroundStyle(skin.chromeSecondaryForeground)
                         .multilineTextAlignment(.center)
                         .minimumScaleFactor(0.65)
                         .lineLimit(2)
@@ -172,7 +172,7 @@ struct GoldenTimePhoneRootView: View {
             if !model.statusLine.isEmpty {
                 Text(model.statusLine)
                     .font(.caption)
-                    .foregroundStyle(skin.muted)
+                    .foregroundStyle(skin.chromeSecondaryForeground)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 7)
@@ -211,7 +211,7 @@ struct GoldenTimePhoneRootView: View {
         } else {
             Text(GTCopy.compassCardNeedLocation(lang))
                 .font(.caption)
-                .foregroundStyle(skin.muted)
+                .foregroundStyle(skin.chromeSecondaryForeground)
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
                 .padding(.vertical, 8)
@@ -224,7 +224,7 @@ struct GoldenTimePhoneRootView: View {
         if model.mapCoordinate != nil {
             Text(GTCopy.compassCardGuide(lang))
                 .font(.caption)
-                .foregroundStyle(skin.muted)
+                .foregroundStyle(skin.chromeSecondaryForeground)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity)
@@ -238,7 +238,7 @@ struct GoldenTimePhoneRootView: View {
             HStack(alignment: .center, spacing: 8) {
                 Text(GTDateFormatters.headerLine(date, lang: lang))
                     .font(.system(size: 17, weight: .semibold, design: .rounded))
-                    .foregroundStyle(skin.muted)
+                    .foregroundStyle(skin.chromeSecondaryForeground)
                     .multilineTextAlignment(.leading)
                     .minimumScaleFactor(0.72)
                     .lineLimit(3)

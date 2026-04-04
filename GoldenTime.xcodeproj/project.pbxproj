@@ -22,7 +22,6 @@
 		AC0000000000000000000066 /* GTTwilightReminderChime.caf in Resources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000066 /* GTTwilightReminderChime.caf */; };
 		AC0000000000000000000013 /* PhoneContentLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000009 /* PhoneContentLanguage.swift */; };
 		AC0000000000000000000014 /* TwilightCompassCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000013 /* TwilightCompassCard.swift */; };
-		AC0000000000000000000050 /* GTPreviewClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000050 /* GTPreviewClock.swift */; };
 		AC0000000000000000000051 /* GoldenTimePhoneSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000051 /* GoldenTimePhoneSettingsView.swift */; };
 		AC0000000000000000000065 /* TwilightReminderScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000065 /* TwilightReminderScheduler.swift */; };
 		AC0000000000000000000015 /* NetworkReachability.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000014 /* NetworkReachability.swift */; };
@@ -53,6 +52,10 @@
 		AC0000000000000000000045 /* GoldenTimeTwilightCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000018 /* GoldenTimeTwilightCard.swift */; };
 		AC0000000000000000000046 /* GTPhaseSkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000017 /* GTPhaseSkin.swift */; };
 		AC0000000000000000000047 /* GTAppIconPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000015 /* GTAppIconPalette.swift */; };
+		AC0000000000000000000070 /* GTWidgetSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000070 /* GTWidgetSurface.swift */; };
+		AC0000000000000000000071 /* GTWidgetSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000070 /* GTWidgetSurface.swift */; };
+		AC0000000000000000000072 /* GTWidgetSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000070 /* GTWidgetSurface.swift */; };
+		AC0000000000000000000073 /* GTWidgetSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000070 /* GTWidgetSurface.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -136,7 +139,6 @@
 		AB0000000000000000000012 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		AB0000000000000000000013 /* TwilightCompassCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TwilightCompassCard.swift; sourceTree = "<group>"; };
 		AB0000000000000000000014 /* NetworkReachability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkReachability.swift; sourceTree = "<group>"; };
-		AB0000000000000000000050 /* GTPreviewClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTPreviewClock.swift; sourceTree = "<group>"; };
 		AB0000000000000000000051 /* GoldenTimePhoneSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldenTimePhoneSettingsView.swift; sourceTree = "<group>"; };
 		AB0000000000000000000065 /* TwilightReminderScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TwilightReminderScheduler.swift; sourceTree = "<group>"; };
 		AB0000000000000000000066 /* GTTwilightReminderChime.caf */ = {isa = PBXFileReference; lastKnownFileType = audio.caf; path = GTTwilightReminderChime.caf; sourceTree = "<group>"; };
@@ -159,6 +161,7 @@
 		AB0000000000000000000041 /* GoldenTimeIOSWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GoldenTimeIOSWidgetExtension.entitlements; sourceTree = "<group>"; };
 		AB0000000000000000000042 /* GoldenTimeIOSWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldenTimeIOSWidgetBundle.swift; sourceTree = "<group>"; };
 		AB0000000000000000000043 /* GoldenTwilightIOSWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldenTwilightIOSWidget.swift; sourceTree = "<group>"; };
+		AB0000000000000000000070 /* GTWidgetSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTWidgetSurface.swift; sourceTree = "<group>"; };
 		AA0000000000000000000040 /* GoldenTimeWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GoldenTimeWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -217,6 +220,7 @@
 				AB0000000000000000000016 /* GTAppGroup.swift */,
 				AB0000000000000000000014 /* NetworkReachability.swift */,
 				AB0000000000000000000017 /* GTPhaseSkin.swift */,
+				AB0000000000000000000070 /* GTWidgetSurface.swift */,
 				AB0000000000000000000018 /* GoldenTimeTwilightCard.swift */,
 				AB0000000000000000000011 /* Assets.xcassets */,
 			);
@@ -235,7 +239,6 @@
 				AB0000000000000000000065 /* TwilightReminderScheduler.swift */,
 				AB0000000000000000000066 /* GTTwilightReminderChime.caf */,
 				AB0000000000000000000007 /* GoldenTimePhoneViewModel.swift */,
-				AB0000000000000000000050 /* GTPreviewClock.swift */,
 				AB0000000000000000000008 /* PhoneLocationReader.swift */,
 				AB0000000000000000000009 /* PhoneContentLanguage.swift */,
 				AB0000000000000000000013 /* TwilightCompassCard.swift */,
@@ -487,7 +490,6 @@
 				AC0000000000000000000051 /* GoldenTimePhoneSettingsView.swift in Sources */,
 				AC0000000000000000000065 /* TwilightReminderScheduler.swift in Sources */,
 				AC0000000000000000000008 /* GoldenTimePhoneViewModel.swift in Sources */,
-				AC0000000000000000000050 /* GTPreviewClock.swift in Sources */,
 				AC0000000000000000000009 /* PhoneLocationReader.swift in Sources */,
 				AC0000000000000000000013 /* PhoneContentLanguage.swift in Sources */,
 				AC0000000000000000000014 /* TwilightCompassCard.swift in Sources */,
@@ -495,6 +497,7 @@
 				AC0000000000000000000016 /* GTAppIconPalette.swift in Sources */,
 				AC0000000000000000000017 /* GTAppGroup.swift in Sources */,
 				AC0000000000000000000020 /* GTPhaseSkin.swift in Sources */,
+				AC0000000000000000000070 /* GTWidgetSurface.swift in Sources */,
 				AC0000000000000000000021 /* GoldenTimeTwilightCard.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -510,6 +513,7 @@
 				AC0000000000000000000018 /* PhoneContentLanguage.swift in Sources */,
 				AC0000000000000000000019 /* GTAppGroup.swift in Sources */,
 				AC0000000000000000000022 /* GTPhaseSkin.swift in Sources */,
+				AC0000000000000000000071 /* GTWidgetSurface.swift in Sources */,
 				AC0000000000000000000023 /* GoldenTimeTwilightCard.swift in Sources */,
 				AC0000000000000000000024 /* TwilightCompassCard.swift in Sources */,
 				AC0000000000000000000025 /* GTAppIconPalette.swift in Sources */,
@@ -525,6 +529,7 @@
 				AC0000000000000000000028 /* GTAppGroup.swift in Sources */,
 				AC0000000000000000000030 /* PhoneContentLanguage.swift in Sources */,
 				AC0000000000000000000031 /* GTPhaseSkin.swift in Sources */,
+				AC0000000000000000000072 /* GTWidgetSurface.swift in Sources */,
 				AC0000000000000000000032 /* GoldenTimeTwilightCard.swift in Sources */,
 				AC0000000000000000000033 /* GTAppIconPalette.swift in Sources */,
 			);
@@ -548,6 +553,7 @@
 				AC0000000000000000000044 /* PhoneContentLanguage.swift in Sources */,
 				AC0000000000000000000045 /* GoldenTimeTwilightCard.swift in Sources */,
 				AC0000000000000000000046 /* GTPhaseSkin.swift in Sources */,
+				AC0000000000000000000073 /* GTWidgetSurface.swift in Sources */,
 				AC0000000000000000000047 /* GTAppIconPalette.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

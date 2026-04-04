@@ -102,43 +102,54 @@ struct GoldenTwilightWidgetView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.45)
                 }
+                .foregroundStyle(GTWidgetSurface.accessoryPrimary)
                 .padding(.horizontal, 2)
             }
-            .containerBackground(.fill.tertiary, for: .widget)
+            .containerBackground(Color.clear, for: .widget)
         case .accessoryRectangular:
             // Smart Stack 大卡与模块化矩形复杂功能共用此 family（watchOS 无 systemMedium）。
             VStack(alignment: .leading, spacing: 6) {
                 Text(GTCopy.widgetStackTitle(entry.lang))
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                twilightRows(font: .subheadline.weight(.medium), iconSize: 12)
+                    .foregroundStyle(GTWidgetSurface.accessorySecondary)
+                twilightRows(
+                    font: .subheadline.weight(.medium),
+                    iconSize: 12,
+                    rowForeground: GTWidgetSurface.accessoryPrimary
+                )
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(6)
-            .containerBackground(.fill.tertiary, for: .widget)
+            .containerBackground(Color.clear, for: .widget)
         case .accessoryInline:
             Text("\(entry.blueLine)  \(entry.goldenLine)")
                 .font(.caption2.monospacedDigit())
+                .foregroundStyle(GTWidgetSurface.accessoryPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.65)
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(Color.clear, for: .widget)
         case .accessoryCorner:
             ZStack {
                 AccessoryWidgetBackground()
                 Image(systemName: "sun.horizon.fill")
                     .font(.caption2)
+                    .foregroundStyle(GTWidgetSurface.accessoryPrimary)
             }
-            .containerBackground(.fill.tertiary, for: .widget)
+            .containerBackground(Color.clear, for: .widget)
         @unknown default:
             VStack(alignment: .leading, spacing: 4) {
-                twilightRows(font: .caption2, iconSize: nil)
+                twilightRows(
+                    font: .caption2,
+                    iconSize: nil,
+                    rowForeground: GTWidgetSurface.accessoryPrimary
+                )
             }
-            .containerBackground(.fill.tertiary, for: .widget)
+            .containerBackground(Color.clear, for: .widget)
         }
     }
 
     @ViewBuilder
-    private func twilightRows(font: Font, iconSize: CGFloat?) -> some View {
+    private func twilightRows(font: Font, iconSize: CGFloat?, rowForeground: Color) -> some View {
         Label {
             Text(entry.blueLine)
                 .font(font.monospacedDigit())
@@ -148,6 +159,7 @@ struct GoldenTwilightWidgetView: View {
             Image(systemName: "moon.stars.fill")
                 .font(iconSize.map { .system(size: $0) } ?? .caption2)
         }
+        .foregroundStyle(rowForeground)
         Label {
             Text(entry.goldenLine)
                 .font(font.monospacedDigit())
@@ -157,6 +169,7 @@ struct GoldenTwilightWidgetView: View {
             Image(systemName: "sun.horizon.fill")
                 .font(iconSize.map { .system(size: $0) } ?? .caption2)
         }
+        .foregroundStyle(rowForeground)
     }
 }
 

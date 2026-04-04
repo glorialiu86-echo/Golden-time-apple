@@ -69,7 +69,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     @Published private(set) var compassMoonBodyAzimuthDegrees: Double?
 
     /// Wall-clock instant for UI labels; updated every second (replaces `TimelineView`, which mis-sized on some simulators).
-    @Published private(set) var clockNow = GTPreviewClock.now()
+    @Published private(set) var clockNow = Date()
 
     private static var defaults: UserDefaults { GTAppGroup.shared }
     /// Matches `GoldenTimeEngine` apparent sunrise/sunset (−50′).
@@ -146,7 +146,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             .store(in: &cancellables)
 
         locationReader.requestLocation()
-        let now = GTPreviewClock.now()
+        let now = Date()
         if activeFix != nil {
             recomputeEngineIfNeeded(now: now, force: true)
             Self.reloadTwilightWidgetTimelines()
@@ -158,7 +158,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self else { return }
-                let now = GTPreviewClock.now()
+                let now = Date()
                 self.clockNow = now
                 self.refreshForTick(at: now)
             }
@@ -221,7 +221,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         Self.saveCachedFix(fix)
         updateCoordLabels(lat: fix.latitude, lon: fix.longitude)
         recomputeStatusLine()
-        let now = GTPreviewClock.now()
+        let now = Date()
         recomputeEngineIfNeeded(now: now, force: true)
         refreshWindows(at: now)
     }

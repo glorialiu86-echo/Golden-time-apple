@@ -83,7 +83,7 @@ struct GoldenTimeWatchRootView: View {
                         Text("\(GTCopy.watchCoordinatesPrefix(lang))\(model.latitudeText), \(model.longitudeText)")
                             .font(.system(size: 10, weight: .medium, design: .rounded))
                             .monospacedDigit()
-                            .foregroundStyle(skin.muted)
+                            .foregroundStyle(skin.chromeSecondaryForeground)
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
                             .minimumScaleFactor(0.82)
@@ -94,7 +94,7 @@ struct GoldenTimeWatchRootView: View {
                 } else {
                     Text(GTCopy.compassCardNeedLocation(lang))
                         .font(.caption)
-                        .foregroundStyle(skin.muted)
+                        .foregroundStyle(skin.chromeSecondaryForeground)
                         .multilineTextAlignment(.center)
                 }
             }
@@ -156,7 +156,7 @@ struct GoldenTimeWatchRootView: View {
             } else {
                 Text(GTCopy.compassCardNeedLocation(lang))
                     .font(.caption)
-                    .foregroundStyle(skin.muted)
+                    .foregroundStyle(skin.chromeSecondaryForeground)
                     .multilineTextAlignment(.center)
                     .padding()
             }

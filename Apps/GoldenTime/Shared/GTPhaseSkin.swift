@@ -60,6 +60,79 @@ public enum GTPhaseSkin: Equatable {
         ink.opacity(skinMutedOpacity)
     }
 
+    /// Secondary labels on the **full-screen phase gradient** (coordinates, date line, status, compass captions — not list cells, not twilight cards).
+    public var chromeSecondaryForeground: Color {
+        switch self {
+        case .day:
+            ink.opacity(0.52)
+        case .night, .blueHour:
+            Color.white.opacity(0.88)
+        case .goldenHour:
+            Color.white.opacity(0.92)
+        }
+    }
+
+    /// Primary text on a twilight **card** body (times, titles). Do not use `ink` here: it stays white on golden-hour sun gradients.
+    public func twilightCardPrimaryForeground(blueCard: Bool) -> Color {
+        switch self {
+        case .day:
+            Color(red: 0.12, green: 0.14, blue: 0.20)
+        case .night, .blueHour:
+            Color.white.opacity(0.94)
+        case .goldenHour:
+            blueCard ? Color.white.opacity(0.96) : Color(red: 0.14, green: 0.09, blue: 0.055)
+        }
+    }
+
+    /// Secondary text and symbols on a twilight **card** (labels, arrows, icons).
+    public func twilightCardSecondaryForeground(blueCard: Bool) -> Color {
+        switch self {
+        case .day:
+            Color(red: 0.32, green: 0.36, blue: 0.44)
+        case .night, .blueHour:
+            Color.white.opacity(0.76)
+        case .goldenHour:
+            blueCard ? Color.white.opacity(0.80) : Color(red: 0.40, green: 0.26, blue: 0.14)
+        }
+    }
+
+    /// Alias for `twilightCardSecondaryForeground` (muted accents on the card gradient).
+    public func twilightCardMuted(blueCard: Bool) -> Color {
+        twilightCardSecondaryForeground(blueCard: blueCard)
+    }
+
+    /// Secondary text on **plain white** `List` rows. `muted` follows `ink` and is wrong on white cells when `ink` is light (golden / night chrome).
+    public var settingsCellSecondaryForeground: Color {
+        switch self {
+        case .day:
+            ink.opacity(0.52)
+        case .night, .blueHour, .goldenHour:
+            Color(red: 0.38, green: 0.38, blue: 0.42)
+        }
+    }
+
+    /// Section titles sit on the phase gradient (`scrollContentBackground(.hidden)`); must stay legible on golden orange and dark brown.
+    public var settingsSectionHeaderForeground: Color {
+        switch self {
+        case .day:
+            ink.opacity(0.48)
+        case .night, .blueHour, .goldenHour:
+            Color.white.opacity(0.96)
+        }
+    }
+
+    /// Hairline shadow so light headers stay readable on bright golden-hour lower gradient.
+    public var settingsSectionHeaderShadowColor: Color {
+        switch self {
+        case .day:
+            .clear
+        case .night, .blueHour:
+            Color.black.opacity(0.4)
+        case .goldenHour:
+            Color.black.opacity(0.55)
+        }
+    }
+
     private var skinMutedOpacity: CGFloat {
         switch self {
         case .day: 0.52
@@ -141,7 +214,10 @@ public enum GTPhaseSkin: Equatable {
         case .goldenHour:
             return blue
                 ? [Color(red: 0.22, green: 0.34, blue: 0.52), Color(red: 0.32, green: 0.5, blue: 0.76)]
-                : [GTAppIconPalette.sunCore, GTAppIconPalette.sunGlow]
+                : [
+                    Color(red: 236 / 255, green: 142 / 255, blue: 22 / 255),
+                    Color(red: 210 / 255, green: 128 / 255, blue: 48 / 255),
+                ]
         }
     }
 }
