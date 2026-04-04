@@ -10,6 +10,9 @@ DERIVED="${GOLDEN_TIME_DERIVED:-/tmp/GoldenHourCompass-derived}"
 # Default: Shanghai + China time for coherent local solar / twilight in Simulator (override with env if needed).
 DEFAULT_SIM_LOCATION="${GOLDEN_TIME_SIM_LOCATION:-31.230416,121.473701}"
 DEFAULT_SIM_TZ="${GOLDEN_TIME_SIM_TZ:-Asia/Shanghai}"
+# Fixed “now” for GoldenTime iOS (see `GTPreviewClock` + `SIMCTL_CHILD_*`). Default: Shanghai **today** at 06:02 (sun + moon overlap preview).
+# Use real wall clock: GOLDEN_TIME_DEBUG_NOW_OFF=1 ./scripts/launch-golden-time-ios-simulator.sh
+# Override instant: GOLDEN_TIME_DEBUG_NOW=2026-04-04T06:02:00+08:00 ./scripts/...
 # Set GOLDEN_TIME_NO_MAP_BASE=1 when invoking this script to force the gradient-only compass (no MapKit underlay), e.g. offline QA.
 # Optional: GOLDEN_TIME_SIM_LOCATION=lat,lon to override the default Shanghai pin.
 # The script forwards GOLDEN_TIME_NO_MAP_BASE to the Simulator process via SIMCTL_CHILD_* (see `simctl help launch`).
@@ -58,9 +61,18 @@ if [[ "${GOLDEN_TIME_NO_MAP_BASE:-}" == "1" ]]; then
 fi
 export SIMCTL_CHILD_TZ="${DEFAULT_SIM_TZ}"
 
+if [[ -z "${GOLDEN_TIME_DEBUG_NOW_OFF:-}" ]]; then
+  SHANGHAI_DAY="$(TZ=Asia/Shanghai date +%Y-%m-%d)"
+  export SIMCTL_CHILD_GOLDEN_TIME_DEBUG_NOW="${GOLDEN_TIME_DEBUG_NOW:-${SHANGHAI_DAY}T06:02:00+08:00}"
+fi
+
 if [[ -n "${GOLDEN_TIME_SKIP_LAUNCH:-}" ]]; then
   echo "Installed ${BUNDLE_ID} on ${SIM_NAME} (${UDID}); launch skipped (GOLDEN_TIME_SKIP_LAUNCH=1). Open the app from the Home Screen."
 else
   xcrun simctl launch "${UDID}" "${BUNDLE_ID}"
-  echo "Launched ${BUNDLE_ID} on ${SIM_NAME} (${UDID}) with TZ=${DEFAULT_SIM_TZ}, location=${DEFAULT_SIM_LOCATION}."
+  if [[ -n "${SIMCTL_CHILD_GOLDEN_TIME_DEBUG_NOW:-}" ]]; then
+    echo "Launched ${BUNDLE_ID} on ${SIM_NAME} (${UDID}) with TZ=${DEFAULT_SIM_TZ}, location=${DEFAULT_SIM_LOCATION}, GOLDEN_TIME_DEBUG_NOW=${SIMCTL_CHILD_GOLDEN_TIME_DEBUG_NOW}."
+  else
+    echo "Launched ${BUNDLE_ID} on ${SIM_NAME} (${UDID}) with TZ=${DEFAULT_SIM_TZ}, location=${DEFAULT_SIM_LOCATION}."
+  fi
 fi

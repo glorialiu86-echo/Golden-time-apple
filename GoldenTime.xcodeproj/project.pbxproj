@@ -21,6 +21,7 @@
 		AC0000000000000000000012 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000012 /* LaunchScreen.storyboard */; };
 		AC0000000000000000000013 /* PhoneContentLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000009 /* PhoneContentLanguage.swift */; };
 		AC0000000000000000000014 /* TwilightCompassCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000013 /* TwilightCompassCard.swift */; };
+		AC0000000000000000000050 /* GTPreviewClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000050 /* GTPreviewClock.swift */; };
 		AC0000000000000000000015 /* NetworkReachability.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000014 /* NetworkReachability.swift */; };
 		AC0000000000000000000016 /* GTAppIconPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000015 /* GTAppIconPalette.swift */; };
 		AC0000000000000000000017 /* GTAppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000016 /* GTAppGroup.swift */; };
@@ -132,6 +133,7 @@
 		AB0000000000000000000012 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		AB0000000000000000000013 /* TwilightCompassCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TwilightCompassCard.swift; sourceTree = "<group>"; };
 		AB0000000000000000000014 /* NetworkReachability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkReachability.swift; sourceTree = "<group>"; };
+		AB0000000000000000000050 /* GTPreviewClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTPreviewClock.swift; sourceTree = "<group>"; };
 		AB0000000000000000000015 /* GTAppIconPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTAppIconPalette.swift; sourceTree = "<group>"; };
 		AB0000000000000000000016 /* GTAppGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTAppGroup.swift; sourceTree = "<group>"; };
 		AB0000000000000000000017 /* GTPhaseSkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTPhaseSkin.swift; sourceTree = "<group>"; };
@@ -223,6 +225,7 @@
 				AB0000000000000000000001 /* GoldenTimeApp.swift */,
 				AB0000000000000000000006 /* GoldenTimePhoneRootView.swift */,
 				AB0000000000000000000007 /* GoldenTimePhoneViewModel.swift */,
+				AB0000000000000000000050 /* GTPreviewClock.swift */,
 				AB0000000000000000000008 /* PhoneLocationReader.swift */,
 				AB0000000000000000000009 /* PhoneContentLanguage.swift */,
 				AB0000000000000000000013 /* TwilightCompassCard.swift */,
@@ -472,6 +475,7 @@
 				AC0000000000000000000001 /* GoldenTimeApp.swift in Sources */,
 				AC0000000000000000000007 /* GoldenTimePhoneRootView.swift in Sources */,
 				AC0000000000000000000008 /* GoldenTimePhoneViewModel.swift in Sources */,
+				AC0000000000000000000050 /* GTPreviewClock.swift in Sources */,
 				AC0000000000000000000009 /* PhoneLocationReader.swift in Sources */,
 				AC0000000000000000000013 /* PhoneContentLanguage.swift in Sources */,
 				AC0000000000000000000014 /* TwilightCompassCard.swift in Sources */,

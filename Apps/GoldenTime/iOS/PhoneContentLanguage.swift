@@ -101,21 +101,13 @@ enum GTCopy {
         }
     }
 
-    static func compassCardLegend(_ lang: GTAppLanguage) -> String {
+    /// Three-line note under the compass (heading, sectors, offline + map).
+    static func compassCardGuide(_ lang: GTAppLanguage) -> String {
         switch lang {
         case .chinese:
-            return "外圈是方向刻度：每 30° 一处标注，正北、正东、正南、正西在 0°、90°、180°、270°（北为红色），其余为度数。圆盘朝上的一边表示你握手机时正对的方向。红色指北标指向真北。浅色半透明扇区表示今天各段蓝调、金调里太阳大致所在的方位。"
+            return "红色箭头为手机当前朝向。太阳 / 月亮图标指示当前所在方位。\n罗盘扇区表示对应时段的光线方向（包含日/夜/金调/蓝调）。\n所有计算均在本地完成，除地图加载外，无需联网。"
         case .english:
-            return "The outer ring shows direction: a label every 30°, with N, E, S, W at the cardinal points (N in red) and degree numbers in between. The top of the dial matches the way you’re facing. The red marker points to true north. Light shaded sectors show roughly where the sun sits during today’s blue hour and golden hour windows."
-        }
-    }
-
-    static func compassCardFootnote(_ lang: GTAppLanguage) -> String {
-        switch lang {
-        case .chinese:
-            return "能加载地图时，罗盘背后会显示你当前位置附近的简图，仅供对照、不能缩放或拖动；无法加载时用柔和底色。太阳方位与罗盘角度均在手机上本地计算，不会把位置发到我们的服务器。"
-        case .english:
-            return "When map tiles can load, a simple map of your area appears behind the dial for context only—you can’t pan or zoom. Otherwise you’ll see a soft colored backdrop. Sun bearings and compass angles are calculated on your device; we don’t send your location to our servers."
+            return "The red arrow shows how your phone is oriented. The sun and moon icons mark their directions on the dial.\nThe compass sectors show where sunlight comes from in each period (day, night, golden hour, and blue hour).\nAll calculations run on your device; aside from loading the map, no network connection is needed."
         }
     }
 
@@ -204,8 +196,6 @@ enum GTDateFormatters {
     /// Bumped when date patterns change so cached formatters are not reused incorrectly.
     private nonisolated(unsafe) static var headerCache: [GTAppLanguage: DateFormatter] = [:]
     private nonisolated(unsafe) static var timeCache: [GTAppLanguage: DateFormatter] = [:]
-    private nonisolated(unsafe) static var otherDayCache: [GTAppLanguage: DateFormatter] = [:]
-
     private static func headerFormatter(_ lang: GTAppLanguage) -> DateFormatter {
         if let f = headerCache[lang] { return f }
         let f = DateFormatter()
@@ -231,20 +221,6 @@ enum GTDateFormatters {
         return f
     }
 
-    private static func otherDayFormatter(_ lang: GTAppLanguage) -> DateFormatter {
-        if let f = otherDayCache[lang] { return f }
-        let f = DateFormatter()
-        f.locale = lang.locale
-        switch lang {
-        case .chinese:
-            f.setLocalizedDateFormatFromTemplate("Mdjm")
-        case .english:
-            f.dateFormat = "MMM d, yyyy, HH:mm"
-        }
-        otherDayCache[lang] = f
-        return f
-    }
-
     static func headerLine(_ date: Date, lang: GTAppLanguage) -> String {
         headerFormatter(lang).string(from: date)
     }
@@ -253,12 +229,8 @@ enum GTDateFormatters {
         timeFormatter(lang).string(from: date)
     }
 
-    /// Same calendar day as `now` → time only; else month/day + time.
-    static func twilightInstantLabel(_ instant: Date, now: Date, lang: GTAppLanguage) -> String {
-        let cal = Calendar.autoupdatingCurrent
-        if cal.isDate(instant, inSameDayAs: now) {
-            return timeFormatter(lang).string(from: instant)
-        }
-        return otherDayFormatter(lang).string(from: instant)
+    /// Twilight window endpoints on cards/widgets: **time only** (no date / 今天明天).
+    static func twilightInstantLabel(_ instant: Date, lang: GTAppLanguage) -> String {
+        timeFormatter(lang).string(from: instant)
     }
 }

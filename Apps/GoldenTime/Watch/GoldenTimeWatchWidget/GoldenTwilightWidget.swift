@@ -72,7 +72,7 @@ struct GoldenTwilightProvider: AppIntentTimelineProvider {
         func line(for window: (start: Date, end: Date)?) -> String {
             guard let window else { return "—" }
             if useClockTimes {
-                return GTDateFormatters.twilightInstantLabel(window.start, now: now, lang: lang)
+                return GTDateFormatters.twilightInstantLabel(window.start, lang: lang)
             }
             return GTTwilightCountdownLine.text(from: now, to: window.start, lang: lang)
                 ?? GTCopy.countdownLessThanOneMinute(lang)

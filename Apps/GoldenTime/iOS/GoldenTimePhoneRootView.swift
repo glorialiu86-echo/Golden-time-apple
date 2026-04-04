@@ -201,27 +201,17 @@ struct GoldenTimePhoneRootView: View {
         }
     }
 
-    /// Legend + footnote stay at page bottom (below cards).
+    /// Compass usage note at page bottom (below dial).
     @ViewBuilder
     private func compassFooterCopy(skin: GTPhaseSkin, lang: GTAppLanguage) -> some View {
         if model.mapCoordinate != nil {
-            VStack(alignment: .center, spacing: 8) {
-                Text(GTCopy.compassCardLegend(lang))
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(skin.muted)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity)
-
-                Text(GTCopy.compassCardFootnote(lang))
-                    .font(.caption2)
-                    .foregroundStyle(skin.muted.opacity(0.92))
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.top, 4)
+            Text(GTCopy.compassCardGuide(lang))
+                .font(.caption)
+                .foregroundStyle(skin.muted)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 4)
         }
     }
 

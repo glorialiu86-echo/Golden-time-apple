@@ -66,7 +66,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     @Published private(set) var compassMoonBodyAzimuthDegrees: Double?
 
     /// Wall-clock instant for UI labels; updated every second (replaces `TimelineView`, which mis-sized on some simulators).
-    @Published private(set) var clockNow = Date()
+    @Published private(set) var clockNow = GTPreviewClock.now()
 
     private static var defaults: UserDefaults { GTAppGroup.shared }
     /// Matches `GoldenTimeEngine` apparent sunrise/sunset (−50′).
@@ -84,8 +84,8 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         return f
     }()
 
-    private func formatTwilightInstant(_ instant: Date, now: Date) -> String {
-        GTDateFormatters.twilightInstantLabel(instant, now: now, lang: contentLanguage)
+    private func formatTwilightInstant(_ instant: Date) -> String {
+        GTDateFormatters.twilightInstantLabel(instant, lang: contentLanguage)
     }
 
     private func triggerHeadingTickHapticIfNeeded(headingDegrees: Double) {
@@ -141,7 +141,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             .store(in: &cancellables)
 
         locationReader.requestLocation()
-        let now = Date()
+        let now = GTPreviewClock.now()
         if activeFix != nil {
             recomputeEngineIfNeeded(now: now, force: true)
             Self.reloadTwilightWidgetTimelines()
@@ -153,7 +153,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self else { return }
-                let now = Date()
+                let now = GTPreviewClock.now()
                 self.clockNow = now
                 self.refreshForTick(at: now)
             }
@@ -205,7 +205,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         Self.saveCachedFix(fix)
         updateCoordLabels(lat: fix.latitude, lon: fix.longitude)
         recomputeStatusLine()
-        let now = Date()
+        let now = GTPreviewClock.now()
         recomputeEngineIfNeeded(now: now, force: true)
         refreshWindows(at: now)
     }
@@ -260,8 +260,8 @@ final class GoldenTimePhoneViewModel: ObservableObject {
 
         if let w = bWin {
             let isLive = phase == .blue
-            blueStartText = isLive ? live : formatTwilightInstant(w.start, now: now)
-            blueEndText = formatTwilightInstant(w.end, now: now)
+            blueStartText = isLive ? live : formatTwilightInstant(w.start)
+            blueEndText = formatTwilightInstant(w.end)
         } else {
             blueStartText = "—"
             blueEndText = "—"
@@ -269,8 +269,8 @@ final class GoldenTimePhoneViewModel: ObservableObject {
 
         if let w = gWin {
             let isLive = phase == .golden
-            goldenStartText = isLive ? live : formatTwilightInstant(w.start, now: now)
-            goldenEndText = formatTwilightInstant(w.end, now: now)
+            goldenStartText = isLive ? live : formatTwilightInstant(w.start)
+            goldenEndText = formatTwilightInstant(w.end)
         } else {
             goldenStartText = "—"
             goldenEndText = "—"

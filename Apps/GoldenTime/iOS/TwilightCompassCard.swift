@@ -9,8 +9,10 @@ import MapKit
 
 #if os(iOS)
 private enum CompassMapMetrics {
-    /// Camera height in meters — ~1 km shows a few blocks so roads/labels stay readable under the compass.
-    static let cameraDistance: CLLocationDistance = 980
+    /// Default camera height (m); ~1 km shows a few blocks under the dial.
+    static let cameraDistanceDefault: CLLocationDistance = 980
+    static let cameraDistanceMin: CLLocationDistance = 120
+    static let cameraDistanceMax: CLLocationDistance = 18_000
 }
 
 /// Map disk sizing only; compass `Canvas` is unchanged.
@@ -27,12 +29,40 @@ private enum CompassMapFrame {
 }
 
 private struct CompassMapUnderlay: UIViewRepresentable {
+    @Binding var mapTilesReady: Bool
     var coordinate: CLLocationCoordinate2D
     /// True north clockwise; drives map rotation to match overlay geometry.
     var headingDegrees: Double
+    /// Ground distance from camera to center (m); larger ⇒ more zoomed out.
+    var cameraDistance: CLLocationDistance
+    /// `true` when phase skin is dark (night / blue / golden) → MapKit uses dark standard tiles; matches light compass ring inks.
+    var useDarkMapAppearance: Bool
+
+    final class Coordinator: NSObject, MKMapViewDelegate {
+        var mapTilesReady: Binding<Bool>
+
+        init(mapTilesReady: Binding<Bool>) {
+            self.mapTilesReady = mapTilesReady
+        }
+
+        /// `fullyRendered == true` is the closest signal MapKit offers that raster tiles finished drawing.
+        func mapViewDidFinishRenderingMap(_ mapView: MKMapView, fullyRendered: Bool) {
+            guard fullyRendered else { return }
+            mapTilesReady.wrappedValue = true
+        }
+
+        func mapViewDidFailLoadingMap(_ mapView: MKMapView, withError error: Error) {
+            mapTilesReady.wrappedValue = false
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(mapTilesReady: $mapTilesReady)
+    }
 
     func makeUIView(context: Context) -> MKMapView {
         let map = MKMapView()
+        map.delegate = context.coordinator
         map.isUserInteractionEnabled = false
         map.mapType = .standard
         map.pointOfInterestFilter = .excludingAll
@@ -45,22 +75,148 @@ private struct CompassMapUnderlay: UIViewRepresentable {
         map.isRotateEnabled = false
         map.clipsToBounds = true
         if #available(iOS 13.0, *) {
-            let d = CompassMapMetrics.cameraDistance
-            let lock = MKMapView.CameraZoomRange(minCenterCoordinateDistance: d, maxCenterCoordinateDistance: d)
-            map.setCameraZoomRange(lock, animated: false)
+            map.overrideUserInterfaceStyle = useDarkMapAppearance ? .dark : .unspecified
+            let z = MKMapView.CameraZoomRange(
+                minCenterCoordinateDistance: CompassMapMetrics.cameraDistanceMin,
+                maxCenterCoordinateDistance: CompassMapMetrics.cameraDistanceMax
+            )
+            map.setCameraZoomRange(z, animated: false)
         }
         return map
     }
 
     func updateUIView(_ mapView: MKMapView, context: Context) {
+        if #available(iOS 13.0, *) {
+            mapView.overrideUserInterfaceStyle = useDarkMapAppearance ? .dark : .unspecified
+        }
         guard CLLocationCoordinate2DIsValid(coordinate) else { return }
+        let d = cameraDistance.clamped(
+            to: CompassMapMetrics.cameraDistanceMin ... CompassMapMetrics.cameraDistanceMax
+        )
         let cam = MKMapCamera(
             lookingAtCenter: coordinate,
-            fromDistance: CompassMapMetrics.cameraDistance,
+            fromDistance: d,
             pitch: 0,
             heading: headingDegrees
         )
         mapView.setCamera(cam, animated: false)
+    }
+}
+
+/// Vertical drag: top ⇒ zoom in (near), bottom ⇒ zoom out (far); spacing uses log scale between min/max distance.
+/// Kept visually light: hairline track + small knob so it doesn’t read as a solid bar beside the dial.
+private struct CompassMapZoomRail: View {
+    @Binding var cameraDistance: CLLocationDistance
+    /// `true` after MapKit reports a fully rendered frame; `false` disables drag and grays the knob.
+    var mapTilesReady: Bool
+    /// Matches compass chrome; drives subtle track/knob contrast.
+    var chromeIsLight: Bool
+    var a11yZoomLabel: String
+    var a11yMapNotReadyHint: String
+
+    private var dMin: CLLocationDistance { CompassMapMetrics.cameraDistanceMin }
+    private var dMax: CLLocationDistance { CompassMapMetrics.cameraDistanceMax }
+
+    private var trackLineColor: Color {
+        chromeIsLight ? Color.black.opacity(0.11) : Color.white.opacity(0.22)
+    }
+
+    private var knobFill: Color {
+        if !mapTilesReady {
+            return chromeIsLight ? Color(white: 0.78) : Color(white: 0.42)
+        }
+        return chromeIsLight ? Color.white.opacity(0.94) : Color.white.opacity(0.32)
+    }
+
+    private var knobStroke: Color {
+        if !mapTilesReady {
+            return chromeIsLight ? Color.black.opacity(0.12) : Color.white.opacity(0.22)
+        }
+        return chromeIsLight ? Color.black.opacity(0.14) : Color.white.opacity(0.42)
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let h = geo.size.height
+            let w = geo.size.width
+            let knobD: CGFloat = 11
+            let travel = max(h - knobD, 1)
+            let tNow = Self.normalizedT(for: cameraDistance, dMin: dMin, dMax: dMax)
+            let thumbY = CGFloat(tNow) * travel
+
+            ZStack(alignment: .top) {
+                Capsule()
+                    .fill(trackLineColor)
+                    .frame(width: 1.5, height: h)
+                    .frame(maxWidth: .infinity)
+
+                Circle()
+                    .fill(knobFill)
+                    .overlay(Circle().stroke(knobStroke, lineWidth: 0.75))
+                    .frame(width: knobD, height: knobD)
+                    .shadow(color: Color.black.opacity(mapTilesReady ? (chromeIsLight ? 0.06 : 0.2) : 0.03), radius: 1.5, x: 0, y: 0.5)
+                    .offset(y: thumbY)
+            }
+            .frame(width: w, height: h)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { g in
+                        guard mapTilesReady else { return }
+                        let y = min(max(g.location.y - knobD / 2, 0), travel)
+                        let t = Double(y / travel)
+                        cameraDistance = Self.distance(forNormalizedT: t, dMin: dMin, dMax: dMax)
+                    }
+            )
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(a11yZoomLabel))
+            .accessibilityValue(Text(mapTilesReady ? String(format: "%.0f m", cameraDistance) : a11yMapNotReadyHint))
+            .accessibilityAdjustableAction { direction in
+                guard mapTilesReady else { return }
+                switch direction {
+                case .increment:
+                    cameraDistance = Self.nudgeDistance(cameraDistance, inward: false, dMin: dMin, dMax: dMax)
+                case .decrement:
+                    cameraDistance = Self.nudgeDistance(cameraDistance, inward: true, dMin: dMin, dMax: dMax)
+                @unknown default:
+                    break
+                }
+            }
+        }
+    }
+
+    /// 0 = zoomed in (min d), 1 = zoomed out (max d).
+    private static func normalizedT(for d: CLLocationDistance, dMin: CLLocationDistance, dMax: CLLocationDistance) -> Double {
+        let ln = log(dMin)
+        let lx = log(dMax)
+        let lv = log(max(dMin, min(dMax, d)))
+        guard lx > ln else { return 0 }
+        return max(0, min(1, (lv - ln) / (lx - ln)))
+    }
+
+    private static func distance(forNormalizedT t: Double, dMin: CLLocationDistance, dMax: CLLocationDistance) -> CLLocationDistance {
+        let tt = max(0, min(1, t))
+        let ln = log(dMin)
+        let lx = log(dMax)
+        return exp(ln + tt * (lx - ln))
+    }
+
+    private static func nudgeDistance(
+        _ d: CLLocationDistance,
+        inward: Bool,
+        dMin: CLLocationDistance,
+        dMax: CLLocationDistance
+    ) -> CLLocationDistance {
+        let t = normalizedT(for: d, dMin: dMin, dMax: dMax)
+        let step = 0.08
+        let next = inward ? t - step : t + step
+        return distance(forNormalizedT: next, dMin: dMin, dMax: dMax)
+    }
+}
+
+private extension Comparable {
+    func clamped(to range: ClosedRange<Self>) -> Self {
+        min(max(self, range.lowerBound), range.upperBound)
     }
 }
 #endif
@@ -95,6 +251,11 @@ struct TwilightCompassCard: View {
     var sunBodyAzimuthDegrees: Double?
     /// True-north moon azimuth when moon is up; `nil` hides the moon glyph.
     var moonBodyAzimuthDegrees: Double?
+
+    /// Map camera distance when basemap is on (iOS); ignored on watchOS.
+    @State private var mapCameraDistance: CLLocationDistance = 980
+    /// Set from `MKMapView` delegate when raster tiles finish rendering (best-effort).
+    @State private var mapTilesReady = false
 
     private var heading: Double {
         deviceHeadingDegrees ?? 0
@@ -139,31 +300,76 @@ struct TwilightCompassCard: View {
 
     var body: some View {
         GeometryReader { geo in
+            #if os(iOS)
+            let railW: CGFloat = showMapBase ? 15 : 0
+            let railGap: CGFloat = showMapBase ? 6 : 0
+            let side = min(geo.size.width - railW - railGap, geo.size.height)
+            #else
             let side = min(geo.size.width, geo.size.height)
+            #endif
             Group {
                 #if os(iOS)
                 if showMapBase {
                     let mapDiameter = CompassMapFrame.mapDiskDiameter(side: side)
-                    ZStack {
-                        CompassMapUnderlay(coordinate: coordinate, headingDegrees: heading)
+                    let railH = min(side * 0.58, 172)
+                    HStack(alignment: .center, spacing: railGap) {
+                        ZStack {
+                            CompassMapUnderlay(
+                                mapTilesReady: $mapTilesReady,
+                                coordinate: coordinate,
+                                headingDegrees: heading,
+                                cameraDistance: mapCameraDistance,
+                                useDarkMapAppearance: !chromeIsLight
+                            )
                             .frame(width: mapDiameter, height: mapDiameter)
                             .clipShape(Circle())
-                        compassFaceLayers(side: side, basemapBehindFace: true, chromeIsLight: chromeIsLight)
-                            .allowsHitTesting(false)
+                            compassFaceLayers(side: side, basemapBehindFace: true, chromeIsLight: chromeIsLight)
+                                .allowsHitTesting(false)
+                        }
+                        .frame(width: side, height: side)
+                        .clipShape(Circle())
+                        .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, x: 0, y: shadowY)
+
+                        CompassMapZoomRail(
+                            cameraDistance: $mapCameraDistance,
+                            mapTilesReady: mapTilesReady,
+                            chromeIsLight: chromeIsLight,
+                            a11yZoomLabel: uiLanguage == .chinese ? "地图缩放" : "Map zoom",
+                            a11yMapNotReadyHint: uiLanguage == .chinese ? "地图未加载" : "Map not loaded"
+                        )
+                        .frame(width: railW, height: railH)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    gradientCompassDisk(side: side)
+                    mapOffCompassBlock(side: side)
                 }
                 #else
                 gradientCompassDisk(side: side)
+                    .frame(width: side, height: side)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .clipShape(Circle())
+                    .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, x: 0, y: shadowY)
                 #endif
             }
+        }
+        .aspectRatio(1, contentMode: .fit)
+        #if os(iOS)
+        .onChange(of: showMapBase) { _, isOn in
+            if isOn { mapTilesReady = false }
+        }
+        .onChange(of: chromeIsLight) { _, _ in
+            if showMapBase { mapTilesReady = false }
+        }
+        #endif
+    }
+
+    @ViewBuilder
+    private func mapOffCompassBlock(side: CGFloat) -> some View {
+        gradientCompassDisk(side: side)
             .frame(width: side, height: side)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .clipShape(Circle())
             .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, x: 0, y: shadowY)
-        }
-        .aspectRatio(1, contentMode: .fit)
     }
 
     @ViewBuilder
@@ -208,7 +414,7 @@ private func compassBodyScreenAngleDeg(geoAzimuth: Double, headingDegrees: Doubl
     return d
 }
 
-/// Live sun/moon direction from analytical alt/az (no network); **two different radii** so glyphs don’t sit on the same ring.
+/// Live sun/moon direction from analytical alt/az (no network). Sun stays on the **outer** ring; moon sits **inward** between the center needle and the sun so tracks don’t stack.
 private struct CompassSkyBodyMarkers: View {
     var side: CGFloat
     var headingDegrees: Double
@@ -216,6 +422,7 @@ private struct CompassSkyBodyMarkers: View {
     var moonAzimuthDegrees: Double?
     var chromeIsLight: Bool
 
+    /// Sun ring — unchanged (do not move).
     private var sunRadius: CGFloat {
         #if os(watchOS)
         side * 0.28
@@ -224,15 +431,17 @@ private struct CompassSkyBodyMarkers: View {
         #endif
     }
 
+    /// Moon ring — between center arrow and `sunRadius` (tighter than sun so both read without stacking).
     private var moonRadius: CGFloat {
         #if os(watchOS)
-        side * 0.42
+        side * 0.15
         #else
-        side * 0.475
+        side * 0.165
         #endif
     }
 
-    private var sunGlyph: CGFloat {
+    /// Sun and moon use the **same** point size (sun metrics kept as the source of truth).
+    private var bodyGlyphSize: CGFloat {
         #if os(watchOS)
         max(12, side * 0.10)
         #else
@@ -240,22 +449,14 @@ private struct CompassSkyBodyMarkers: View {
         #endif
     }
 
-    private var moonGlyph: CGFloat {
-        #if os(watchOS)
-        max(11, side * 0.088)
-        #else
-        max(13, side * 0.068)
-        #endif
-    }
-
     var body: some View {
         ZStack {
             if let sa = sunAzimuthDegrees {
-                skyGlyph(systemName: "sun.max.fill", size: sunGlyph, fill: sunFill)
+                skyGlyph(systemName: "sun.max.fill", size: bodyGlyphSize, fill: sunFill)
                     .offset(offset(geoAzimuth: sa, radius: sunRadius))
             }
             if let ma = moonAzimuthDegrees {
-                skyGlyph(systemName: "moon.fill", size: moonGlyph, fill: moonFill)
+                skyGlyph(systemName: "moon.fill", size: bodyGlyphSize, fill: moonFill)
                     .offset(offset(geoAzimuth: ma, radius: moonRadius))
             }
         }
@@ -317,8 +518,8 @@ private struct CompassNeedleOverlay: View {
 private struct SystemNorthArrowGlyph: View {
     var side: CGFloat
 
-    /// Kept modest so the glyph visually aligns with sector/rays (large SF Symbol overshoots the pivot).
-    private var glyphSize: CGFloat { side * 0.15 }
+    /// Slightly smaller than before so an inner moon marker can pass without overlapping the arrow when bearings align.
+    private var glyphSize: CGFloat { side * 0.13 }
 
     private var arrowGradient: LinearGradient {
         LinearGradient(
@@ -356,8 +557,8 @@ private struct TwilightCompassDrawing: View {
     var blueSectorColors: [Color]
     var goldenSectorColors: [Color]
 
-    /// Tick / outer-ring numerals on map tiles — always dark for contrast.
-    private static let tickInkOnBasemap = Color(red: 0.06, green: 0.06, blue: 0.08)
+    /// Light basemap (day shell): dark ink for ticks / numerals on map tiles.
+    private static let tickInkLightBasemap = Color(red: 0.06, green: 0.06, blue: 0.08)
 
     private struct FacePaints {
         var tickInk: Color
@@ -368,26 +569,26 @@ private struct TwilightCompassDrawing: View {
         var outerRimInk: Color
     }
 
-    /// Map on: ticks always `tickInkOnBasemap`; outer labels light on dark chrome, dark on light chrome. No map: single `compassInk` family.
+    /// With map: **light shell** ⇒ light map tiles + dark ring; **dark shell** ⇒ dark MapKit + light ring (same ink for ticks and labels). No map: `compassInk` only.
     private static func facePaints(basemap: Bool, chromeIsLight: Bool, compassInk: Color, compassStroke: Color) -> FacePaints {
         if basemap {
-            let tick = tickInkOnBasemap
             if chromeIsLight {
+                let ink = tickInkLightBasemap
                 return FacePaints(
-                    tickInk: tick,
-                    bezelLabelInk: tick,
+                    tickInk: ink,
+                    bezelLabelInk: ink,
                     bezelLabelHalo: Color.white.opacity(0.55),
                     northLabelHalo: Color.black.opacity(0.34),
-                    outerRimInk: tick
+                    outerRimInk: ink
                 )
             }
-            let outer = Color.white.opacity(0.94)
+            let ink = Color.white.opacity(0.94)
             return FacePaints(
-                tickInk: tick,
-                bezelLabelInk: outer,
+                tickInk: ink,
+                bezelLabelInk: ink,
                 bezelLabelHalo: Color.black.opacity(0.48),
                 northLabelHalo: Color.black.opacity(0.45),
-                outerRimInk: outer
+                outerRimInk: ink
             )
         }
         let halo = compassStroke.opacity(0.42)
@@ -853,9 +1054,10 @@ private struct TwilightCompassDrawing: View {
         let s1 = Self.screenAngleDeg(geoAzimuth: g1, heading: headingDegrees)
         var path = sectorPath(center: center, radius: radius, startDeg: s0, endDeg: s1)
         let mid = colors.indices.contains(colors.count / 2) ? colors[colors.count / 2] : colors[0]
-        context.fill(path, with: .color(mid.opacity(0.34)))
+        // Slightly more opaque than day/night wedges so blue/golden sectors read more solid on the dial.
+        context.fill(path, with: .color(mid.opacity(0.52)))
         path = sectorPath(center: center, radius: radius, startDeg: s0, endDeg: s1)
-        context.stroke(path, with: .color(mid.opacity(0.55)), lineWidth: 1.25)
+        context.stroke(path, with: .color(mid.opacity(0.78)), lineWidth: 1.25)
     }
 
     private func sectorPath(center: CGPoint, radius: CGFloat, startDeg: Double, endDeg: Double) -> Path {

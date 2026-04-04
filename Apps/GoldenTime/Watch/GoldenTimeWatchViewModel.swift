@@ -175,8 +175,8 @@ final class GoldenTimeWatchViewModel: ObservableObject {
 
         if let w = bWin {
             let isLive = phase == .blue
-            blueStartText = isLive ? live : formatTwilightInstant(w.start, now: now)
-            blueEndText = formatTwilightInstant(w.end, now: now)
+            blueStartText = isLive ? live : formatTwilightInstant(w.start)
+            blueEndText = formatTwilightInstant(w.end)
         } else {
             blueStartText = "—"
             blueEndText = "—"
@@ -184,8 +184,8 @@ final class GoldenTimeWatchViewModel: ObservableObject {
 
         if let w = gWin {
             let isLive = phase == .golden
-            goldenStartText = isLive ? live : formatTwilightInstant(w.start, now: now)
-            goldenEndText = formatTwilightInstant(w.end, now: now)
+            goldenStartText = isLive ? live : formatTwilightInstant(w.start)
+            goldenEndText = formatTwilightInstant(w.end)
         } else {
             goldenStartText = "—"
             goldenEndText = "—"
@@ -241,8 +241,8 @@ final class GoldenTimeWatchViewModel: ObservableObject {
         }
     }
 
-    private func formatTwilightInstant(_ instant: Date, now: Date) -> String {
-        GTDateFormatters.twilightInstantLabel(instant, now: now, lang: contentLanguage)
+    private func formatTwilightInstant(_ instant: Date) -> String {
+        GTDateFormatters.twilightInstantLabel(instant, lang: contentLanguage)
     }
 
     private func updateCoordLabels(lat: Double, lon: Double) {

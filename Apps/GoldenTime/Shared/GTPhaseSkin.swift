@@ -105,15 +105,16 @@ public enum GTPhaseSkin: Equatable {
         }
     }
 
-    /// Translucent wedge for the complementary night span on the dial.
+    /// Translucent wedge for the complementary night span on the dial (sun below horizon, outside blue/golden clips).
+    /// On dark shells this is a **low-chroma slate** so it reads as “night sky”, not the saturated blue-hour arcs.
     public var compassNightDiskTint: Color {
         switch self {
         case .day:
             Color(red: 0.36, green: 0.48, blue: 0.82)
         case .night, .blueHour:
-            Color(red: 0.26, green: 0.34, blue: 0.58)
+            Color(red: 0.21, green: 0.23, blue: 0.29)
         case .goldenHour:
-            Color(red: 0.22, green: 0.3, blue: 0.52)
+            Color(red: 0.22, green: 0.21, blue: 0.30)
         }
     }
 
@@ -125,11 +126,17 @@ public enum GTPhaseSkin: Equatable {
                 : [GTAppIconPalette.sunGlow, GTAppIconPalette.sunCore]
         case .night:
             return blue
-                ? [GTAppIconPalette.deepNavy, Color(red: 48 / 255, green: 82 / 255, blue: 128 / 255)]
+                ? [
+                    Color(red: 0.10, green: 0.40, blue: 0.74),
+                    Color(red: 0.22, green: 0.58, blue: 0.92)
+                ]
                 : [GTAppIconPalette.sunDeep, GTAppIconPalette.sunCore]
         case .blueHour:
             return blue
-                ? [Color(red: 0.16, green: 0.3, blue: 0.58), Color(red: 0.26, green: 0.48, blue: 0.88)]
+                ? [
+                    Color(red: 0.14, green: 0.36, blue: 0.68),
+                    Color(red: 0.28, green: 0.52, blue: 0.95)
+                ]
                 : [Color(red: 0.48, green: 0.28, blue: 0.14), GTAppIconPalette.sunCore]
         case .goldenHour:
             return blue
