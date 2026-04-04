@@ -13,6 +13,13 @@ struct GoldenTimePhoneSettingsView: View {
         GTAppLanguage.followSystemStorageValue
     @AppStorage(GTTwilightDisplayMode.storageKey, store: GTAppGroup.shared) private var twilightModeRaw: String =
         GTTwilightDisplayMode.clockTimes.rawValue
+    @AppStorage(GTTwilightReminderSettings.enabledKey, store: GTAppGroup.shared) private var reminderEnabled = false
+    @AppStorage(GTTwilightReminderSettings.targetKey, store: GTAppGroup.shared) private var reminderTargetRaw: String =
+        GTTwilightReminderSettings.Target.blue.rawValue
+    @AppStorage(GTTwilightReminderSettings.minutesBeforeKey, store: GTAppGroup.shared) private var reminderMinutes: Int =
+        GTTwilightReminderSettings.defaultMinutesBefore
+
+    private static let reminderMinuteChoices = [5, 10, 15, 20, 30, 45, 60]
 
     @State private var restoreMessage: String?
     @State private var restoreFailed = false
@@ -100,6 +107,45 @@ struct GoldenTimePhoneSettingsView: View {
                         Text(GTCopy.settingsTwilightCountdown(lang)).tag(GTTwilightDisplayMode.countdown.rawValue)
                     }
                     .pickerStyle(.menu)
+                }
+
+                Section {
+                    Toggle(GTCopy.settingsReminderToggle(lang), isOn: $reminderEnabled)
+                        .onChange(of: reminderEnabled) { _, on in
+                            if on {
+                                Task { @MainActor in
+                                    _ = await TwilightReminderScheduler.shared.requestAuthorizationIfNeeded()
+                                    model.refreshTwilightReminderSchedule()
+                                }
+                            } else {
+                                model.refreshTwilightReminderSchedule()
+                            }
+                        }
+
+                    Picker(GTCopy.settingsReminderTarget(lang), selection: $reminderTargetRaw) {
+                        Text(GTCopy.settingsReminderTargetBlue(lang)).tag(GTTwilightReminderSettings.Target.blue.rawValue)
+                        Text(GTCopy.settingsReminderTargetGolden(lang)).tag(GTTwilightReminderSettings.Target.golden.rawValue)
+                    }
+                    .pickerStyle(.menu)
+                    .disabled(!reminderEnabled)
+                    .onChange(of: reminderTargetRaw) { _, _ in
+                        guard reminderEnabled else { return }
+                        model.refreshTwilightReminderSchedule()
+                    }
+
+                    Picker(GTCopy.settingsReminderLeadTime(lang), selection: $reminderMinutes) {
+                        ForEach(Self.reminderMinuteChoices, id: \.self) { m in
+                            Text("\(m) \(GTCopy.settingsReminderLeadTimeSuffix(lang))").tag(m)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .disabled(!reminderEnabled)
+                    .onChange(of: reminderMinutes) { _, _ in
+                        guard reminderEnabled else { return }
+                        model.refreshTwilightReminderSchedule()
+                    }
+                } header: {
+                    Text(GTCopy.settingsReminderSection(lang))
                 }
 
                 Section {

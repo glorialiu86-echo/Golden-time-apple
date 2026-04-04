@@ -44,6 +44,15 @@ public enum GTAppGroup {
         if suite.object(forKey: GTCompanionUISync.showCompassMapBaseKey) == nil {
             suite.set(true, forKey: GTCompanionUISync.showCompassMapBaseKey)
         }
+        if suite.object(forKey: GTTwilightReminderSettings.enabledKey) == nil {
+            suite.set(false, forKey: GTTwilightReminderSettings.enabledKey)
+        }
+        if suite.object(forKey: GTTwilightReminderSettings.targetKey) == nil {
+            suite.set(GTTwilightReminderSettings.Target.blue.rawValue, forKey: GTTwilightReminderSettings.targetKey)
+        }
+        if suite.object(forKey: GTTwilightReminderSettings.minutesBeforeKey) == nil {
+            suite.set(GTTwilightReminderSettings.defaultMinutesBefore, forKey: GTTwilightReminderSettings.minutesBeforeKey)
+        }
         if suite.object(forKey: GTAppLanguage.effectiveMirrorKey) == nil {
             #if os(iOS)
             let pref = suite.string(forKey: GTAppLanguage.storageKey) ?? GTAppLanguage.followSystemStorageValue
@@ -72,6 +81,20 @@ public enum GTCompassMapSettings {
 /// iPhone writes compass map visibility (network + debug env); Watch reads so UI matches phone without its own reachability check.
 public enum GTCompanionUISync {
     public static let showCompassMapBaseKey = "gt.companion.showCompassMapBase"
+}
+
+/// In-app twilight reminder (iPhone local notification).
+public enum GTTwilightReminderSettings {
+    public static let enabledKey = "gt.reminder.enabled"
+    public static let targetKey = "gt.reminder.target"
+    public static let minutesBeforeKey = "gt.reminder.minutesBefore"
+    public static let pendingRequestId = "time.golden.twilightReminder.pending"
+    public static let defaultMinutesBefore = 15
+
+    public enum Target: String, CaseIterable {
+        case blue
+        case golden
+    }
 }
 
 /// Shared keys for GPS cache (phone, watch, widget).

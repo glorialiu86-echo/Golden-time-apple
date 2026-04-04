@@ -184,6 +184,11 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         locationReader.requestLocation()
     }
 
+    /// Call when reminder-related App Group preferences change (settings sheet) so scheduling updates immediately.
+    func refreshTwilightReminderSchedule() {
+        TwilightReminderScheduler.shared.reschedule(engine: engine, now: clockNow)
+    }
+
     /// Opens the app’s page in Settings (user can enable Location, etc.).
     func openSystemSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
@@ -240,6 +245,9 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     }
 
     private func refreshWindows(at now: Date) {
+        defer {
+            TwilightReminderScheduler.shared.reschedule(engine: engine, now: now)
+        }
         guard let fix = activeFix else {
             blueStartText = "—"
             blueEndText = "—"

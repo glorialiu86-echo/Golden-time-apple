@@ -366,6 +366,76 @@ enum GTCopy {
         }
     }
 
+    static func settingsReminderSection(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "时段提醒"
+        case .english: return "Twilight alerts"
+        }
+    }
+
+    static func settingsReminderToggle(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "开启提醒"
+        case .english: return "Enable alerts"
+        }
+    }
+
+    static func settingsReminderTarget(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "提醒对象"
+        case .english: return "Alert for"
+        }
+    }
+
+    static func settingsReminderTargetBlue(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "下一次蓝调"
+        case .english: return "Next blue hour"
+        }
+    }
+
+    static func settingsReminderTargetGolden(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "下一次金调"
+        case .english: return "Next golden hour"
+        }
+    }
+
+    static func settingsReminderLeadTime(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "提前"
+        case .english: return "Minutes before"
+        }
+    }
+
+    static func settingsReminderLeadTimeSuffix(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "分钟"
+        case .english: return "minutes"
+        }
+    }
+
+    static func reminderNotificationTitle(blue: Bool, lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return blue ? "蓝调即将开始" : "金调即将开始"
+        case .english: return blue ? "Blue hour soon" : "Golden hour soon"
+        }
+    }
+
+    static func reminderNotificationBody(blue: Bool, minutes: Int, lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese:
+            return blue
+                ? "约 \(minutes) 分钟后进入蓝调时段。"
+                : "约 \(minutes) 分钟后进入金调时段。"
+        case .english:
+            let unit = minutes == 1 ? "minute" : "minutes"
+            return blue
+                ? "Blue hour starts in about \(minutes) \(unit)."
+                : "Golden hour starts in about \(minutes) \(unit)."
+        }
+    }
+
     static func settingsRestorePurchases(_ lang: GTAppLanguage) -> String {
         switch lang {
         case .chinese: return "恢复购买"
