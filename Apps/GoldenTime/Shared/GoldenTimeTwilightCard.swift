@@ -14,11 +14,11 @@ public struct GoldenTimeTwilightCardMetrics: Sendable {
 
     public static let phone = GoldenTimeTwilightCardMetrics(
         timeFontSize: 36,
-        mainSlotHeight: 48,
+        mainSlotHeight: 50,
         countdownLabelFontSize: 22,
-        horizontalPadding: 16,
-        verticalPadding: 6,
-        cornerRadius: 14,
+        horizontalPadding: 18,
+        verticalPadding: 8,
+        cornerRadius: 15,
         titleFont: .headline.weight(.bold),
         symbolFont: .body.weight(.semibold)
     )
@@ -92,8 +92,8 @@ public struct GoldenTimeTwilightWindowCard: View {
 
     public var body: some View {
         let m = metrics
-        VStack(alignment: .center, spacing: 5) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+        VStack(alignment: .center, spacing: 7) {
+            HStack(alignment: .firstTextBaseline, spacing: 7) {
                 Image(systemName: systemImage)
                     .font(m.symbolFont)
                     .foregroundStyle(skin.muted)

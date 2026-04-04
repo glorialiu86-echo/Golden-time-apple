@@ -32,7 +32,7 @@ struct GoldenTimePhoneRootView: View {
     }
 
     /// Large time in the page header only.
-    private static let mainClockFontSize: CGFloat = 56
+    private static let mainClockFontSize: CGFloat = 65
 
     var body: some View {
         let skin = GTPhaseSkin(phase: model.phase)
@@ -50,9 +50,9 @@ struct GoldenTimePhoneRootView: View {
             .overlay(alignment: .topLeading) {
                 ScrollView {
                     mainColumn(skin: skin, lang: uiLang)
-                        .padding(.horizontal, 18)
-                        .padding(.top, 8)
-                        .padding(.bottom, 24)
+                        .padding(.horizontal, 19)
+                        .padding(.top, 10)
+                        .padding(.bottom, 28)
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
                 .scrollContentBackground(.hidden)
@@ -92,22 +92,24 @@ struct GoldenTimePhoneRootView: View {
 
     @ViewBuilder
     private func mainColumn(skin: GTPhaseSkin, lang: GTAppLanguage) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            timeHeaderBlock(skin: skin, lang: lang, date: model.clockNow)
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 6) {
+                timeHeaderBlock(skin: skin, lang: lang, date: model.clockNow)
 
-            HStack {
-                Spacer(minLength: 0)
-                Text("\(GTCopy.currentCoordinatesPrefix(lang))\(model.latitudeText), \(model.longitudeText)")
-                    .font(.body.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(skin.muted)
-                    .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.65)
-                    .lineLimit(2)
-                Spacer(minLength: 0)
+                HStack {
+                    Spacer(minLength: 0)
+                    Text("\(GTCopy.currentCoordinatesPrefix(lang))\(model.latitudeText), \(model.longitudeText)")
+                        .font(.body.monospacedDigit().weight(.semibold))
+                        .foregroundStyle(skin.muted)
+                        .multilineTextAlignment(.center)
+                        .minimumScaleFactor(0.65)
+                        .lineLimit(2)
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity)
 
-            VStack(spacing: 12) {
+            VStack(spacing: 14) {
                 if model.blueTwilightFirst {
                     GoldenTimeTwilightWindowCard(
                         skin: skin,
@@ -173,7 +175,7 @@ struct GoldenTimePhoneRootView: View {
                     .foregroundStyle(skin.muted)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
-                    .padding(.top, 6)
+                    .padding(.top, 7)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -226,13 +228,13 @@ struct GoldenTimePhoneRootView: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity)
-                .padding(.top, 4)
+                .padding(.top, 6)
         }
     }
 
     /// Weekday / month / date on the left; twilight mode shortcut + settings gear on the **far right**, same row.
     private func timeHeaderBlock(skin: GTPhaseSkin, lang: GTAppLanguage, date: Date) -> some View {
-        VStack(alignment: .center, spacing: 8) {
+        VStack(alignment: .center, spacing: 9) {
             HStack(alignment: .center, spacing: 8) {
                 Text(GTDateFormatters.headerLine(date, lang: lang))
                     .font(.system(size: 17, weight: .semibold, design: .rounded))
