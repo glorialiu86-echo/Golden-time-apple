@@ -1,26 +1,27 @@
 import Foundation
 
 /// In-app UI language (separate from mixed bilingual card titles).
-enum GTAppLanguage: String, Hashable {
+public enum GTAppLanguage: String, Hashable {
     case chinese = "zh"
     case english = "en"
 
-    static let storageKey = "gt.uiLanguage"
+    public static let storageKey = "gt.uiLanguage"
 
     /// 简体中文系统 → 默认中文界面；其余 → 默认英文。
-    static func systemDefault() -> GTAppLanguage {
+    public static func systemDefault() -> GTAppLanguage {
         guard let first = Locale.preferredLanguages.first else { return .english }
         if first.hasPrefix("zh-Hans") { return .chinese }
         if first.hasPrefix("zh-CN") { return .chinese }
         return .english
     }
 
-    static func resolved() -> GTAppLanguage {
-        let raw = UserDefaults.standard.string(forKey: storageKey) ?? ""
+    public static func resolved() -> GTAppLanguage {
+        let suite = GTAppGroup.shared
+        let raw = suite.string(forKey: storageKey) ?? UserDefaults.standard.string(forKey: storageKey) ?? ""
         return fromStorageRaw(raw)
     }
 
-    static func fromStorageRaw(_ raw: String) -> GTAppLanguage {
+    public static func fromStorageRaw(_ raw: String) -> GTAppLanguage {
         switch raw {
         case chinese.rawValue: return .chinese
         case english.rawValue: return .english
@@ -28,7 +29,7 @@ enum GTAppLanguage: String, Hashable {
         }
     }
 
-    var locale: Locale {
+    public var locale: Locale {
         switch self {
         case .chinese: Locale(identifier: "zh_CN")
         case .english: Locale(identifier: "en_US")
@@ -42,6 +43,14 @@ enum GTCopy {
     static func currentCoordinatesPrefix(_ lang: GTAppLanguage) -> String {
         switch lang {
         case .chinese: return "当前经纬度 "
+        case .english: return "Now at "
+        }
+    }
+
+    /// 手表罗盘页坐标行前缀（更短，省横向空间）。
+    static func watchCoordinatesPrefix(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "经纬度 "
         case .english: return "Now at "
         }
     }
@@ -65,6 +74,22 @@ enum GTCopy {
         switch lang {
         case .chinese: return "下一次金调时间"
         case .english: return "Next Golden Hour"
+        }
+    }
+
+    /// watchOS Smart Stack（systemSmall / systemMedium）顶部标题。
+    static func widgetStackTitle(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "蓝调与金调"
+        case .english: return "Blue & Golden Hour"
+        }
+    }
+
+    /// iOS 主屏幕大组件底部提示（小组件不跑定位）。
+    static func widgetOpenAppHint(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "打开 App 可更新定位与数据。"
+        case .english: return "Open the app to refresh location."
         }
     }
 

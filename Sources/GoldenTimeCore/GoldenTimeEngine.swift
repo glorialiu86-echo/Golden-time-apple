@@ -247,6 +247,20 @@ public final class GoldenTimeEngine {
         return solarAltitudeAndAzimuth(ts: ts, latDeg: fix.latitude, lonDeg: fix.longitude)?.azimuthDegrees
     }
 
+    /// Apparent altitude (°) and true-north clockwise azimuth for the **Sun** at `instant` (analytical model, no network).
+    public func sunHorizontalPosition(at instant: Date) -> (altitudeDegrees: Double, azimuthDegrees: Double)? {
+        guard hasFix, let fix = lastFix else { return nil }
+        let ts = instant.timeIntervalSince1970
+        return solarAltitudeAndAzimuth(ts: ts, latDeg: fix.latitude, lonDeg: fix.longitude)
+    }
+
+    /// Apparent altitude (°) and true-north clockwise azimuth for the **Moon** at `instant` (low-precision Meeus-style ephemeris, no network).
+    public func moonHorizontalPosition(at instant: Date) -> (altitudeDegrees: Double, azimuthDegrees: Double)? {
+        guard hasFix, let fix = lastFix else { return nil }
+        let ts = instant.timeIntervalSince1970
+        return moonAltitudeAndAzimuth(ts: ts, latDeg: fix.latitude, lonDeg: fix.longitude)
+    }
+
     private func currentOrNextEventWindow(at now: Date, start startType: PhaseEventType, end endType: PhaseEventType) -> (start: Date, end: Date)? {
         guard hasFix else {
             return nil
@@ -754,7 +768,13 @@ public final class GoldenTimeEngine {
         let obliqRad = degreesToRadians(obliqCorr)
         let declRad = asin(sin(obliqRad) * sin(eclipRad))
         let raDeg = normalizeDegrees(radiansToDegrees(atan2(cos(obliqRad) * sin(eclipRad), cos(eclipRad))))
+        let decDeg = radiansToDegrees(declRad)
 
+        return horizontalFromEquatorial(raDeg: raDeg, decDeg: decDeg, jd: jd, jc: jc, latDeg: latDeg, lonDeg: lonDeg)
+    }
+
+    /// RA/Dec → altitude & azimuth (true north, clockwise), shared by Sun and Moon.
+    private func horizontalFromEquatorial(raDeg: Double, decDeg: Double, jd: Double, jc: Double, latDeg: Double, lonDeg: Double) -> (altitudeDegrees: Double, azimuthDegrees: Double)? {
         let gmst = normalizeDegrees(
             280.46061837
                 + 360.98564736629 * (jd - 2_451_545.0)
@@ -764,6 +784,7 @@ public final class GoldenTimeEngine {
 
         let hourAngleDeg = normalizeSignedDegrees(gmst + lonDeg - raDeg)
         let latRad = degreesToRadians(latDeg)
+        let declRad = degreesToRadians(decDeg)
         let haRad = degreesToRadians(hourAngleDeg)
 
         let unclampedSinAlt =
@@ -778,6 +799,95 @@ public final class GoldenTimeEngine {
         let azimuthDegrees = normalizeDegrees(radiansToDegrees(atan2(y, x)))
 
         return (altitudeDegrees, azimuthDegrees)
+    }
+
+    /// Geocentric ecliptic λ, β (deg) from truncated Meeus (Astronomical Algorithms) periodic terms; good to ~arcmin for compass use.
+    private func moonGeocentricEclipticLonLatDegrees(ts: TimeInterval) -> (lambdaDeg: Double, betaDeg: Double) {
+        let jd = (ts / 86_400.0) + 2_440_587.5
+        let T = (jd - 2_451_545.0) / 36_525.0
+
+        let Lp_deg = normalizeDegrees(
+            218.3164477 + 481_267.88123421 * T - 0.0015786 * T * T + (T * T * T) / 538_841 - (T * T * T * T) / 65_194_000
+        )
+        let D_deg = normalizeDegrees(
+            297.8501921 + 445_267.1114034 * T - 0.0018819 * T * T + (T * T * T) / 545_868 - (T * T * T * T) / 113_065_000
+        )
+        let M_deg = normalizeDegrees(357.5291092 + 35_999.0502909 * T - 0.0001536 * T * T)
+        let Mp_deg = normalizeDegrees(
+            134.9633964 + 477_198.8675055 * T + 0.0087414 * T * T + (T * T * T) / 69_699 - (T * T * T * T) / 14_712_000
+        )
+        let F_deg = normalizeDegrees(
+            93.2720950 + 483_202.0175233 * T - 0.0036539 * T * T - (T * T * T) / 3_526_000 + (T * T * T * T) / 863_310_000
+        )
+
+        let D = degreesToRadians(D_deg)
+        let M = degreesToRadians(M_deg)
+        let Mp = degreesToRadians(Mp_deg)
+        let F = degreesToRadians(F_deg)
+
+        let sumL =
+            6.288774 * sin(Mp)
+            + 1.274027 * sin(2 * D - Mp)
+            + 0.658314 * sin(2 * D)
+            + 0.213618 * sin(2 * Mp)
+            - 0.185116 * sin(2 * F)
+            - 0.114332 * sin(2 * D - 2 * Mp)
+            + 0.058793 * sin(M)
+            + 0.057212 * sin(2 * D - M - 2 * Mp)
+            + 0.053320 * sin(2 * D + M)
+            + 0.045874 * sin(2 * D - 2 * M)
+            + 0.041024 * sin(Mp - 2 * M)
+            - 0.034718 * sin(D)
+            - 0.030465 * sin(M + Mp)
+            + 0.015326 * sin(2 * D - 2 * F)
+            - 0.012528 * sin(2 * F + Mp)
+            - 0.010980 * sin(2 * F - Mp)
+            + 0.010674 * sin(4 * D - Mp)
+            + 0.010034 * sin(3 * Mp)
+            + 0.008548 * sin(4 * D - 2 * Mp)
+
+        let lambdaDeg = normalizeDegrees(Lp_deg + sumL)
+
+        let sumB =
+            5.128122 * sin(F)
+            + 0.280606 * sin(Mp + F)
+            + 0.277693 * sin(Mp - F)
+            + 0.173238 * sin(2 * D - F)
+            + 0.055413 * sin(2 * D + Mp - F)
+            + 0.046272 * sin(2 * D - Mp - F)
+            + 0.032573 * sin(2 * D + F)
+            + 0.017198 * sin(2 * Mp + F)
+
+        return (lambdaDeg, sumB)
+    }
+
+    private func eclipticToEquatorial(lambdaDeg: Double, betaDeg: Double, obliquityDeg: Double) -> (raDeg: Double, decDeg: Double) {
+        let λ = degreesToRadians(lambdaDeg)
+        let β = degreesToRadians(betaDeg)
+        let ε = degreesToRadians(obliquityDeg)
+        let sinδ = sin(β) * cos(ε) + cos(β) * sin(ε) * sin(λ)
+        let declRad = asin(min(1.0, max(-1.0, sinδ)))
+        let y = sin(λ) * cos(ε) - tan(β) * sin(ε)
+        let x = cos(λ)
+        let raRad = atan2(y, x)
+        return (normalizeDegrees(radiansToDegrees(raRad)), radiansToDegrees(declRad))
+    }
+
+    private func apparentMeanObliquityDegrees(jd: Double) -> Double {
+        let jc = (jd - 2_451_545.0) / 36_525.0
+        let omega = 125.04 - 1934.136 * jc
+        let obliqMean =
+            23.0 + (26.0 + ((21.448 - jc * (46.815 + jc * (0.00059 - jc * 0.001813))) / 60.0)) / 60.0
+        return obliqMean + 0.00256 * cos(degreesToRadians(omega))
+    }
+
+    private func moonAltitudeAndAzimuth(ts: TimeInterval, latDeg: Double, lonDeg: Double) -> (altitudeDegrees: Double, azimuthDegrees: Double)? {
+        let jd = (ts / 86_400.0) + 2_440_587.5
+        let jc = (jd - 2_451_545.0) / 36_525.0
+        let (λ, β) = moonGeocentricEclipticLonLatDegrees(ts: ts)
+        let ε = apparentMeanObliquityDegrees(jd: jd)
+        let (raDeg, decDeg) = eclipticToEquatorial(lambdaDeg: λ, betaDeg: β, obliquityDeg: ε)
+        return horizontalFromEquatorial(raDeg: raDeg, decDeg: decDeg, jd: jd, jc: jc, latDeg: latDeg, lonDeg: lonDeg)
     }
 
     private func solarAltitudeDegrees(ts: TimeInterval, latDeg: Double, lonDeg: Double) -> Double? {

@@ -1,9 +1,13 @@
 import CoreLocation
-import MapKit
+import GoldenTimeCore
 import SwiftUI
+#if os(iOS)
+import MapKit
+#endif
 
-// MARK: - Map underlay (fixed scale, no user gestures; camera centered on user, heading-up)
+// MARK: - Map underlay (iOS only; watch uses gradient compass)
 
+#if os(iOS)
 private enum CompassMapMetrics {
     /// Camera height in meters — ~1 km shows a few blocks so roads/labels stay readable under the compass.
     static let cameraDistance: CLLocationDistance = 980
@@ -59,6 +63,7 @@ private struct CompassMapUnderlay: UIViewRepresentable {
         mapView.setCamera(cam, animated: false)
     }
 }
+#endif
 
 // MARK: - Public card
 
@@ -82,15 +87,61 @@ struct TwilightCompassCard: View {
     var goldenSectorArcAzimuths: [(Double, Double)]
     var blueSectorColors: [Color]
     var goldenSectorColors: [Color]
+    /// When non-`nil`, fills the dial with translucent **day** / **night** wedges from sunrise→sunset geometry.
+    var compassDayNight: CompassDayNightInput?
+    var daySectorTint: Color
+    var nightSectorTint: Color
+    /// True-north sun azimuth when sun is up; `nil` hides the sun glyph.
+    var sunBodyAzimuthDegrees: Double?
+    /// True-north moon azimuth when moon is up; `nil` hides the moon glyph.
+    var moonBodyAzimuthDegrees: Double?
 
     private var heading: Double {
         deviceHeadingDegrees ?? 0
+    }
+
+    private var shadowOpacity: Double {
+        #if os(watchOS)
+        return 0.12
+        #else
+        return 0.2
+        #endif
+    }
+
+    private var shadowRadius: CGFloat {
+        #if os(watchOS)
+        return 4
+        #else
+        return 10
+        #endif
+    }
+
+    private var shadowY: CGFloat {
+        #if os(watchOS)
+        return 2
+        #else
+        return 4
+        #endif
+    }
+
+    @ViewBuilder
+    private func gradientCompassDisk(side: CGFloat) -> some View {
+        ZStack {
+            LinearGradient(
+                colors: chromeGradient.map { $0.opacity(0.92) },
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            compassFaceLayers(side: side, basemapBehindFace: false, chromeIsLight: chromeIsLight)
+                .allowsHitTesting(false)
+        }
     }
 
     var body: some View {
         GeometryReader { geo in
             let side = min(geo.size.width, geo.size.height)
             Group {
+                #if os(iOS)
                 if showMapBase {
                     let mapDiameter = CompassMapFrame.mapDiskDiameter(side: side)
                     ZStack {
@@ -101,21 +152,16 @@ struct TwilightCompassCard: View {
                             .allowsHitTesting(false)
                     }
                 } else {
-                    ZStack {
-                        LinearGradient(
-                            colors: chromeGradient.map { $0.opacity(0.92) },
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                        compassFaceLayers(side: side, basemapBehindFace: false, chromeIsLight: chromeIsLight)
-                            .allowsHitTesting(false)
-                    }
+                    gradientCompassDisk(side: side)
                 }
+                #else
+                gradientCompassDisk(side: side)
+                #endif
             }
             .frame(width: side, height: side)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .clipShape(Circle())
-            .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 4)
+            .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, x: 0, y: shadowY)
         }
         .aspectRatio(1, contentMode: .fit)
     }
@@ -130,6 +176,9 @@ struct TwilightCompassCard: View {
                 cardinals: GTCopy.compassCardinals(uiLanguage),
                 basemapBehindFace: basemapBehindFace,
                 chromeIsLight: chromeIsLight,
+                compassDayNight: compassDayNight,
+                daySectorTint: daySectorTint,
+                nightSectorTint: nightSectorTint,
                 blueSectorArcAzimuths: blueSectorArcAzimuths,
                 goldenSectorArcAzimuths: goldenSectorArcAzimuths,
                 blueSectorColors: blueSectorColors,
@@ -137,9 +186,106 @@ struct TwilightCompassCard: View {
             )
             .compositingGroup()
 
+            CompassSkyBodyMarkers(
+                side: side,
+                headingDegrees: heading,
+                sunAzimuthDegrees: sunBodyAzimuthDegrees,
+                moonAzimuthDegrees: moonBodyAzimuthDegrees,
+                chromeIsLight: chromeIsLight
+            )
+
             CompassNeedleOverlay(headingDegrees: heading, side: side)
         }
         .frame(width: side, height: side)
+    }
+}
+
+/// Screen angle (° clockwise from top) toward `geoAzimuth` with device `headingDegrees` (heading-up compass).
+private func compassBodyScreenAngleDeg(geoAzimuth: Double, headingDegrees: Double) -> Double {
+    var d = geoAzimuth - headingDegrees
+    while d > 180 { d -= 360 }
+    while d < -180 { d += 360 }
+    return d
+}
+
+/// Live sun/moon direction from analytical alt/az (no network); **two different radii** so glyphs don’t sit on the same ring.
+private struct CompassSkyBodyMarkers: View {
+    var side: CGFloat
+    var headingDegrees: Double
+    var sunAzimuthDegrees: Double?
+    var moonAzimuthDegrees: Double?
+    var chromeIsLight: Bool
+
+    private var sunRadius: CGFloat {
+        #if os(watchOS)
+        side * 0.28
+        #else
+        side * 0.29
+        #endif
+    }
+
+    private var moonRadius: CGFloat {
+        #if os(watchOS)
+        side * 0.42
+        #else
+        side * 0.475
+        #endif
+    }
+
+    private var sunGlyph: CGFloat {
+        #if os(watchOS)
+        max(12, side * 0.10)
+        #else
+        max(15, side * 0.076)
+        #endif
+    }
+
+    private var moonGlyph: CGFloat {
+        #if os(watchOS)
+        max(11, side * 0.088)
+        #else
+        max(13, side * 0.068)
+        #endif
+    }
+
+    var body: some View {
+        ZStack {
+            if let sa = sunAzimuthDegrees {
+                skyGlyph(systemName: "sun.max.fill", size: sunGlyph, fill: sunFill)
+                    .offset(offset(geoAzimuth: sa, radius: sunRadius))
+            }
+            if let ma = moonAzimuthDegrees {
+                skyGlyph(systemName: "moon.fill", size: moonGlyph, fill: moonFill)
+                    .offset(offset(geoAzimuth: ma, radius: moonRadius))
+            }
+        }
+        .frame(width: side, height: side)
+        .allowsHitTesting(false)
+    }
+
+    /// Opaque, high-chroma fills so glyphs read on translucent compass wedges / map.
+    private var sunFill: Color {
+        chromeIsLight
+            ? Color(red: 0.96, green: 0.52, blue: 0.02)
+            : Color(red: 1.0, green: 0.78, blue: 0.06)
+    }
+
+    private var moonFill: Color {
+        chromeIsLight
+            ? Color(red: 0.22, green: 0.32, blue: 0.72)
+            : Color(red: 0.93, green: 0.95, blue: 1.0)
+    }
+
+    private func offset(geoAzimuth: Double, radius: CGFloat) -> CGSize {
+        let ang = compassBodyScreenAngleDeg(geoAzimuth: geoAzimuth, headingDegrees: headingDegrees)
+        let rad = ang * .pi / 180
+        return CGSize(width: CGFloat(sin(rad)) * radius, height: CGFloat(-cos(rad)) * radius)
+    }
+
+    private func skyGlyph(systemName: String, size: CGFloat, fill: Color) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: size, weight: .semibold, design: .rounded))
+            .foregroundStyle(fill)
     }
 }
 
@@ -172,7 +318,7 @@ private struct SystemNorthArrowGlyph: View {
     var side: CGFloat
 
     /// Kept modest so the glyph visually aligns with sector/rays (large SF Symbol overshoots the pivot).
-    private var glyphSize: CGFloat { side * 0.20 }
+    private var glyphSize: CGFloat { side * 0.15 }
 
     private var arrowGradient: LinearGradient {
         LinearGradient(
@@ -202,6 +348,9 @@ private struct TwilightCompassDrawing: View {
     var cardinals: (n: String, e: String, s: String, w: String)
     var basemapBehindFace: Bool
     var chromeIsLight: Bool
+    var compassDayNight: CompassDayNightInput?
+    var daySectorTint: Color
+    var nightSectorTint: Color
     var blueSectorArcAzimuths: [(Double, Double)]
     var goldenSectorArcAzimuths: [(Double, Double)]
     var blueSectorColors: [Color]
@@ -268,6 +417,17 @@ private struct TwilightCompassDrawing: View {
                 drawInnerFace(context: &context, center: center, radius: outerR * 0.94, ink: compassInk)
             }
 
+            drawDayNightSectors(
+                context: &context,
+                center: center,
+                radius: sectorR,
+                dayNight: compassDayNight,
+                dayTint: daySectorTint,
+                nightTint: nightSectorTint,
+                goldenSectorArcAzimuths: goldenSectorArcAzimuths,
+                blueSectorArcAzimuths: blueSectorArcAzimuths
+            )
+
             for (g0, g1) in goldenSectorArcAzimuths {
                 drawSector(
                     context: &context,
@@ -304,6 +464,243 @@ private struct TwilightCompassDrawing: View {
 
             drawOuterRim(context: &context, center: center, radius: outerR * 0.985, ink: paints.outerRimInk)
         }
+    }
+
+    private func drawDayNightSectors(
+        context: inout GraphicsContext,
+        center: CGPoint,
+        radius: CGFloat,
+        dayNight: CompassDayNightInput?,
+        dayTint: Color,
+        nightTint: Color,
+        goldenSectorArcAzimuths: [(Double, Double)],
+        blueSectorArcAzimuths: [(Double, Double)]
+    ) {
+        guard let dn = dayNight else { return }
+        let rise = Self.screenAngleDeg(geoAzimuth: dn.sunriseAzimuthDegrees, heading: headingDegrees)
+        let set = Self.screenAngleDeg(geoAzimuth: dn.sunsetAzimuthDegrees, heading: headingDegrees)
+        let mid = Self.screenAngleDeg(geoAzimuth: dn.midDaySunAzimuthDegrees, heading: headingDegrees)
+        guard let secs = Self.dayNightSectorsScreen(riseScreen: rise, setScreen: set, midScreen: mid) else { return }
+
+        let twilightHoles = Self.twilightMinorArcsScreen(
+            golden: goldenSectorArcAzimuths,
+            blue: blueSectorArcAzimuths,
+            heading: headingDegrees
+        )
+
+        let nightSweepEff = min(secs.nightSweep, 359.99)
+        if nightSweepEff > 0.75 {
+            let nightPieces = Self.subtractTwilightHolesFromClockwiseArc(
+                baseStart: secs.nightStart,
+                baseSweep: nightSweepEff,
+                holes: twilightHoles
+            )
+            for piece in nightPieces where piece.sweep > 0.75 {
+                drawTranslucentCompassWedge(
+                    context: &context,
+                    center: center,
+                    radius: radius,
+                    startScreenDeg: piece.start,
+                    sweepDeg: piece.sweep,
+                    tint: nightTint
+                )
+            }
+        }
+
+        let daySweepEff = min(secs.daySweep, 359.99)
+        if daySweepEff > 0.75 {
+            let dayPieces = Self.subtractTwilightHolesFromClockwiseArc(
+                baseStart: secs.dayStart,
+                baseSweep: daySweepEff,
+                holes: twilightHoles
+            )
+            for piece in dayPieces where piece.sweep > 0.75 {
+                drawTranslucentCompassWedge(
+                    context: &context,
+                    center: center,
+                    radius: radius,
+                    startScreenDeg: piece.start,
+                    sweepDeg: piece.sweep,
+                    tint: dayTint
+                )
+            }
+        }
+    }
+
+    private func drawTranslucentCompassWedge(
+        context: inout GraphicsContext,
+        center: CGPoint,
+        radius: CGFloat,
+        startScreenDeg: Double,
+        sweepDeg: Double,
+        tint: Color
+    ) {
+        guard sweepDeg > 0.75 else { return }
+        let clampedSweep = min(sweepDeg, 359.5)
+        var path = sectorPathSweep(center: center, radius: radius, startDeg: startScreenDeg, sweepDeg: clampedSweep)
+        context.fill(path, with: .color(tint.opacity(0.34)))
+        path = sectorPathSweep(center: center, radius: radius, startDeg: startScreenDeg, sweepDeg: clampedSweep)
+        context.stroke(path, with: .color(tint.opacity(0.55)), lineWidth: 1.25)
+    }
+
+    private func sectorPathSweep(center: CGPoint, radius: CGFloat, startDeg: Double, sweepDeg: Double) -> Path {
+        guard abs(sweepDeg) >= 0.25 else { return Path() }
+        let steps = max(8, min(72, Int(abs(sweepDeg) / 3) + 8))
+        var p = Path()
+        p.move(to: center)
+        for i in 0 ... steps {
+            let t = Double(i) / Double(steps)
+            let deg = startDeg + sweepDeg * t
+            let pt = Self.pointOnCircle(center: center, radius: radius, degFromTopCW: deg)
+            if i == 0 {
+                p.addLine(to: pt)
+            } else {
+                p.addLine(to: pt)
+            }
+        }
+        p.closeSubpath()
+        return p
+    }
+
+    private static func norm360(_ a: Double) -> Double {
+        var x = a.truncatingRemainder(dividingBy: 360)
+        if x < 0 { x += 360 }
+        return x
+    }
+
+    private static func clockwiseDelta(from: Double, to: Double) -> Double {
+        let d = norm360(to) - norm360(from)
+        return d <= 0 ? d + 360 : d
+    }
+
+    /// Picks the daytime great-arc (contains midday sun bearing); returns paired night arc.
+    private static func dayNightSectorsScreen(
+        riseScreen: Double,
+        setScreen: Double,
+        midScreen: Double
+    ) -> (dayStart: Double, daySweep: Double, nightStart: Double, nightSweep: Double)? {
+        let r = norm360(riseScreen)
+        let s = norm360(setScreen)
+        let m = norm360(midScreen)
+        var L = clockwiseDelta(from: r, to: s)
+        if L < 0.25 { return nil }
+        if L >= 359.75 {
+            return (r, 360, r, 0)
+        }
+        let dMid = clockwiseDelta(from: r, to: m)
+        let onCW = dMid <= L + 0.5
+        let dayStart: Double
+        let daySweep: Double
+        if onCW {
+            dayStart = r
+            daySweep = L
+        } else {
+            dayStart = s
+            daySweep = 360 - L
+        }
+        let nightStart = norm360(dayStart + daySweep)
+        let nightSweep = 360 - daySweep
+        return (dayStart, daySweep, nightStart, nightSweep)
+    }
+
+    /// Minor-arc wedges for blue/golden sectors (same convention as `sectorPath`), screen space.
+    private static func twilightMinorArcsScreen(
+        golden: [(Double, Double)],
+        blue: [(Double, Double)],
+        heading: Double
+    ) -> [(start: Double, sweep: Double)] {
+        var out: [(Double, Double)] = []
+        for (g0, g1) in golden + blue {
+            let s0 = screenAngleDeg(geoAzimuth: g0, heading: heading)
+            let s1 = screenAngleDeg(geoAzimuth: g1, heading: heading)
+            var delta = s1 - s0
+            while delta > 180 { delta -= 360 }
+            while delta < -180 { delta += 360 }
+            let start: Double
+            let sweep: Double
+            if delta >= 0 {
+                start = s0
+                sweep = delta
+            } else {
+                start = s1
+                sweep = -delta
+            }
+            if sweep > 0.5 {
+                out.append((norm360(start), sweep))
+            }
+        }
+        return out.map { (start: $0.0, sweep: $0.1) }
+    }
+
+    private static func angleOnClockwiseArc(angle: Double, arcStart: Double, arcSweep: Double) -> Bool {
+        let a = norm360(angle)
+        let s0 = norm360(arcStart)
+        let span = clockwiseDelta(from: s0, to: a)
+        return span >= -1e-4 && span <= arcSweep + 1e-3
+    }
+
+    /// Removes one clockwise hole from a clockwise base arc; returns 0…n remaining fragments.
+    private static func subtractOneTwilightHoleFromClockwiseArc(
+        baseStart: Double,
+        baseSweep: Double,
+        holeStart: Double,
+        holeSweep: Double
+    ) -> [(Double, Double)] {
+        guard baseSweep > 0.5 else { return [] }
+        guard holeSweep > 0.5 else { return [(baseStart, baseSweep)] }
+
+        var cut: [Double] = [0, baseSweep]
+        for b in [norm360(holeStart), norm360(holeStart + holeSweep)] {
+            for k in -4 ... 6 {
+                let t = b - baseStart + Double(k) * 360
+                if t >= -1e-3 && t <= baseSweep + 1e-3 {
+                    cut.append(min(baseSweep, max(0, t)))
+                }
+            }
+        }
+        cut.sort()
+        var merged: [Double] = []
+        for x in cut {
+            if merged.isEmpty || abs(x - merged.last!) > 0.06 {
+                merged.append(x)
+            }
+        }
+
+        var fr: [(Double, Double)] = []
+        var i = 0
+        while i < merged.count - 1 {
+            let t0 = merged[i]
+            let t1 = merged[i + 1]
+            let span = t1 - t0
+            if span > 0.08 {
+                let midT = (t0 + t1) / 2
+                let midAngle = norm360(baseStart + midT)
+                if !angleOnClockwiseArc(angle: midAngle, arcStart: holeStart, arcSweep: holeSweep) {
+                    fr.append((baseStart + t0, span))
+                }
+            }
+            i += 1
+        }
+        return fr
+    }
+
+    private static func subtractTwilightHolesFromClockwiseArc(
+        baseStart: Double,
+        baseSweep: Double,
+        holes: [(start: Double, sweep: Double)]
+    ) -> [(start: Double, sweep: Double)] {
+        var pieces: [(Double, Double)] = [(baseStart, baseSweep)]
+        for h in holes where h.sweep > 0.5 {
+            pieces = pieces.flatMap { p in
+                subtractOneTwilightHoleFromClockwiseArc(
+                    baseStart: p.0,
+                    baseSweep: p.1,
+                    holeStart: h.start,
+                    holeSweep: h.sweep
+                )
+            }
+        }
+        return pieces.map { (start: $0.0, sweep: $0.1) }
     }
 
     private func drawInnerFace(context: inout GraphicsContext, center: CGPoint, radius: CGFloat, ink: Color) {

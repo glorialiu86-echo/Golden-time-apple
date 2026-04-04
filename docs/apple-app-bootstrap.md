@@ -1,4 +1,4 @@
-# Golden Time Apple Bootstrap
+# Golden Hour Compass — Apple Bootstrap
 
 当前仓库已经具备：
 

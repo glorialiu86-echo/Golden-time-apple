@@ -3,6 +3,7 @@ import CoreLocation
 import Foundation
 import GoldenTimeCore
 import UIKit
+import WidgetKit
 
 /// Drives `GoldenTimeEngine` on-device only: GPS + cached coordinates + local time. No URLSession or remote APIs.
 @MainActor
@@ -46,6 +47,9 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     /// Apparent sunrise/sunset azimuths for the local civil day (all on-device math).
     @Published private(set) var sunHorizon: SunHorizonGeometry?
 
+    /// Sunrise/sunset azimuths + midday sun bearing for compass day/night wedges; `nil` if polar or no geometry.
+    @Published private(set) var compassDayNight: CompassDayNightInput?
+
     /// Device true (or magnetic) heading in degrees clockwise from north; `nil` until Core Location reports heading.
     @Published private(set) var deviceHeadingDegrees: Double?
 
@@ -55,13 +59,22 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     /// Sun azimuth arcs for each golden-hour clip in the same local day.
     @Published private(set) var goldenSectorArcAzimuths: [(Double, Double)] = []
 
+    /// True-north sun azimuth for compass body icon when sun is above the same −50′ horizon as sunrise tables; `nil` if not up.
+    @Published private(set) var compassSunBodyAzimuthDegrees: Double?
+
+    /// True-north moon azimuth when moon is above geometric horizon; `nil` if below.
+    @Published private(set) var compassMoonBodyAzimuthDegrees: Double?
+
     /// Wall-clock instant for UI labels; updated every second (replaces `TimelineView`, which mis-sized on some simulators).
     @Published private(set) var clockNow = Date()
 
-    private static let defaults = UserDefaults.standard
-    private static let latKey = "gt.cached.latitude"
-    private static let lonKey = "gt.cached.longitude"
-    private static let tsKey = "gt.cached.timestamp"
+    private static var defaults: UserDefaults { GTAppGroup.shared }
+    /// Matches `GoldenTimeEngine` apparent sunrise/sunset (−50′).
+    private static let sunIconMinAltitudeDegrees = -50.0 / 60.0
+    private static let moonIconMinAltitudeDegrees = 0.0
+    private static let latKey = GoldenTimeLocationCache.latitudeKey
+    private static let lonKey = GoldenTimeLocationCache.longitudeKey
+    private static let tsKey = GoldenTimeLocationCache.timestampKey
 
     private let coordFormatter: NumberFormatter = {
         let f = NumberFormatter()
@@ -70,24 +83,6 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         f.numberStyle = .decimal
         return f
     }()
-
-    #if DEBUG
-    /// Simulator follows the Mac clock; set `GOLDEN_TIME_OVERRIDE_NOW` (ISO 8601, e.g. `2026-04-04T05:00:00Z`) via `SIMCTL_CHILD_*` at launch to preview a fixed local solar context. Debug only.
-    private static func environmentOverrideNow() -> Date? {
-        guard let s = ProcessInfo.processInfo.environment["GOLDEN_TIME_OVERRIDE_NOW"], !s.isEmpty else { return nil }
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = f.date(from: s) { return d }
-        f.formatOptions = [.withInternetDateTime]
-        return f.date(from: s)
-    }
-    #else
-    private static func environmentOverrideNow() -> Date? { nil }
-    #endif
-
-    private func nowForModel() -> Date {
-        Self.environmentOverrideNow() ?? Date()
-    }
 
     private func formatTwilightInstant(_ instant: Date, now: Date) -> String {
         GTDateFormatters.twilightInstantLabel(instant, now: now, lang: contentLanguage)
@@ -146,9 +141,10 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             .store(in: &cancellables)
 
         locationReader.requestLocation()
-        let now = nowForModel()
+        let now = Date()
         if activeFix != nil {
             recomputeEngineIfNeeded(now: now, force: true)
+            Self.reloadTwilightWidgetTimelines()
         }
         refreshWindows(at: now)
         recomputeStatusLine()
@@ -157,7 +153,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self else { return }
-                let now = self.nowForModel()
+                let now = Date()
                 self.clockNow = now
                 self.refreshForTick(at: now)
             }
@@ -209,7 +205,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         Self.saveCachedFix(fix)
         updateCoordLabels(lat: fix.latitude, lon: fix.longitude)
         recomputeStatusLine()
-        let now = nowForModel()
+        let now = Date()
         recomputeEngineIfNeeded(now: now, force: true)
         refreshWindows(at: now)
     }
@@ -244,8 +240,11 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             phase = nil
             mapCoordinate = nil
             sunHorizon = nil
+            compassDayNight = nil
             blueSectorArcAzimuths = []
             goldenSectorArcAzimuths = []
+            compassSunBodyAzimuthDegrees = nil
+            compassMoonBodyAzimuthDegrees = nil
             return
         }
 
@@ -280,7 +279,16 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         blueTwilightFirst = stackBlueFirst(phase: phase, blue: bWin, golden: gWin)
 
         mapCoordinate = CLLocationCoordinate2D(latitude: fix.latitude, longitude: fix.longitude)
-        sunHorizon = engine.sunHorizonGeometry(for: now)
+        if let h = engine.sunHorizonGeometry(for: now) {
+            sunHorizon = h
+            let midTs = (h.sunrise.timeIntervalSince1970 + h.sunset.timeIntervalSince1970) / 2
+            compassDayNight = engine.sunAzimuthDegrees(at: Date(timeIntervalSince1970: midTs)).map {
+                CompassDayNightInput(horizon: h, midDaySunAzimuthDegrees: $0)
+            }
+        } else {
+            sunHorizon = nil
+            compassDayNight = nil
+        }
 
         blueSectorArcAzimuths = engine.blueWindowsInLocalDay(containing: now).compactMap { win in
             guard let a0 = engine.sunAzimuthDegrees(at: win.start), let a1 = engine.sunAzimuthDegrees(at: win.end) else { return nil }
@@ -289,6 +297,17 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         goldenSectorArcAzimuths = engine.goldenWindowsInLocalDay(containing: now).compactMap { win in
             guard let a0 = engine.sunAzimuthDegrees(at: win.start), let a1 = engine.sunAzimuthDegrees(at: win.end) else { return nil }
             return (a0, a1)
+        }
+
+        if let sun = engine.sunHorizontalPosition(at: now), sun.altitudeDegrees > Self.sunIconMinAltitudeDegrees {
+            compassSunBodyAzimuthDegrees = sun.azimuthDegrees
+        } else {
+            compassSunBodyAzimuthDegrees = nil
+        }
+        if let moon = engine.moonHorizontalPosition(at: now), moon.altitudeDegrees > Self.moonIconMinAltitudeDegrees {
+            compassMoonBodyAzimuthDegrees = moon.azimuthDegrees
+        } else {
+            compassMoonBodyAzimuthDegrees = nil
         }
     }
 
@@ -336,5 +355,11 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         defaults.set(fix.latitude, forKey: latKey)
         defaults.set(fix.longitude, forKey: lonKey)
         defaults.set(fix.timestamp.timeIntervalSince1970, forKey: tsKey)
+        reloadTwilightWidgetTimelines()
+    }
+
+    /// Home-screen widgets do not observe `UserDefaults`; ask WidgetKit to re-run the timeline after cache or settings change.
+    private static func reloadTwilightWidgetTimelines() {
+        WidgetCenter.shared.reloadTimelines(ofKind: GTIOWidgetKind.twilight)
     }
 }

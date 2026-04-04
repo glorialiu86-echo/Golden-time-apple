@@ -8,6 +8,8 @@ import GoldenTimeCore
 final class WatchLocationReader: NSObject, ObservableObject, @unchecked Sendable {
     @Published private(set) var authorizationStatus: CLAuthorizationStatus = .notDetermined
     @Published private(set) var latestFix: LocationFix?
+    /// Degrees clockwise from true north when available; else magnetic; `nil` until first heading update.
+    @Published private(set) var headingDegrees: Double?
 
     private let manager = CLLocationManager()
 
@@ -15,7 +17,19 @@ final class WatchLocationReader: NSObject, ObservableObject, @unchecked Sendable
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        manager.headingFilter = 5
         authorizationStatus = manager.authorizationStatus
+        syncHeadingUpdates()
+    }
+
+    private func syncHeadingUpdates() {
+        switch manager.authorizationStatus {
+        case .authorizedAlways, .authorizedWhenInUse:
+            manager.startUpdatingHeading()
+        default:
+            manager.stopUpdatingHeading()
+            headingDegrees = nil
+        }
     }
 
     func refreshAuthorization() {
@@ -39,6 +53,7 @@ final class WatchLocationReader: NSObject, ObservableObject, @unchecked Sendable
             @unknown default:
                 self.manager.requestWhenInUseAuthorization()
             }
+            self.syncHeadingUpdates()
         }
     }
 }
@@ -51,6 +66,20 @@ extension WatchLocationReader: CLLocationManagerDelegate {
             self.authorizationStatus = status
             if status == .authorizedWhenInUse || status == .authorizedAlways {
                 self.manager.requestLocation()
+            }
+            self.syncHeadingUpdates()
+        }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
+        let trueH = newHeading.trueHeading
+        let magH = newHeading.magneticHeading
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            if trueH >= 0 {
+                self.headingDegrees = trueH
+            } else if magH >= 0 {
+                self.headingDegrees = magH
             }
         }
     }

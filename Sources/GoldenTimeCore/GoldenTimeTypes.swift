@@ -64,6 +64,19 @@ public struct SunHorizonGeometry: Equatable, Sendable {
     }
 }
 
+/// Drives day / night compass wedges: sunrise→sunset arcs plus a midday sun azimuth to pick the correct major arc.
+public struct CompassDayNightInput: Equatable, Sendable {
+    public let sunriseAzimuthDegrees: Double
+    public let sunsetAzimuthDegrees: Double
+    public let midDaySunAzimuthDegrees: Double
+
+    public init(horizon: SunHorizonGeometry, midDaySunAzimuthDegrees: Double) {
+        sunriseAzimuthDegrees = horizon.sunriseAzimuthDegrees
+        sunsetAzimuthDegrees = horizon.sunsetAzimuthDegrees
+        self.midDaySunAzimuthDegrees = midDaySunAzimuthDegrees
+    }
+}
+
 public struct GoldenTimeSnapshot: Equatable, Sendable {
     public let hasFix: Bool
     public let nextBlueStart: Date?

@@ -1,138 +1,201 @@
-import SwiftUI
+import Combine
 import GoldenTimeCore
+import SwiftUI
 
 struct GoldenTimeWatchRootView: View {
     @StateObject private var model = GoldenTimeWatchViewModel()
+    /// Drive clock / engine ticks without `TimelineView` (watchOS Simulator has been observed stuck on the launch screen with periodic Timeline + TabView).
+    @State private var tickNow = Date()
+    @AppStorage(GTAppLanguage.storageKey, store: GTAppGroup.shared) private var langStorageRaw: String = ""
+    @AppStorage(GTTwilightDisplayMode.storageKey, store: GTAppGroup.shared) private var twilightModeRaw: String = GTTwilightDisplayMode.clockTimes.rawValue
 
-    var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
-            GoldenTimeWatchFace(now: context.date, model: model)
-                .onChange(of: context.date) { _, newValue in
-                    model.refreshForTimeline(now: newValue)
-                }
-        }
+    private var lang: GTAppLanguage {
+        GTAppLanguage.fromStorageRaw(langStorageRaw)
     }
-}
 
-private struct GoldenTimeWatchFace: View {
-    let now: Date
-    @ObservedObject var model: GoldenTimeWatchViewModel
+    private var twilightUsesClockTimes: Bool {
+        twilightModeRaw != GTTwilightDisplayMode.countdown.rawValue
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("本地算法 · 不联网")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-
-                phaseRow
-
-                if model.snapshot.hasFix {
-                    countdownBlock(
-                        title: "下次蓝调",
-                        date: model.snapshot.nextBlueStart,
-                        accent: Color(red: 0.5, green: 0.58, blue: 0.71)
-                    )
-                    countdownBlock(
-                        title: "下次金调",
-                        date: model.snapshot.nextGoldenStart,
-                        accent: Color(red: 1.0, green: 0.67, blue: 0.0)
-                    )
-                } else {
-                    Text("需要至少一次有效 GPS，用于离线推算太阳高度与相位。")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Text(model.locationHint)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+        let skin = GTPhaseSkin(phase: model.phase)
+        let pageGradient = LinearGradient(
+            colors: [skin.upper, skin.lower],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        ZStack {
+            pageGradient
+                .ignoresSafeArea()
+            TabView {
+                watchTwilightPage(skin: skin, now: tickNow)
+                watchCompassPage(skin: skin)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 4)
+            .tabViewStyle(.page(indexDisplayMode: .automatic))
+        }
+        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { date in
+            tickNow = date
+            model.refreshForTimeline(now: date)
         }
         .onAppear {
-            model.refreshForTimeline(now: now)
+            GTAppGroup.migrateStandardToSharedIfNeeded()
+            model.syncContentLanguageWithStorage()
+            model.refreshForTimeline(now: tickNow)
+        }
+        .task {
+            model.startLocationPipeline()
+        }
+        .onChange(of: langStorageRaw) { _, _ in
+            model.syncContentLanguageWithStorage()
+        }
+        .onChange(of: twilightModeRaw) { _, _ in
+            model.objectWillChange.send()
         }
     }
 
     @ViewBuilder
-    private var phaseRow: some View {
-        HStack {
-            Text("当前")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer()
-            if let phase = model.phase {
-                Text(phaseDisplayName(phase))
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(phaseColor(phase))
-            } else {
-                Text("—")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
+    private func watchTwilightPage(skin: GTPhaseSkin, now: Date) -> some View {
+        ScrollView {
+            VStack(alignment: .center, spacing: 10) {
+                if model.mapCoordinate != nil {
+                    VStack(spacing: 8) {
+                        if model.blueTwilightFirst {
+                            watchTwilightCard(skin: skin, blue: true, now: now)
+                            watchTwilightCard(skin: skin, blue: false, now: now)
+                        } else {
+                            watchTwilightCard(skin: skin, blue: false, now: now)
+                            watchTwilightCard(skin: skin, blue: true, now: now)
+                        }
+                        watchSkyBodyAzimuthRow(skin: skin)
+                    }
+                } else {
+                    Text(GTCopy.compassCardNeedLocation(lang))
+                        .font(.caption)
+                        .foregroundStyle(skin.muted)
+                        .multilineTextAlignment(.center)
+                }
 
-    private func countdownBlock(title: String, date: Date?, accent: Color) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(accent)
-            if let date {
-                Text(Self.relativeCountdown(from: now, to: date))
-                    .font(.title3.monospacedDigit().weight(.semibold))
-                Text(Self.timeFormatter.string(from: date))
+                Text(model.locationHint)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(skin.muted.opacity(0.9))
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 4)
+            .frame(maxWidth: .infinity)
+            .accessibilityIdentifier("gt.watch.twilightPage")
+        }
+    }
+
+    /// Sun/moon true-north azimuth (same offline engine as the compass page); compact row on the twilight tab.
+    @ViewBuilder
+    private func watchSkyBodyAzimuthRow(skin: GTPhaseSkin) -> some View {
+        if model.compassSunBodyAzimuthDegrees != nil || model.compassMoonBodyAzimuthDegrees != nil {
+            HStack(spacing: 12) {
+                if let deg = model.compassSunBodyAzimuthDegrees {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sun.max.fill")
+                            .foregroundStyle(Self.skyBodySunColor(chromeIsLight: skin.isLightChrome))
+                        Text(Self.displayAzimuthDegrees(deg))
+                            .foregroundStyle(skin.ink)
+                            .monospacedDigit()
+                    }
+                }
+                if let deg = model.compassMoonBodyAzimuthDegrees {
+                    HStack(spacing: 4) {
+                        Image(systemName: "moon.fill")
+                            .foregroundStyle(Self.skyBodyMoonColor(chromeIsLight: skin.isLightChrome))
+                        Text(Self.displayAzimuthDegrees(deg))
+                            .foregroundStyle(skin.ink)
+                            .monospacedDigit()
+                    }
+                }
+            }
+            .font(.caption2.weight(.medium))
+            .padding(.top, 4)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("gt.watch.sunMoonAzimuthRow")
+        }
+    }
+
+    private static func displayAzimuthDegrees(_ deg: Double) -> String {
+        var v = deg.truncatingRemainder(dividingBy: 360)
+        if v < 0 { v += 360 }
+        return "\(Int(v.rounded()))°"
+    }
+
+    private static func skyBodySunColor(chromeIsLight: Bool) -> Color {
+        chromeIsLight
+            ? Color(red: 0.96, green: 0.52, blue: 0.02)
+            : Color(red: 1.0, green: 0.78, blue: 0.06)
+    }
+
+    private static func skyBodyMoonColor(chromeIsLight: Bool) -> Color {
+        chromeIsLight
+            ? Color(red: 0.22, green: 0.32, blue: 0.72)
+            : Color(red: 0.93, green: 0.95, blue: 1.0)
+    }
+
+    @ViewBuilder
+    private func watchTwilightCard(skin: GTPhaseSkin, blue: Bool, now: Date) -> some View {
+        GoldenTimeTwilightWindowCard(
+            skin: skin,
+            title: blue ? GTCopy.blueHourTitle(lang) : GTCopy.goldenHourTitle(lang),
+            systemImage: blue ? "moon.stars.fill" : "sun.horizon.fill",
+            blue: blue,
+            useClockTimes: twilightUsesClockTimes,
+            window: blue ? model.blueWindowRange : model.goldenWindowRange,
+            clockStart: blue ? model.blueStartText : model.goldenStartText,
+            clockEnd: blue ? model.blueEndText : model.goldenEndText,
+            now: now,
+            lang: lang,
+            metrics: .watch
+        )
+    }
+
+    @ViewBuilder
+    private func watchCompassPage(skin: GTPhaseSkin) -> some View {
+        Group {
+            if let coord = model.mapCoordinate {
+                VStack(spacing: 4) {
+                    TwilightCompassCard(
+                        showMapBase: false,
+                        chromeGradient: skin.chromeGradient,
+                        compassInk: skin.ink,
+                        compassStroke: skin.panelStroke,
+                        chromeIsLight: skin.isLightChrome,
+                        uiLanguage: lang,
+                        coordinate: coord,
+                        deviceHeadingDegrees: model.deviceHeadingDegrees,
+                        blueSectorArcAzimuths: model.blueSectorArcAzimuths,
+                        goldenSectorArcAzimuths: model.goldenSectorArcAzimuths,
+                        blueSectorColors: skin.twilightCardGradient(blue: true),
+                        goldenSectorColors: skin.twilightCardGradient(blue: false),
+                        compassDayNight: model.compassDayNight,
+                        daySectorTint: skin.compassDayDiskTint,
+                        nightSectorTint: skin.compassNightDiskTint,
+                        sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
+                        moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .layoutPriority(1)
+                    Text("\(GTCopy.watchCoordinatesPrefix(lang))\(model.latitudeText), \(model.longitudeText)")
+                        .font(.caption2)
+                        .monospacedDigit()
+                        .foregroundStyle(skin.muted)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.65)
+                        .accessibilityIdentifier("gt.watch.compassCoordinates")
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                Text("今日无")
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.secondary)
+                Text(GTCopy.compassCardNeedLocation(lang))
+                    .font(.caption)
+                    .foregroundStyle(skin.muted)
+                    .multilineTextAlignment(.center)
+                    .padding()
             }
         }
-        .padding(.vertical, 4)
-    }
-
-    private func phaseDisplayName(_ phase: PhaseState) -> String {
-        switch phase {
-        case .night: "夜间"
-        case .blue: "蓝调"
-        case .golden: "金调"
-        case .day: "日间"
-        }
-    }
-
-    private func phaseColor(_ phase: PhaseState) -> Color {
-        switch phase {
-        case .night: .indigo
-        case .blue: Color(red: 0.5, green: 0.58, blue: 0.71)
-        case .golden: Color(red: 1.0, green: 0.67, blue: 0.0)
-        case .day: .orange
-        }
-    }
-
-    private static let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .none
-        f.timeStyle = .short
-        return f
-    }()
-
-    private static func relativeCountdown(from now: Date, to target: Date) -> String {
-        let seconds = Int(target.timeIntervalSince(now).rounded())
-        if seconds <= 0 {
-            return "已开始"
-        }
-        let h = seconds / 3600
-        let m = (seconds % 3600) / 60
-        let s = seconds % 60
-        if h > 0 {
-            return String(format: "%d:%02d:%02d", h, m, s)
-        }
-        return String(format: "%d:%02d", m, s)
+        .accessibilityIdentifier("gt.watch.compassPage")
     }
 }

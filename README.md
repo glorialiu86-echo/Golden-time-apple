@@ -1,6 +1,6 @@
-# Golden Time Apple
+# Golden Hour Compass (Apple)
 
-This repository is the Apple-platform migration workspace for Golden Time.
+This repository is the Apple-platform app workspace for **Golden Hour Compass**.
 
 ## Layout
 
@@ -30,4 +30,4 @@ xcodebuild -project GoldenTime.xcodeproj -scheme GoldenTime -configuration Debug
 ## Notes
 
 - The watch target uses `com.apple.product-type.application` (watchOS) instead of `watchapp2` to avoid an Xcode 26 “multiple commands produce … executable” issue when linking SwiftPM. The iOS app still embeds the watch product under `Watch/`.
-- Bundle IDs are `time.golden.GoldenTime` (iOS) and `time.golden.GoldenTime.watchkitapp` (watch); change them if you ship.
+- Bundle IDs are `time.golden.GoldenHourCompass` (iOS) and `time.golden.GoldenHourCompass.watchkitapp` (watch); App Group `group.time.golden.GoldenHourCompass`. Adjust in Apple Developer if you ship under another team.
