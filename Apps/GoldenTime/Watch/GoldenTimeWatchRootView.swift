@@ -113,7 +113,7 @@ struct GoldenTimeWatchRootView: View {
             if let coord = model.mapCoordinate {
                 GeometryReader { geo in
                     let span = min(geo.size.width, geo.size.height)
-                    let side = max(span * 0.945, 1)
+                    let side = max(span * 0.9, 1)
                     TwilightCompassCard(
                         showMapBase: false,
                         chromeGradient: skin.chromeGradient,
