@@ -1,18 +1,18 @@
 import CoreLocation
 import GoldenTimeCore
 import SwiftUI
-#if os(iOS)
+#if os(iOS) || os(watchOS)
 import MapKit
 #endif
 
-// MARK: - Map underlay (iOS only; watch uses gradient compass)
+// MARK: - Map (iOS: MKMapView + zoom rail; watch: SwiftUI Map, distance synced via App Group)
 
-#if os(iOS)
-private enum CompassMapMetrics {
-    /// Default camera height (m); ~1 km shows a few blocks under the dial.
-    static let cameraDistanceDefault: CLLocationDistance = 980
-    static let cameraDistanceMin: CLLocationDistance = 120
-    static let cameraDistanceMax: CLLocationDistance = 18_000
+#if os(iOS) || os(watchOS)
+/// Shared camera limits with iOS `MKMapCamera` / watch `MapCamera`; default matches `GTCompassMapSettings`.
+private enum CompassMapCamera {
+    static let defaultDistance: CLLocationDistance = 980
+    static let minDistance: CLLocationDistance = 120
+    static let maxDistance: CLLocationDistance = 18_000
 }
 
 /// Map disk sizing only; compass `Canvas` is unchanged.
@@ -27,7 +27,9 @@ private enum CompassMapFrame {
         max(outerRimDiameter(side: side) - 10, 1)
     }
 }
+#endif
 
+#if os(iOS)
 private struct CompassMapUnderlay: UIViewRepresentable {
     @Binding var mapTilesReady: Bool
     var coordinate: CLLocationCoordinate2D
@@ -77,8 +79,8 @@ private struct CompassMapUnderlay: UIViewRepresentable {
         if #available(iOS 13.0, *) {
             map.overrideUserInterfaceStyle = useDarkMapAppearance ? .dark : .unspecified
             let z = MKMapView.CameraZoomRange(
-                minCenterCoordinateDistance: CompassMapMetrics.cameraDistanceMin,
-                maxCenterCoordinateDistance: CompassMapMetrics.cameraDistanceMax
+                minCenterCoordinateDistance: CompassMapCamera.minDistance,
+                maxCenterCoordinateDistance: CompassMapCamera.maxDistance
             )
             map.setCameraZoomRange(z, animated: false)
         }
@@ -91,7 +93,7 @@ private struct CompassMapUnderlay: UIViewRepresentable {
         }
         guard CLLocationCoordinate2DIsValid(coordinate) else { return }
         let d = cameraDistance.clamped(
-            to: CompassMapMetrics.cameraDistanceMin ... CompassMapMetrics.cameraDistanceMax
+            to: CompassMapCamera.minDistance ... CompassMapCamera.maxDistance
         )
         let cam = MKMapCamera(
             lookingAtCenter: coordinate,
@@ -114,8 +116,8 @@ private struct CompassMapZoomRail: View {
     var a11yZoomLabel: String
     var a11yMapNotReadyHint: String
 
-    private var dMin: CLLocationDistance { CompassMapMetrics.cameraDistanceMin }
-    private var dMax: CLLocationDistance { CompassMapMetrics.cameraDistanceMax }
+    private var dMin: CLLocationDistance { CompassMapCamera.minDistance }
+    private var dMax: CLLocationDistance { CompassMapCamera.maxDistance }
 
     private var trackLineColor: Color {
         chromeIsLight ? Color.black.opacity(0.11) : Color.white.opacity(0.22)
@@ -213,10 +215,46 @@ private struct CompassMapZoomRail: View {
         return distance(forNormalizedT: next, dMin: dMin, dMax: dMax)
     }
 }
+#endif
 
+#if os(iOS) || os(watchOS)
 private extension Comparable {
     func clamped(to range: ClosedRange<Self>) -> Self {
         min(max(self, range.lowerBound), range.upperBound)
+    }
+}
+#endif
+
+#if os(watchOS)
+/// Non-interactive map disk; camera distance comes from App Group (written on iPhone).
+private struct WatchCompassMapUnderlay: View {
+    @Binding var mapTilesReady: Bool
+    var coordinate: CLLocationCoordinate2D
+    var headingDegrees: Double
+    var cameraDistance: CLLocationDistance
+    var useDarkMapAppearance: Bool
+
+    @State private var cameraPosition: MapCameraPosition = .automatic
+
+    var body: some View {
+        Map(position: $cameraPosition, interactionModes: [])
+            .mapStyle(.standard(elevation: .flat))
+            .environment(\.colorScheme, useDarkMapAppearance ? .dark : .light)
+            .onAppear {
+                applyCamera()
+                mapTilesReady = true
+            }
+            .onChange(of: headingDegrees) { _, _ in applyCamera() }
+            .onChange(of: cameraDistance) { _, _ in applyCamera() }
+            .onChange(of: coordinate.latitude) { _, _ in applyCamera() }
+            .onChange(of: coordinate.longitude) { _, _ in applyCamera() }
+    }
+
+    private func applyCamera() {
+        guard CLLocationCoordinate2DIsValid(coordinate) else { return }
+        let d = cameraDistance.clamped(to: CompassMapCamera.minDistance ... CompassMapCamera.maxDistance)
+        let cam = MapCamera(centerCoordinate: coordinate, distance: d, heading: headingDegrees, pitch: 0)
+        cameraPosition = .camera(cam)
     }
 }
 #endif
@@ -252,10 +290,30 @@ struct TwilightCompassCard: View {
     /// True-north moon azimuth when moon is up; `nil` hides the moon glyph.
     var moonBodyAzimuthDegrees: Double?
 
-    /// Map camera distance when basemap is on (iOS); ignored on watchOS.
-    @State private var mapCameraDistance: CLLocationDistance = 980
-    /// Set from `MKMapView` delegate when raster tiles finish rendering (best-effort).
+    /// Synced via App Group (`GTCompassMapSettings`); iPhone zoom rail writes, watch reads the same scale.
+    @AppStorage(GTCompassMapSettings.storageKey, store: GTAppGroup.shared) private var mapCameraDistanceStorage: Double =
+        GTCompassMapSettings.defaultCameraDistanceMeters
+    /// Set from `MKMapView` delegate when raster tiles finish rendering (best-effort); watch sets optimistically.
     @State private var mapTilesReady = false
+
+    private var mapCameraDistanceValue: CLLocationDistance {
+        let raw = mapCameraDistanceStorage
+        guard raw.isFinite, raw > 0 else { return CompassMapCamera.defaultDistance }
+        return CLLocationDistance(raw).clamped(to: CompassMapCamera.minDistance ... CompassMapCamera.maxDistance)
+    }
+
+    #if os(iOS)
+    private var mapCameraDistanceBinding: Binding<CLLocationDistance> {
+        Binding(
+            get: { mapCameraDistanceValue },
+            set: {
+                mapCameraDistanceStorage = Double(
+                    $0.clamped(to: CompassMapCamera.minDistance ... CompassMapCamera.maxDistance)
+                )
+            }
+        )
+    }
+    #endif
 
     private var heading: Double {
         deviceHeadingDegrees ?? 0
@@ -318,7 +376,7 @@ struct TwilightCompassCard: View {
                                 mapTilesReady: $mapTilesReady,
                                 coordinate: coordinate,
                                 headingDegrees: heading,
-                                cameraDistance: mapCameraDistance,
+                                cameraDistance: mapCameraDistanceValue,
                                 useDarkMapAppearance: !chromeIsLight
                             )
                             .frame(width: mapDiameter, height: mapDiameter)
@@ -331,7 +389,7 @@ struct TwilightCompassCard: View {
                         .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, x: 0, y: shadowY)
 
                         CompassMapZoomRail(
-                            cameraDistance: $mapCameraDistance,
+                            cameraDistance: mapCameraDistanceBinding,
                             mapTilesReady: mapTilesReady,
                             chromeIsLight: chromeIsLight,
                             a11yZoomLabel: uiLanguage == .chinese ? "地图缩放" : "Map zoom",
@@ -344,16 +402,37 @@ struct TwilightCompassCard: View {
                     mapOffCompassBlock(side: side)
                 }
                 #else
-                gradientCompassDisk(side: side)
+                if showMapBase {
+                    let mapDiameter = CompassMapFrame.mapDiskDiameter(side: side)
+                    ZStack {
+                        WatchCompassMapUnderlay(
+                            mapTilesReady: $mapTilesReady,
+                            coordinate: coordinate,
+                            headingDegrees: heading,
+                            cameraDistance: mapCameraDistanceValue,
+                            useDarkMapAppearance: !chromeIsLight
+                        )
+                        .frame(width: mapDiameter, height: mapDiameter)
+                        .clipShape(Circle())
+                        compassFaceLayers(side: side, basemapBehindFace: true, chromeIsLight: chromeIsLight)
+                            .allowsHitTesting(false)
+                    }
                     .frame(width: side, height: side)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .clipShape(Circle())
                     .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, x: 0, y: shadowY)
+                } else {
+                    gradientCompassDisk(side: side)
+                        .frame(width: side, height: side)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                        .clipShape(Circle())
+                        .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, x: 0, y: shadowY)
+                }
                 #endif
             }
         }
         .aspectRatio(1, contentMode: .fit)
-        #if os(iOS)
+        #if os(iOS) || os(watchOS)
         .onChange(of: showMapBase) { _, isOn in
             if isOn { mapTilesReady = false }
         }

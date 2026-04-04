@@ -6,15 +6,26 @@ struct GoldenTimeWatchRootView: View {
     @StateObject private var model = GoldenTimeWatchViewModel()
     /// Drive clock / engine ticks without `TimelineView` (watchOS Simulator has been observed stuck on the launch screen with periodic Timeline + TabView).
     @State private var tickNow = Date()
-    @AppStorage(GTAppLanguage.storageKey, store: GTAppGroup.shared) private var langStorageRaw: String = ""
+    @AppStorage(GTAppLanguage.storageKey, store: GTAppGroup.shared) private var langPreferenceRaw: String =
+        GTAppLanguage.followSystemStorageValue
+    @AppStorage(GTAppLanguage.effectiveMirrorKey, store: GTAppGroup.shared) private var langEffectiveMirrorRaw: String = ""
     @AppStorage(GTTwilightDisplayMode.storageKey, store: GTAppGroup.shared) private var twilightModeRaw: String = GTTwilightDisplayMode.clockTimes.rawValue
+    /// Written on iPhone; avoids a separate reachability check on Watch.
+    @AppStorage(GTCompanionUISync.showCompassMapBaseKey, store: GTAppGroup.shared) private var companionShowCompassMapBase = true
 
     private var lang: GTAppLanguage {
-        GTAppLanguage.fromStorageRaw(langStorageRaw)
+        GTAppLanguage.watchResolved(
+            preferenceRaw: langPreferenceRaw,
+            effectiveMirrorRaw: langEffectiveMirrorRaw
+        )
     }
 
     private var twilightUsesClockTimes: Bool {
         twilightModeRaw != GTTwilightDisplayMode.countdown.rawValue
+    }
+
+    private var compassShowsMapBase: Bool {
+        companionShowCompassMapBase
     }
 
     var body: some View {
@@ -45,7 +56,10 @@ struct GoldenTimeWatchRootView: View {
         .task {
             model.startLocationPipeline()
         }
-        .onChange(of: langStorageRaw) { _, _ in
+        .onChange(of: langPreferenceRaw) { _, _ in
+            model.syncContentLanguageWithStorage()
+        }
+        .onChange(of: langEffectiveMirrorRaw) { _, _ in
             model.syncContentLanguageWithStorage()
         }
         .onChange(of: twilightModeRaw) { _, _ in
@@ -115,7 +129,7 @@ struct GoldenTimeWatchRootView: View {
                     let span = min(geo.size.width, geo.size.height)
                     let side = max(span * 0.9, 1)
                     TwilightCompassCard(
-                        showMapBase: false,
+                        showMapBase: compassShowsMapBase,
                         chromeGradient: skin.chromeGradient,
                         compassInk: skin.ink,
                         compassStroke: skin.panelStroke,

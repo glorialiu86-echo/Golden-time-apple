@@ -19,8 +19,8 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     private var headingThirtyDegreeBucket: Int?
     private let headingTickHaptic = UIImpactFeedbackGenerator(style: .light)
 
-    /// Mirrors `GTAppLanguage.resolved()`; refresh when UserDefaults override changes.
-    private(set) var contentLanguage: GTAppLanguage = GTAppLanguage.resolved()
+    /// Mirrors `GTAppLanguage.phoneDisplayLanguage` from App Group preference on iPhone.
+    private(set) var contentLanguage: GTAppLanguage = GTAppLanguage.widgetLanguageIOS(suite: GTAppGroup.shared)
 
     @Published private(set) var latitudeText = "—"
     @Published private(set) var longitudeText = "—"
@@ -40,6 +40,9 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     @Published private(set) var goldenWindowRange: (start: Date, end: Date)?
 
     @Published private(set) var phase: PhaseState?
+
+    /// Mirrors `PhoneLocationReader.authorizationStatus` for settings UI.
+    @Published private(set) var locationAuthorizationStatus: CLAuthorizationStatus = .notDetermined
 
     /// Map center / ray origin (same as last GPS fix used by the engine).
     @Published private(set) var mapCoordinate: CLLocationCoordinate2D?
@@ -113,9 +116,11 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
+        locationAuthorizationStatus = locationReader.authorizationStatus
         locationReader.$authorizationStatus
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
+            .sink { [weak self] status in
+                self?.locationAuthorizationStatus = status
                 self?.recomputeStatusLine()
             }
             .store(in: &cancellables)
@@ -160,9 +165,9 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    /// Call when `GTAppLanguage.storageKey` changes (SwiftUI `AppStorage` / toggles).
-    func syncContentLanguageWithStorage() {
-        let next = GTAppLanguage.resolved()
+    /// Call when the persisted language preference or system locale may have changed.
+    func syncContentLanguageWithAppPreference() {
+        let next = GTAppLanguage.widgetLanguageIOS(suite: Self.defaults)
         guard next != contentLanguage else { return }
         contentLanguage = next
         refreshWindows(at: clockNow)
@@ -177,6 +182,12 @@ final class GoldenTimePhoneViewModel: ObservableObject {
 
     func refreshGPS() {
         locationReader.requestLocation()
+    }
+
+    /// Opens the app’s page in Settings (user can enable Location, etc.).
+    func openSystemSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
 
     /// Call when the scene becomes active; cancels when app leaves foreground.

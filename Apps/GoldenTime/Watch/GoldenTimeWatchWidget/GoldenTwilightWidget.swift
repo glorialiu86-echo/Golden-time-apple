@@ -48,7 +48,8 @@ struct GoldenTwilightProvider: AppIntentTimelineProvider {
 
     private func makeEntry() -> GoldenTwilightEntry {
         let suite = GTAppGroup.shared
-        let lang = GTAppLanguage.resolved()
+        GTAppGroup.materializeDefaultPreferencesIfNeeded()
+        let lang = GTAppLanguage.widgetLanguageWatch(suite: suite)
         let now = Date()
         guard suite.object(forKey: GoldenTimeLocationCache.latitudeKey) != nil else {
             return GoldenTwilightEntry(

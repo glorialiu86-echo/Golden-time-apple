@@ -6,26 +6,80 @@ public enum GTAppLanguage: String, Hashable {
     case english = "en"
 
     public static let storageKey = "gt.uiLanguage"
+    /// Persisted with `storageKey` when the user chooses to match the iPhone system rules (`inferredFromSystem()`).
+    public static let followSystemStorageValue = "system"
+    /// iPhone writes the **effective** `zh`/`en` here so Watch/widgets match when preference is `followSystemStorageValue` or empty.
+    public static let effectiveMirrorKey = "gt.uiLanguage.effectiveForWatch"
 
-    /// 简体中文系统 → 默认中文界面；其余 → 默认英文。
-    public static func systemDefault() -> GTAppLanguage {
-        guard let first = Locale.preferredLanguages.first else { return .english }
-        if first.hasPrefix("zh-Hans") { return .chinese }
-        if first.hasPrefix("zh-CN") { return .chinese }
+    /// 仅当 iPhone 系统为简体中文时使用中文界面；繁体与其它系统语言一律英文（用于「跟随系统」选项）。
+    public static func inferredFromSystem() -> GTAppLanguage {
+        guard let first = Locale.preferredLanguages.first?.lowercased() else { return .english }
+        if first.hasPrefix("zh-hans") { return .chinese }
+        if first.hasPrefix("zh-cn") { return .chinese }
         return .english
     }
 
-    public static func resolved() -> GTAppLanguage {
-        let suite = GTAppGroup.shared
-        let raw = suite.string(forKey: storageKey) ?? UserDefaults.standard.string(forKey: storageKey) ?? ""
-        return fromStorageRaw(raw)
+    /// Same rule as `inferredFromSystem()` (legacy name).
+    public static func systemDefault() -> GTAppLanguage {
+        inferredFromSystem()
     }
 
+    /// iPhone / iOS 主程序与 iOS 小组件：`zh` / `en` 固定；`system` 或空字符串表示跟随 `inferredFromSystem()`。
+    public static func phoneDisplayLanguage(preferenceRaw: String) -> GTAppLanguage {
+        switch preferenceRaw {
+        case chinese.rawValue: return .chinese
+        case english.rawValue: return .english
+        case followSystemStorageValue, "": return inferredFromSystem()
+        default: return inferredFromSystem()
+        }
+    }
+
+    /// Apple Watch：用户显式选 `zh`/`en` 时直接用；否则读 iPhone 写入的 `effectiveMirrorKey`（未同步前默认为英文）。
+    public static func watchResolved(preferenceRaw: String, effectiveMirrorRaw: String) -> GTAppLanguage {
+        switch preferenceRaw {
+        case chinese.rawValue: return .chinese
+        case english.rawValue: return .english
+        default:
+            switch effectiveMirrorRaw {
+            case chinese.rawValue: return .chinese
+            case english.rawValue: return .english
+            default: return .english
+            }
+        }
+    }
+
+    public static func widgetLanguageIOS(suite: UserDefaults) -> GTAppLanguage {
+        let raw = suite.string(forKey: storageKey) ?? UserDefaults.standard.string(forKey: storageKey) ?? ""
+        return phoneDisplayLanguage(preferenceRaw: raw)
+    }
+
+    public static func widgetLanguageWatch(suite: UserDefaults) -> GTAppLanguage {
+        let pref = suite.string(forKey: storageKey) ?? ""
+        let mirror = suite.string(forKey: effectiveMirrorKey) ?? ""
+        return watchResolved(preferenceRaw: pref, effectiveMirrorRaw: mirror)
+    }
+
+    /// 读 App Group：`watchOS` 走 `widgetLanguageWatch`，其它走 `widgetLanguageIOS`。
+    public static func resolved() -> GTAppLanguage {
+        let suite = GTAppGroup.shared
+        #if os(watchOS)
+        return widgetLanguageWatch(suite: suite)
+        #else
+        return widgetLanguageIOS(suite: suite)
+        #endif
+    }
+
+    /// 仅解析字面 `zh`/`en`；其它情况按平台回退（兼容旧调用；Watch 展示请优先用 `watchResolved` / `resolved()`）。
     public static func fromStorageRaw(_ raw: String) -> GTAppLanguage {
         switch raw {
         case chinese.rawValue: return .chinese
         case english.rawValue: return .english
-        default: return systemDefault()
+        default:
+            #if os(watchOS)
+            return .english
+            #else
+            return inferredFromSystem()
+            #endif
         }
     }
 
@@ -186,6 +240,164 @@ enum GTCopy {
         switch lang {
         case .chinese: return "切换为英文界面"
         case .english: return "Switch to Chinese UI"
+        }
+    }
+
+    static func a11ySettings(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "设置"
+        case .english: return "Settings"
+        }
+    }
+
+    static func settingsTitle(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "设置"
+        case .english: return "Settings"
+        }
+    }
+
+    static func settingsLanguageSectionTitle(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "语言"
+        case .english: return "Language"
+        }
+    }
+
+    static func settingsLanguageOptionFollowSystem(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "跟随系统"
+        case .english: return "Follow system"
+        }
+    }
+
+    static func settingsLanguageOptionChinese(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "简体中文"
+        case .english: return "Chinese"
+        }
+    }
+
+    static func settingsLanguageOptionEnglish(_ lang: GTAppLanguage) -> String {
+        "English"
+    }
+
+    static func settingsLocation(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "定位"
+        case .english: return "Location"
+        }
+    }
+
+    static func settingsStatusPrefix(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "状态"
+        case .english: return "Status"
+        }
+    }
+
+    static func settingsLocationAuthorized(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "已授权"
+        case .english: return "Allowed"
+        }
+    }
+
+    static func settingsLocationDenied(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "已拒绝"
+        case .english: return "Denied"
+        }
+    }
+
+    static func settingsLocationNotDetermined(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "尚未询问"
+        case .english: return "Not asked"
+        }
+    }
+
+    static func settingsLocationRestricted(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "受限制"
+        case .english: return "Restricted"
+        }
+    }
+
+    static func settingsAllowLocation(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "授权使用定位"
+        case .english: return "Allow location access"
+        }
+    }
+
+    static func settingsOpenSystemSettings(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "前往系统设置"
+        case .english: return "Open system settings"
+        }
+    }
+
+    static func settingsRefreshLocation(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "刷新定位"
+        case .english: return "Refresh location"
+        }
+    }
+
+    static func settingsTwilightDisplay(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "蓝调 / 金调卡片"
+        case .english: return "Twilight cards"
+        }
+    }
+
+    static func settingsTwilightClockTimes(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "显示起止时刻"
+        case .english: return "Window times"
+        }
+    }
+
+    static func settingsTwilightCountdown(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "显示倒计时"
+        case .english: return "Countdown"
+        }
+    }
+
+    static func settingsRestorePurchases(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "恢复购买"
+        case .english: return "Restore purchases"
+        }
+    }
+
+    static func settingsRestoreWorking(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "正在同步…"
+        case .english: return "Syncing…"
+        }
+    }
+
+    static func settingsRestoreDone(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "已与 App Store 同步"
+        case .english: return "Synced with the App Store"
+        }
+    }
+
+    static func settingsRestoreFailed(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "同步失败"
+        case .english: return "Could not sync"
+        }
+    }
+
+    static func settingsDone(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "完成"
+        case .english: return "Done"
         }
     }
 }

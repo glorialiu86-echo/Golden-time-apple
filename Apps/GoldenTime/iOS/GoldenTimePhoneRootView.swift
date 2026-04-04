@@ -1,3 +1,4 @@
+import Foundation
 import GoldenTimeCore
 import SwiftUI
 import WidgetKit
@@ -6,11 +7,16 @@ struct GoldenTimePhoneRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var model = GoldenTimePhoneViewModel()
     @StateObject private var networkReachability = NetworkReachability()
-    @AppStorage(GTAppLanguage.storageKey, store: GTAppGroup.shared) private var langStorageRaw: String = ""
+    @AppStorage(GTAppLanguage.storageKey, store: GTAppGroup.shared) private var langPreferenceRaw: String =
+        GTAppLanguage.followSystemStorageValue
     @AppStorage(GTTwilightDisplayMode.storageKey, store: GTAppGroup.shared) private var twilightModeRaw: String = GTTwilightDisplayMode.clockTimes.rawValue
+    @State private var showSettings = false
+    /// Bumps when `NSLocale.currentLocaleDidChangeNotification` fires so `uiLang` re-evaluates while preference is「跟随系统」.
+    @State private var systemLocaleBump = UUID()
 
     private var uiLang: GTAppLanguage {
-        GTAppLanguage.fromStorageRaw(langStorageRaw)
+        let _ = systemLocaleBump
+        return GTAppLanguage.phoneDisplayLanguage(preferenceRaw: langPreferenceRaw)
     }
 
     private var twilightUsesClockTimes: Bool {
@@ -54,24 +60,33 @@ struct GoldenTimePhoneRootView: View {
             }
             .onAppear {
                 GTAppGroup.migrateStandardToSharedIfNeeded()
-                WidgetCenter.shared.reloadTimelines(ofKind: GTIOWidgetKind.twilight)
-                model.syncContentLanguageWithStorage()
+                publishCompanionSyncAndReloadWidgets()
                 model.beginForegroundLocationSession()
             }
-            .onChange(of: langStorageRaw) { _, _ in
-                model.syncContentLanguageWithStorage()
-                WidgetCenter.shared.reloadTimelines(ofKind: GTIOWidgetKind.twilight)
+            .onReceive(NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)) { _ in
+                systemLocaleBump = UUID()
+                publishCompanionSyncAndReloadWidgets()
+            }
+            .onChange(of: langPreferenceRaw) { _, _ in
+                publishCompanionSyncAndReloadWidgets()
             }
             .onChange(of: twilightModeRaw) { _, _ in
                 WidgetCenter.shared.reloadTimelines(ofKind: GTIOWidgetKind.twilight)
             }
+            .onChange(of: networkReachability.hasNetworkRoute) { _, _ in
+                publishCompanionSyncAndReloadWidgets()
+            }
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .active:
+                    publishCompanionSyncAndReloadWidgets()
                     model.beginForegroundLocationSession()
                 default:
                     model.endForegroundLocationSession()
                 }
+            }
+            .sheet(isPresented: $showSettings) {
+                GoldenTimePhoneSettingsView(model: model)
             }
     }
 
@@ -215,7 +230,7 @@ struct GoldenTimePhoneRootView: View {
         }
     }
 
-    /// Weekday / month / date on the left; mode + language controls on the **far right**, same row.
+    /// Weekday / month / date on the left; twilight mode shortcut + settings gear on the **far right**, same row.
     private func timeHeaderBlock(skin: GTPhaseSkin, lang: GTAppLanguage, date: Date) -> some View {
         VStack(alignment: .center, spacing: 8) {
             HStack(alignment: .center, spacing: 8) {
@@ -229,7 +244,7 @@ struct GoldenTimePhoneRootView: View {
 
                 HStack(spacing: 4) {
                     twilightModeIconButton(skin: skin, lang: lang)
-                    languageToggleButton(skin: skin, lang: lang)
+                    settingsGearButton(skin: skin, lang: lang)
                 }
                 .fixedSize(horizontal: true, vertical: false)
             }
@@ -246,7 +261,7 @@ struct GoldenTimePhoneRootView: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// Shared chrome for header icon buttons (timer/clock + language).
+    /// Shared chrome for header icon buttons (timer/clock + gear).
     private static let headerChromeButtonSize: CGFloat = 32
     private static let headerChromeStrokeWidth: CGFloat = 1
 
@@ -275,17 +290,12 @@ struct GoldenTimePhoneRootView: View {
         .accessibilityHint(GTCopy.a11yModeToggleHint(lang))
     }
 
-    private func languageToggleButton(skin: GTPhaseSkin, lang: GTAppLanguage) -> some View {
+    private func settingsGearButton(skin: GTPhaseSkin, lang: GTAppLanguage) -> some View {
         Button {
-            switch lang {
-            case .chinese:
-                langStorageRaw = GTAppLanguage.english.rawValue
-            case .english:
-                langStorageRaw = GTAppLanguage.chinese.rawValue
-            }
+            showSettings = true
         } label: {
-            Text(lang == .chinese ? "EN" : "CN")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
+            Image(systemName: "gearshape")
+                .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(skin.ink.opacity(0.92))
                 .frame(width: Self.headerChromeButtonSize, height: Self.headerChromeButtonSize)
                 .background {
@@ -295,6 +305,15 @@ struct GoldenTimePhoneRootView: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(GTCopy.a11yLanguageToggle(lang))
+        .accessibilityLabel(GTCopy.a11ySettings(lang))
+    }
+
+    /// Writes effective language mirror + compass map flag for Watch; does **not** overwrite the user’s language preference key.
+    private func publishCompanionSyncAndReloadWidgets() {
+        let effective = GTAppLanguage.phoneDisplayLanguage(preferenceRaw: langPreferenceRaw)
+        GTAppGroup.shared.set(effective.rawValue, forKey: GTAppLanguage.effectiveMirrorKey)
+        GTAppGroup.shared.set(compassShowsMapBase, forKey: GTCompanionUISync.showCompassMapBaseKey)
+        model.syncContentLanguageWithAppPreference()
+        WidgetCenter.shared.reloadTimelines(ofKind: GTIOWidgetKind.twilight)
     }
 }

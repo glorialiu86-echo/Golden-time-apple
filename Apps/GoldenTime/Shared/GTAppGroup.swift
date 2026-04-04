@@ -1,6 +1,6 @@
 import Foundation
 
-/// App Group for iPhone + Watch + widgets: language, twilight card mode, and cached GPS keys stay in sync.
+/// App Group for iPhone + Watch + widgets: language preference (`gt.uiLanguage`: `zh` / `en` / `system`) + iPhone-written effective mirror for Watch, twilight card mode, compass UI flags, cached GPS.
 public enum GTAppGroup {
     public static let suiteName = "group.time.golden.GoldenHourCompass"
 
@@ -26,6 +26,32 @@ public enum GTAppGroup {
             guard suite.object(forKey: key) == nil, std.object(forKey: key) != nil else { continue }
             suite.set(std.double(forKey: key), forKey: key)
         }
+        materializeDefaultPreferencesIfNeeded()
+    }
+
+    /// Writes any missing preference keys into the App Group so user choices (and defaults) always exist on disk, not only in SwiftUI’s in-memory defaults.
+    public static func materializeDefaultPreferencesIfNeeded() {
+        let suite = shared
+        if suite.object(forKey: GTAppLanguage.storageKey) == nil {
+            suite.set(GTAppLanguage.followSystemStorageValue, forKey: GTAppLanguage.storageKey)
+        }
+        if suite.object(forKey: GTTwilightDisplayMode.storageKey) == nil {
+            suite.set(GTTwilightDisplayMode.clockTimes.rawValue, forKey: GTTwilightDisplayMode.storageKey)
+        }
+        if suite.object(forKey: GTCompassMapSettings.storageKey) == nil {
+            suite.set(GTCompassMapSettings.defaultCameraDistanceMeters, forKey: GTCompassMapSettings.storageKey)
+        }
+        if suite.object(forKey: GTCompanionUISync.showCompassMapBaseKey) == nil {
+            suite.set(true, forKey: GTCompanionUISync.showCompassMapBaseKey)
+        }
+        if suite.object(forKey: GTAppLanguage.effectiveMirrorKey) == nil {
+            #if os(iOS)
+            let pref = suite.string(forKey: GTAppLanguage.storageKey) ?? GTAppLanguage.followSystemStorageValue
+            suite.set(GTAppLanguage.phoneDisplayLanguage(preferenceRaw: pref).rawValue, forKey: GTAppLanguage.effectiveMirrorKey)
+            #elseif os(watchOS)
+            suite.set(GTAppLanguage.english.rawValue, forKey: GTAppLanguage.effectiveMirrorKey)
+            #endif
+        }
     }
 }
 
@@ -34,6 +60,18 @@ public enum GTTwilightDisplayMode: String {
     case clockTimes
     case countdown
     public static let storageKey = "gt.twilightCardMode"
+}
+
+/// Shared compass map camera distance (meters); iPhone writes when the user adjusts zoom; Watch reads for matching scale.
+public enum GTCompassMapSettings {
+    public static let storageKey = "gt.compass.mapCameraDistance"
+    /// Matches `TwilightCompassCard` / `CompassMapMetrics` default on iOS.
+    public static let defaultCameraDistanceMeters: Double = 980
+}
+
+/// iPhone writes compass map visibility (network + debug env); Watch reads so UI matches phone without its own reachability check.
+public enum GTCompanionUISync {
+    public static let showCompassMapBaseKey = "gt.companion.showCompassMapBase"
 }
 
 /// Shared keys for GPS cache (phone, watch, widget).
