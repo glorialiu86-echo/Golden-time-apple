@@ -67,7 +67,7 @@ struct GoldenTimeWatchRootView: View {
                             watchTwilightCard(skin: skin, blue: true, now: now)
                         }
                         Text("\(GTCopy.watchCoordinatesPrefix(lang))\(model.latitudeText), \(model.longitudeText)")
-                            .font(.caption2.weight(.medium))
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(skin.muted)
                             .multilineTextAlignment(.center)
@@ -112,7 +112,8 @@ struct GoldenTimeWatchRootView: View {
         Group {
             if let coord = model.mapCoordinate {
                 GeometryReader { geo in
-                    let side = min(geo.size.width, geo.size.height)
+                    let span = min(geo.size.width, geo.size.height)
+                    let side = max(span * 0.945, 1)
                     TwilightCompassCard(
                         showMapBase: false,
                         chromeGradient: skin.chromeGradient,
@@ -137,6 +138,7 @@ struct GoldenTimeWatchRootView: View {
                 }
                 .padding(.horizontal, -12)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ignoresSafeArea()
             } else {
                 Text(GTCopy.compassCardNeedLocation(lang))
                     .font(.caption)
