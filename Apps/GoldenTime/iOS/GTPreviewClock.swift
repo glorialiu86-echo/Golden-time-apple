@@ -1,7 +1,7 @@
 import Foundation
 
 /// When `GOLDEN_TIME_DEBUG_NOW` is set (e.g. from `simctl launch` via `SIMCTL_CHILD_GOLDEN_TIME_DEBUG_NOW`),
-/// returns that instant instead of the wall clock — useful for previewing a fixed local solar phase in Simulator.
+/// returns that instant; otherwise returns the system wall clock (`Date()`).
 enum GTPreviewClock {
     private static let envKey = "GOLDEN_TIME_DEBUG_NOW"
 
