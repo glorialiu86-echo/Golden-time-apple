@@ -76,6 +76,9 @@ struct GoldenTwilightIOSWidgetView: View {
         case .systemLarge:
             largeContent
                 .containerBackground(GTWidgetSurface.homeBackground, for: .widget)
+        case .systemExtraLarge:
+            extraLargeContent
+                .containerBackground(GTWidgetSurface.homeBackground, for: .widget)
         case .accessoryCircular:
             ZStack {
                 AccessoryWidgetBackground()
@@ -164,6 +167,24 @@ struct GoldenTwilightIOSWidgetView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
+    private var extraLargeContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(GTCopy.widgetStackTitle(entry.lang))
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(GTWidgetSurface.homeBody)
+            twilightRows(
+                font: .title2.weight(.medium),
+                iconSize: 20,
+                rowForeground: GTWidgetSurface.homeBody
+            )
+            Spacer(minLength: 0)
+            Text(GTCopy.widgetOpenAppHint(entry.lang))
+                .font(.footnote)
+                .foregroundStyle(GTWidgetSurface.homeFootnote)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
     @ViewBuilder
     private func twilightRows(font: Font, iconSize: CGFloat?, rowForeground: Color) -> some View {
         Label {
@@ -200,6 +221,7 @@ struct GoldenTwilightIOSWidget: Widget {
             .systemSmall,
             .systemMedium,
             .systemLarge,
+            .systemExtraLarge,
             .accessoryCircular,
             .accessoryRectangular,
             .accessoryInline,
