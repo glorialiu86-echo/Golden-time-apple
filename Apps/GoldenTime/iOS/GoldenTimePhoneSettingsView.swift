@@ -9,6 +9,7 @@ private enum GTPhoneSettingsListColors {
     static let rowBackground = Color(red: 1, green: 1, blue: 1)
     /// Standard iOS blue for toggle / menu chrome on white rows.
     static let controlAccent = Color(red: 0, green: 122 / 255, blue: 255 / 255)
+    static let successText = Color(red: 34 / 255, green: 139 / 255, blue: 34 / 255)
     static let errorText = Color(red: 200 / 255, green: 52 / 255, blue: 52 / 255)
 }
 
@@ -75,6 +76,46 @@ struct GoldenTimePhoneSettingsView: View {
         @unknown default:
             return GTCopy.settingsLocationNotDetermined(lang)
         }
+    }
+
+    private var locationFeedbackText: String? {
+        switch model.settingsLocationFeedback {
+        case .idle:
+            return nil
+        case .waitingForPermission:
+            return GTCopy.settingsLocationFeedbackWaitingForPermission(lang)
+        case .refreshing:
+            return GTCopy.settingsLocationFeedbackRefreshing(lang)
+        case .success:
+            return GTCopy.settingsLocationFeedbackSuccess(lang)
+        case .denied:
+            return GTCopy.settingsLocationFeedbackDenied(lang)
+        case .restricted:
+            return GTCopy.settingsLocationFeedbackRestricted(lang)
+        case .failed:
+            return GTCopy.settingsLocationFeedbackFailed(lang)
+        }
+    }
+
+    private var locationFeedbackColor: Color {
+        switch model.settingsLocationFeedback {
+        case .success:
+            return GTPhoneSettingsListColors.successText
+        case .denied, .restricted, .failed:
+            return GTPhoneSettingsListColors.errorText
+        default:
+            return GTPhoneSettingsListColors.rowSecondary
+        }
+    }
+
+    private func shouldShowLocationFeedback(isAuthorizationRow: Bool) -> Bool {
+        if model.settingsLocationFeedback == .idle {
+            return false
+        }
+        if model.locationAuthorizationStatus == .notDetermined {
+            return isAuthorizationRow
+        }
+        return !isAuthorizationRow
     }
 
     var body: some View {
@@ -152,17 +193,17 @@ struct GoldenTimePhoneSettingsView: View {
 
                 Section {
                     Text("\(GTCopy.settingsStatusPrefix(lang))：\(locationStatusWord)")
-                        .font(.subheadline)
+                        .font(.body)
                         .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
                         .listRowBackground(GTPhoneSettingsListColors.rowBackground)
 
                     switch model.locationAuthorizationStatus {
                     case .notDetermined:
-                        Button(GTCopy.settingsAllowLocation(lang)) {
-                            model.refreshGPS()
-                        }
-                        .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
-                        .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+                        locationActionRow(
+                            title: GTCopy.settingsAllowLocation(lang),
+                            isAuthorizationRow: true,
+                            action: model.requestLocationAccessFromSettings
+                        )
                     case .denied, .restricted:
                         Button(GTCopy.settingsOpenSystemSettings(lang)) {
                             model.openSystemSettings()
@@ -173,11 +214,11 @@ struct GoldenTimePhoneSettingsView: View {
                         EmptyView()
                     }
 
-                    Button(GTCopy.settingsRefreshLocation(lang)) {
-                        model.refreshGPS()
-                    }
-                    .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
-                    .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+                    locationActionRow(
+                        title: GTCopy.settingsRefreshLocation(lang),
+                        isAuthorizationRow: false,
+                        action: model.refreshLocationFromSettings
+                    )
                 } header: {
                     settingsSectionHeader(GTCopy.settingsLocation(lang))
                 }
@@ -257,6 +298,50 @@ struct GoldenTimePhoneSettingsView: View {
         Text(title)
             .foregroundStyle(skin.settingsSectionHeaderForeground)
             .shadow(color: skin.settingsSectionHeaderShadowColor, radius: 2, x: 0, y: 1)
+    }
+
+    @ViewBuilder
+    private func locationActionRow(title: String, isAuthorizationRow: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Text(title)
+                    .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
+
+                Spacer(minLength: 12)
+
+                if shouldShowLocationFeedback(isAuthorizationRow: isAuthorizationRow),
+                   let locationFeedbackText
+                {
+                    locationFeedbackView(text: locationFeedbackText)
+                }
+            }
+        }
+        .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+        .disabled(model.isPerformingSettingsLocationAction)
+    }
+
+    @ViewBuilder
+    private func locationFeedbackView(text: String) -> some View {
+        HStack(spacing: 6) {
+            switch model.settingsLocationFeedback {
+            case .waitingForPermission, .refreshing:
+                ProgressView()
+                    .controlSize(.small)
+            case .success:
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(GTPhoneSettingsListColors.successText)
+            case .denied, .restricted, .failed:
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(GTPhoneSettingsListColors.errorText)
+            case .idle:
+                EmptyView()
+            }
+
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(locationFeedbackColor)
+                .multilineTextAlignment(.trailing)
+        }
     }
 
     @ViewBuilder

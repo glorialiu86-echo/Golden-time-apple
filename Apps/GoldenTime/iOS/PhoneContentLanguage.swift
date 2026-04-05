@@ -356,6 +356,48 @@ enum GTCopy {
         }
     }
 
+    static func settingsLocationFeedbackWaitingForPermission(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "等待系统弹出定位授权..."
+        case .english: return "Waiting for the system location prompt..."
+        }
+    }
+
+    static func settingsLocationFeedbackRefreshing(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "正在刷新定位..."
+        case .english: return "Refreshing location..."
+        }
+    }
+
+    static func settingsLocationFeedbackSuccess(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "定位已更新。"
+        case .english: return "Location updated."
+        }
+    }
+
+    static func settingsLocationFeedbackDenied(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "定位权限已关闭，请前往系统设置开启。"
+        case .english: return "Location access is off. Open system settings to enable it."
+        }
+    }
+
+    static func settingsLocationFeedbackRestricted(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "此设备当前限制了定位访问。"
+        case .english: return "Location access is restricted on this device."
+        }
+    }
+
+    static func settingsLocationFeedbackFailed(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "暂时没有拿到新的定位，请稍后再试。"
+        case .english: return "No new location was received. Try again in a moment."
+        }
+    }
+
     static func settingsTwilightDisplay(_ lang: GTAppLanguage) -> String {
         switch lang {
         case .chinese: return "蓝调 / 金调卡片"

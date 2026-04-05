@@ -5,13 +5,31 @@ import GoldenTimeCore
 import UIKit
 import WidgetKit
 
+enum GTSettingsLocationFeedback: Equatable {
+    case idle
+    case waitingForPermission
+    case refreshing
+    case success
+    case denied
+    case restricted
+    case failed
+}
+
 /// Drives `GoldenTimeEngine` on-device only: GPS + cached coordinates + local time. No URLSession or remote APIs.
 @MainActor
 final class GoldenTimePhoneViewModel: ObservableObject {
+    private enum SettingsLocationAction: Equatable {
+        case requestingAuthorization
+        case refreshing
+    }
+
     private let engine = GoldenTimeEngine()
     private let locationReader = PhoneLocationReader()
     private var cancellables = Set<AnyCancellable>()
     private var locationHeartbeat: AnyCancellable?
+    private var pendingSettingsLocationAction: SettingsLocationAction?
+    private var settingsLocationFeedbackResetTask: Task<Void, Never>?
+    private var settingsLocationRefreshTimeoutTask: Task<Void, Never>?
 
     private var activeFix: LocationFix?
     private var lastEngineDayStart: Date?
@@ -43,6 +61,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
 
     /// Mirrors `PhoneLocationReader.authorizationStatus` for settings UI.
     @Published private(set) var locationAuthorizationStatus: CLAuthorizationStatus = .notDetermined
+    @Published private(set) var settingsLocationFeedback: GTSettingsLocationFeedback = .idle
 
     /// Map center / ray origin (same as last GPS fix used by the engine).
     @Published private(set) var mapCoordinate: CLLocationCoordinate2D?
@@ -112,7 +131,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             .compactMap { $0 }
             .receive(on: DispatchQueue.main)
             .sink { [weak self] loc in
-                self?.applyLocation(loc)
+                self?.handleLocationUpdate(loc)
             }
             .store(in: &cancellables)
 
@@ -122,6 +141,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             .sink { [weak self] status in
                 self?.locationAuthorizationStatus = status
                 self?.recomputeStatusLine()
+                self?.handleLocationAuthorizationChange(status)
             }
             .store(in: &cancellables)
 
@@ -129,6 +149,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.recomputeStatusLine()
+                self?.handleLocationRequestFailure()
             }
             .store(in: &cancellables)
 
@@ -184,6 +205,50 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         locationReader.requestLocation()
     }
 
+    var isPerformingSettingsLocationAction: Bool {
+        pendingSettingsLocationAction != nil
+    }
+
+    func requestLocationAccessFromSettings() {
+        switch locationReader.authorizationStatus {
+        case .notDetermined:
+            settingsLocationFeedbackResetTask?.cancel()
+            pendingSettingsLocationAction = .requestingAuthorization
+            settingsLocationFeedback = .waitingForPermission
+            locationReader.requestLocation()
+        case .authorizedAlways, .authorizedWhenInUse:
+            refreshLocationFromSettings()
+        case .denied:
+            finishSettingsLocationAction(with: .denied, autoClear: false)
+        case .restricted:
+            finishSettingsLocationAction(with: .restricted, autoClear: false)
+        @unknown default:
+            settingsLocationFeedbackResetTask?.cancel()
+            pendingSettingsLocationAction = .requestingAuthorization
+            settingsLocationFeedback = .waitingForPermission
+            locationReader.requestLocation()
+        }
+    }
+
+    func refreshLocationFromSettings() {
+        switch locationReader.authorizationStatus {
+        case .authorizedAlways, .authorizedWhenInUse:
+            settingsLocationFeedbackResetTask?.cancel()
+            pendingSettingsLocationAction = .refreshing
+            settingsLocationFeedback = .refreshing
+            startSettingsLocationRefreshTimeout()
+            locationReader.requestLocation()
+        case .notDetermined:
+            requestLocationAccessFromSettings()
+        case .denied:
+            finishSettingsLocationAction(with: .denied, autoClear: false)
+        case .restricted:
+            finishSettingsLocationAction(with: .restricted, autoClear: false)
+        @unknown default:
+            requestLocationAccessFromSettings()
+        }
+    }
+
     /// Call when reminder-related App Group preferences change (settings sheet) so scheduling updates immediately.
     func refreshTwilightReminderSchedule() {
         TwilightReminderScheduler.shared.reschedule(engine: engine, now: clockNow)
@@ -211,6 +276,37 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         locationHeartbeat = nil
     }
 
+    private func handleLocationUpdate(_ loc: CLLocation) {
+        applyLocation(loc)
+        guard pendingSettingsLocationAction != nil else { return }
+        finishSettingsLocationAction(with: .success, autoClear: true)
+    }
+
+    private func handleLocationAuthorizationChange(_ status: CLAuthorizationStatus) {
+        switch status {
+        case .authorizedAlways, .authorizedWhenInUse:
+            guard pendingSettingsLocationAction == .requestingAuthorization else { return }
+            pendingSettingsLocationAction = .refreshing
+            settingsLocationFeedback = .refreshing
+            startSettingsLocationRefreshTimeout()
+        case .denied:
+            guard pendingSettingsLocationAction != nil || settingsLocationFeedback == .waitingForPermission else { return }
+            finishSettingsLocationAction(with: .denied, autoClear: false)
+        case .restricted:
+            guard pendingSettingsLocationAction != nil || settingsLocationFeedback == .waitingForPermission else { return }
+            finishSettingsLocationAction(with: .restricted, autoClear: false)
+        case .notDetermined:
+            break
+        @unknown default:
+            break
+        }
+    }
+
+    private func handleLocationRequestFailure() {
+        guard locationReader.lastLocationRequestFailed, pendingSettingsLocationAction == .refreshing else { return }
+        finishSettingsLocationAction(with: .failed, autoClear: true)
+    }
+
     private func applyLocation(_ loc: CLLocation) {
         let fix = LocationFix(
             latitude: loc.coordinate.latitude,
@@ -224,6 +320,29 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         let now = Date()
         recomputeEngineIfNeeded(now: now, force: true)
         refreshWindows(at: now)
+    }
+
+    private func startSettingsLocationRefreshTimeout() {
+        settingsLocationRefreshTimeoutTask?.cancel()
+        settingsLocationRefreshTimeoutTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(8))
+            guard let self, self.pendingSettingsLocationAction == .refreshing else { return }
+            self.finishSettingsLocationAction(with: .failed, autoClear: true)
+        }
+    }
+
+    private func finishSettingsLocationAction(with feedback: GTSettingsLocationFeedback, autoClear: Bool) {
+        pendingSettingsLocationAction = nil
+        settingsLocationRefreshTimeoutTask?.cancel()
+        settingsLocationRefreshTimeoutTask = nil
+        settingsLocationFeedbackResetTask?.cancel()
+        settingsLocationFeedback = feedback
+        guard autoClear else { return }
+        settingsLocationFeedbackResetTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard let self, !self.isPerformingSettingsLocationAction else { return }
+            self.settingsLocationFeedback = .idle
+        }
     }
 
     private func updateCoordLabels(lat: Double, lon: Double) {
