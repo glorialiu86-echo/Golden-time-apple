@@ -94,6 +94,17 @@ public enum GTAppLanguage: String, Hashable {
 // MARK: - Copy (single language per line; no zh·en mixing)
 
 enum GTCopy {
+    static func appDisplayName(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "光影罗盘"
+        case .english: return "Twilight Compass"
+        }
+    }
+
+    static func systemAppDisplayName() -> String {
+        appDisplayName(GTAppLanguage.inferredFromSystem())
+    }
+
     static func currentCoordinatesPrefix(_ lang: GTAppLanguage) -> String {
         switch lang {
         case .chinese: return "当前经纬度 "
@@ -468,6 +479,169 @@ enum GTCopy {
         switch lang {
         case .chinese: return "完成"
         case .english: return "Done"
+        }
+    }
+
+    static func settingsPrivacyPolicy(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "隐私政策"
+        case .english: return "Privacy Policy"
+        }
+    }
+
+    static func settingsSupport(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "支持"
+        case .english: return "Support"
+        }
+    }
+
+    static func settingsLegalFooter(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "本页提供 App 内隐私说明与支持信息；正式上架前请同步发布公开网页版本。"
+        case .english: return "This page includes in-app privacy and support details. Publish matching public web pages before release."
+        }
+    }
+
+    static func legalPrivacyPolicyBody(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese:
+            return """
+            生效日期：2026 年 4 月 5 日
+
+            光影罗盘会读取你设备的定位，用于在本地计算蓝调、金调和罗盘方位。除 Apple 提供的地图底图加载外，本 App 不依赖自建网络服务。
+
+            我们如何使用数据
+            1. 定位信息
+            用于在你的设备上计算当前经纬度对应的蓝调、金调、日夜分区和太阳 / 月亮方位。默认不会上传到开发者服务器。
+
+            2. 通知权限
+            如果你开启时段提醒，App 会在设备本地安排通知，在蓝调或金调开始前提醒你。
+
+            3. 本地偏好设置
+            语言、卡片显示方式、提醒选项和罗盘地图缩放等设置会保存在设备本地；当你启用同一 App Group 的组件时，这些设置也可能在本机的 App Group 容器内共享。
+
+            4. 地图底图
+            当罗盘显示地图底图时，地图瓦片由 Apple MapKit 提供。对应的网络请求由 Apple 处理，不会进入开发者自建服务器。
+
+            我们不做什么
+            • 不创建用户账号
+            • 不出售个人信息
+            • 不使用广告追踪
+            • 不把定位数据上传到开发者自建服务器
+
+            你的选择
+            • 你可以在系统设置中关闭定位权限
+            • 你可以在设置页关闭提醒
+            • 你可以随时删除 App 来移除本地数据
+
+            联系与支持
+            开发者：上海佑一程信息科技有限公司
+            支持邮箱：developer@auroracapture.com
+            """
+        case .english:
+            return """
+            Effective date: April 5, 2026
+
+            Twilight Compass reads your device location to calculate blue hour, golden hour, and compass bearings on-device. The app does not rely on a developer-run backend, except that Apple may load map tiles when the compass shows a map base.
+
+            How data is used
+            1. Location
+            Used to calculate blue hour, golden hour, daylight sectors, and sun / moon bearings on your device. Location is not uploaded to a developer-operated server by default.
+
+            2. Notifications
+            If you enable twilight alerts, the app schedules local notifications on your device to remind you before the next blue or golden hour.
+
+            3. Local preferences
+            Language, twilight card display mode, alert settings, and compass map zoom are stored locally on your device. When components in the same App Group are enabled, these settings may also be shared through the local App Group container on the same device.
+
+            4. Map base
+            When the compass shows a map base, map tiles are provided by Apple MapKit. Any related network requests are handled by Apple rather than a developer-operated server.
+
+            What we do not do
+            • No account creation
+            • No sale of personal data
+            • No advertising tracking
+            • No upload of location data to a developer-operated server
+
+            Your choices
+            • You can disable location access in system settings
+            • You can turn off alerts in Settings
+            • You can delete the app to remove local data
+
+            Contact and support
+            Developer: Shanghai Youyicheng Information Technology Co., Ltd.
+            Support email: developer@auroracapture.com
+            """
+        }
+    }
+
+    static func legalSupportBody(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese:
+            return """
+            光影罗盘支持信息
+
+            适用版本
+            1.0
+
+            功能说明
+            • 根据当前经纬度本地计算蓝调与金调
+            • 显示太阳、月亮与罗盘方位
+            • 可选本地提醒
+            • 支持中文 / 英文界面
+
+            常见问题
+            1. 时间或方位不更新
+            请确认已授予定位权限，并在设置页点击“刷新定位”。
+
+            2. 罗盘底图没有显示
+            地图底图依赖 Apple MapKit 网络瓦片；离线或网络受限时，App 仍可继续本地计算，只是不显示地图底图。
+
+            3. 提醒没有触发
+            请确认系统通知权限已开启，并检查是否已在设置页打开时段提醒。
+
+            4. 语言没有切换
+            请在设置页修改语言选项；如果仍未刷新，完全退出并重新打开 App。
+
+            开发者
+            上海佑一程信息科技有限公司
+
+            支持邮箱
+            developer@auroracapture.com
+            """
+        case .english:
+            return """
+            Twilight Compass Support
+
+            App version
+            1.0
+
+            Features
+            • On-device blue hour and golden hour calculations from current coordinates
+            • Sun, moon, and compass bearings
+            • Optional local alerts
+            • Chinese and English UI
+
+            Frequently asked questions
+            1. Time or bearings are not updating
+            Make sure location access is allowed, then tap “Refresh location” in Settings.
+
+            2. The compass map base is missing
+            The map base depends on Apple MapKit tiles. The app can continue calculating on-device while offline, but the map base may not appear.
+
+            3. Alerts are not firing
+            Confirm that system notification permission is enabled and that twilight alerts are turned on in Settings.
+
+            4. The language did not change
+            Change the language in Settings. If the screen still looks stale, fully quit and reopen the app.
+
+            Developer
+            Shanghai Youyicheng Information Technology Co., Ltd.
+
+            Support email
+            developer@auroracapture.com
+            """
         }
     }
 }

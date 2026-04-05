@@ -1,6 +1,6 @@
-# Golden Hour Compass (Apple)
+# Twilight Compass (Apple)
 
-This repository is the Apple-platform app workspace for **Golden Hour Compass**.
+This repository is the Apple-platform app workspace for **Twilight Compass**.
 
 ## Layout
 

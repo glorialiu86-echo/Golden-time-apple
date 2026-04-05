@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Support | Twilight Compass / 光影罗盘</title>
+  <style>
+    :root {
+      --sky: #dfe9fb;
+      --mist: #cfdcf6;
+      --ink: #1f2738;
+      --soft: #65708a;
+      --line: rgba(31, 39, 56, 0.12);
+      --card: rgba(255, 255, 255, 0.82);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, var(--sky), var(--mist));
+    }
+
+    main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+
+    header, section {
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: 24px;
+      backdrop-filter: blur(12px);
+    }
+
+    header {
+      padding: 28px;
+      margin-bottom: 18px;
+    }
+
+    section {
+      padding: 20px 22px;
+      margin-top: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.15;
+    }
+
+    h2 {
+      margin: 0 0 10px;
+      font-size: 21px;
+    }
+
+    p, li {
+      line-height: 1.72;
+      font-size: 16px;
+      margin: 0 0 12px;
+    }
+
+    ul {
+      margin: 0 0 0 22px;
+      padding: 0;
+    }
+
+    .eyebrow, .meta, a {
+      color: var(--soft);
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .meta {
+      font-size: 14px;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">Twilight Compass / 光影罗盘</p>
+      <h1>Support / 支持</h1>
+      <p class="meta">Developer: Shanghai Youyicheng Information Technology Co., Ltd.</p>
+      <p class="meta">开发者：上海佑一程信息科技有限公司</p>
+      <p class="meta">Support email / 支持邮箱: <a href="mailto:developer@auroracapture.com">developer@auroracapture.com</a></p>
+    </header>
+
+    <section>
+      <h2>English</h2>
+      <p><strong>App version</strong>: 1.0</p>
+      <p><strong>What the app does</strong></p>
+      <ul>
+        <li>Calculates blue hour and golden hour on-device from your current coordinates</li>
+        <li>Shows sun, moon, and compass bearings</li>
+        <li>Offers optional local alerts</li>
+        <li>Supports Chinese and English UI</li>
+      </ul>
+      <p><strong>Troubleshooting</strong></p>
+      <p>1. Time or bearings are not updating: Make sure location access is allowed, then tap “Refresh location” in Settings.</p>
+      <p>2. The compass map base is missing: The map base depends on Apple MapKit tiles. The app can continue calculating on-device while offline, but the map base may not appear.</p>
+      <p>3. Alerts are not firing: Confirm that notification permission is enabled in iOS Settings and that twilight alerts are turned on in the app.</p>
+      <p>4. The language did not change: Change the language in Settings. If the interface still looks stale, fully quit and reopen the app.</p>
+    </section>
+
+    <section>
+      <h2>简体中文</h2>
+      <p><strong>适用版本</strong>：1.0</p>
+      <p><strong>App 功能</strong></p>
+      <ul>
+        <li>根据当前经纬度在本地计算蓝调与金调</li>
+        <li>显示太阳、月亮与罗盘方位</li>
+        <li>提供可选本地提醒</li>
+        <li>支持中文与英文界面</li>
+      </ul>
+      <p><strong>常见问题</strong></p>
+      <p>1. 时间或方位不更新：请确认已授予定位权限，并在设置页点击“刷新定位”。</p>
+      <p>2. 罗盘底图没有显示：地图底图依赖 Apple MapKit 网络瓦片。离线或网络受限时，App 仍可继续本地计算，只是不显示地图底图。</p>
+      <p>3. 提醒没有触发：请确认 iOS 通知权限已开启，并检查 App 内是否已打开时段提醒。</p>
+      <p>4. 语言没有切换：请在设置页修改语言选项；如果界面仍未刷新，完全退出并重新打开 App。</p>
+    </section>
+  </main>
+</body>
+</html>

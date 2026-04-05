@@ -1,6 +1,5 @@
 import CoreLocation
 import GoldenTimeCore
-import StoreKit
 import SwiftUI
 
 /// Fixed sRGB for settings `List` cells — never `Color.primary` / `.secondary` / phase `tint`, which can render white-on-white on grouped rows.
@@ -13,7 +12,14 @@ private enum GTPhoneSettingsListColors {
     static let errorText = Color(red: 200 / 255, green: 52 / 255, blue: 52 / 255)
 }
 
-/// iPhone settings sheet: language preference, location, twilight display (synced with Watch), App Store restore.
+private enum GTPhoneSettingsLegalSheet: String, Identifiable {
+    case privacyPolicy
+    case support
+
+    var id: String { rawValue }
+}
+
+/// iPhone settings sheet: reminders, display, location, language, and lightweight legal/support entry points.
 struct GoldenTimePhoneSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
@@ -28,12 +34,9 @@ struct GoldenTimePhoneSettingsView: View {
         GTTwilightReminderSettings.Target.blue.rawValue
     @AppStorage(GTTwilightReminderSettings.minutesBeforeKey, store: GTAppGroup.shared) private var reminderMinutes: Int =
         GTTwilightReminderSettings.defaultMinutesBefore
+    @State private var legalSheet: GTPhoneSettingsLegalSheet?
 
     private static let reminderMinuteChoices = [5, 10, 15, 20, 30, 45, 60]
-
-    @State private var restoreMessage: String?
-    @State private var restoreFailed = false
-    @State private var restoreInFlight = false
 
     private var lang: GTAppLanguage {
         let _ = locale.identifier
@@ -195,30 +198,26 @@ struct GoldenTimePhoneSettingsView: View {
                 }
 
                 Section {
-                    Button {
-                        Task { await restorePurchases() }
-                    } label: {
-                        HStack {
-                            Text(GTCopy.settingsRestorePurchases(lang))
-                                .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
-                            if restoreInFlight {
-                                Spacer()
-                                ProgressView()
-                                    .tint(GTPhoneSettingsListColors.controlAccent)
-                            }
+                    VStack(spacing: 8) {
+                        HStack(spacing: 10) {
+                            legalButton(title: GTCopy.settingsPrivacyPolicy(lang), sheet: .privacyPolicy)
+                            Text("·")
+                                .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
+                            legalButton(title: GTCopy.settingsSupport(lang), sheet: .support)
                         }
-                    }
-                    .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
-                    .listRowBackground(GTPhoneSettingsListColors.rowBackground)
-                    .disabled(restoreInFlight)
+                        .frame(maxWidth: .infinity)
 
-                    if let restoreMessage {
-                        Text(restoreMessage)
+                        Text(GTCopy.settingsLegalFooter(lang))
                             .font(.footnote)
-                            .foregroundStyle(restoreFailed ? GTPhoneSettingsListColors.errorText : GTPhoneSettingsListColors.rowSecondary)
-                            .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+                            .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
                     }
+                    .padding(.vertical, 4)
+                    .listRowInsets(EdgeInsets(top: 10, leading: 18, bottom: 8, trailing: 18))
                 }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
             // Transparent list over a dark phase gradient: without this, UIKit often resolves row labels as “dark content” (light text) → white on white cells.
             .environment(\.colorScheme, .light)
@@ -247,6 +246,9 @@ struct GoldenTimePhoneSettingsView: View {
                 )
                 .ignoresSafeArea()
             )
+            .sheet(item: $legalSheet) { sheet in
+                legalSheetView(sheet)
+            }
         }
     }
 
@@ -257,19 +259,68 @@ struct GoldenTimePhoneSettingsView: View {
             .shadow(color: skin.settingsSectionHeaderShadowColor, radius: 2, x: 0, y: 1)
     }
 
-    @MainActor
-    private func restorePurchases() async {
-        restoreInFlight = true
-        restoreFailed = false
-        restoreMessage = GTCopy.settingsRestoreWorking(lang)
-        defer { restoreInFlight = false }
-        do {
-            try await AppStore.sync()
-            restoreFailed = false
-            restoreMessage = GTCopy.settingsRestoreDone(lang)
-        } catch {
-            restoreFailed = true
-            restoreMessage = "\(GTCopy.settingsRestoreFailed(lang))（\(error.localizedDescription)）"
+    @ViewBuilder
+    private func legalButton(title: String, sheet: GTPhoneSettingsLegalSheet) -> some View {
+        Button {
+            legalSheet = sheet
+        } label: {
+            Text(title)
+                .font(.footnote)
+                .underline()
+                .foregroundStyle(GTPhoneSettingsListColors.controlAccent)
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func legalSheetView(_ sheet: GTPhoneSettingsLegalSheet) -> some View {
+        NavigationStack {
+            ScrollView {
+                Text(legalBody(for: sheet))
+                    .font(.body)
+                    .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 24)
+                    .textSelection(.enabled)
+            }
+            .background(
+                LinearGradient(
+                    colors: [skin.upper, skin.lower],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+            )
+            .navigationTitle(legalTitle(for: sheet))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(GTCopy.settingsDone(lang)) {
+                        legalSheet = nil
+                    }
+                    .fontWeight(.semibold)
+                    .foregroundStyle(skin.ink)
+                }
+            }
+        }
+    }
+
+    private func legalTitle(for sheet: GTPhoneSettingsLegalSheet) -> String {
+        switch sheet {
+        case .privacyPolicy:
+            return GTCopy.settingsPrivacyPolicy(lang)
+        case .support:
+            return GTCopy.settingsSupport(lang)
+        }
+    }
+
+    private func legalBody(for sheet: GTPhoneSettingsLegalSheet) -> String {
+        switch sheet {
+        case .privacyPolicy:
+            return GTCopy.legalPrivacyPolicyBody(lang)
+        case .support:
+            return GTCopy.legalSupportBody(lang)
         }
     }
 }

@@ -194,7 +194,7 @@ struct GoldenTwilightIOSWidget: Widget {
         StaticConfiguration(kind: GTIOWidgetKind.twilight, provider: GoldenTwilightIOSProvider()) { entry in
             GoldenTwilightIOSWidgetView(entry: entry)
         }
-        .configurationDisplayName("Golden Hour Compass")
+        .configurationDisplayName(GTCopy.systemAppDisplayName())
         .description("Next blue hour and golden hour from cached location. Open the app once to refresh GPS.")
         .supportedFamilies([
             .systemSmall,

@@ -21,3 +21,8 @@
 - **只实现用户明确说到的改动**；不要擅自隐藏/删除/重排用户**没提到**的界面、文案或行为（包括图标、额外「优化」、顺带重构）。
 - 若一句话里**可能有多种理解**（例如「下面那个」「放大一点」），**先用自然语言向用户问清楚**再改代码；**不要默认替用户做主**。
 - 用户要求把约定写进本文件时，**更新本节并保持简短可执行**。
+
+## App Store URL
+
+- `Privacy Policy URL`：`https://twilightcompass.auroracapture.com/privacy-policy.html`
+- `Support URL`：`https://twilightcompass.auroracapture.com/support.html`

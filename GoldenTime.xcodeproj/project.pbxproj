@@ -20,6 +20,7 @@
 		AC0000000000000000000011 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000011 /* Assets.xcassets */; };
 		AC0000000000000000000012 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000012 /* LaunchScreen.storyboard */; };
 		AC0000000000000000000066 /* GTTwilightReminderChime.caf in Resources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000066 /* GTTwilightReminderChime.caf */; };
+		AC0000000000000000000074 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000074 /* PrivacyInfo.xcprivacy */; };
 		AC0000000000000000000013 /* PhoneContentLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000009 /* PhoneContentLanguage.swift */; };
 		AC0000000000000000000014 /* TwilightCompassCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000013 /* TwilightCompassCard.swift */; };
 		AC0000000000000000000051 /* GoldenTimePhoneSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000051 /* GoldenTimePhoneSettingsView.swift */; };
@@ -56,6 +57,10 @@
 		AC0000000000000000000071 /* GTWidgetSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000070 /* GTWidgetSurface.swift */; };
 		AC0000000000000000000072 /* GTWidgetSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000070 /* GTWidgetSurface.swift */; };
 		AC0000000000000000000073 /* GTWidgetSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000070 /* GTWidgetSurface.swift */; };
+		AC0000000000000000000075 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = AD0000000000000000000055 /* InfoPlist.strings */; };
+		AC0000000000000000000076 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = AD0000000000000000000056 /* InfoPlist.strings */; };
+		AC0000000000000000000077 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = AD0000000000000000000057 /* InfoPlist.strings */; };
+		AC0000000000000000000078 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = AD0000000000000000000058 /* InfoPlist.strings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -162,6 +167,15 @@
 		AB0000000000000000000042 /* GoldenTimeIOSWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldenTimeIOSWidgetBundle.swift; sourceTree = "<group>"; };
 		AB0000000000000000000043 /* GoldenTwilightIOSWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldenTwilightIOSWidget.swift; sourceTree = "<group>"; };
 		AB0000000000000000000070 /* GTWidgetSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTWidgetSurface.swift; sourceTree = "<group>"; };
+		AB0000000000000000000074 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		AB0000000000000000000075 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		AB0000000000000000000076 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		AB0000000000000000000077 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		AB0000000000000000000078 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		AB0000000000000000000079 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		AB0000000000000000000080 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		AB0000000000000000000081 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		AB0000000000000000000082 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
 		AA0000000000000000000040 /* GoldenTimeWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GoldenTimeWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -231,6 +245,8 @@
 			isa = PBXGroup;
 			children = (
 				AB0000000000000000000019 /* GoldenTime.entitlements */,
+				AB0000000000000000000074 /* PrivacyInfo.xcprivacy */,
+				AD0000000000000000000055 /* InfoPlist.strings */,
 				AD0000000000000000000040 /* GoldenTimeIOSWidget */,
 				AB0000000000000000000012 /* LaunchScreen.storyboard */,
 				AB0000000000000000000001 /* GoldenTimeApp.swift */,
@@ -251,6 +267,7 @@
 			isa = PBXGroup;
 			children = (
 				AB0000000000000000000040 /* GoldenTimeIOSWidgetInfo.plist */,
+				AD0000000000000000000058 /* InfoPlist.strings */,
 				AB0000000000000000000041 /* GoldenTimeIOSWidgetExtension.entitlements */,
 				AB0000000000000000000042 /* GoldenTimeIOSWidgetBundle.swift */,
 				AB0000000000000000000043 /* GoldenTwilightIOSWidget.swift */,
@@ -263,6 +280,7 @@
 			children = (
 				AB0000000000000000000020 /* GoldenTimeWatch.entitlements */,
 				AB0000000000000000000021 /* GoldenTimeWatchWidgetExtension.entitlements */,
+				AD0000000000000000000056 /* InfoPlist.strings */,
 				AB0000000000000000000002 /* GoldenTimeWatchApp.swift */,
 				AB0000000000000000000003 /* GoldenTimeWatchRootView.swift */,
 				AB0000000000000000000004 /* GoldenTimeWatchViewModel.swift */,
@@ -285,6 +303,7 @@
 			isa = PBXGroup;
 			children = (
 				AB0000000000000000000035 /* GoldenTimeWatchWidgetInfo.plist */,
+				AD0000000000000000000057 /* InfoPlist.strings */,
 				AB0000000000000000000022 /* GoldenTimeWatchWidgetBundle.swift */,
 				AB0000000000000000000023 /* GoldenTwilightWidget.swift */,
 			);
@@ -358,6 +377,7 @@
 			buildPhases = (
 				AA0000000000000000000022 /* Sources */,
 				AA0000000000000000000021 /* Frameworks */,
+				AA0000000000000000000055 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -396,6 +416,7 @@
 			buildPhases = (
 				AA0000000000000000000043 /* Sources */,
 				AA0000000000000000000044 /* Frameworks */,
+				AA0000000000000000000056 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -441,6 +462,7 @@
 			knownRegions = (
 				en,
 				Base,
+				"zh-Hans",
 			);
 			mainGroup = AD0000000000000000000001;
 			packageReferences = (
@@ -467,6 +489,8 @@
 				AC0000000000000000000010 /* Assets.xcassets in Resources */,
 				AC0000000000000000000012 /* LaunchScreen.storyboard in Resources */,
 				AC0000000000000000000066 /* GTTwilightReminderChime.caf in Resources */,
+				AC0000000000000000000074 /* PrivacyInfo.xcprivacy in Resources */,
+				AC0000000000000000000075 /* InfoPlist.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -475,10 +499,66 @@
 			buildActionMask = 2147483647;
 			files = (
 				AC0000000000000000000011 /* Assets.xcassets in Resources */,
+				AC0000000000000000000076 /* InfoPlist.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0000000000000000000055 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AC0000000000000000000077 /* InfoPlist.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0000000000000000000056 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AC0000000000000000000078 /* InfoPlist.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		AD0000000000000000000055 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				AB0000000000000000000075 /* en */,
+				AB0000000000000000000076 /* zh-Hans */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		AD0000000000000000000056 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				AB0000000000000000000077 /* en */,
+				AB0000000000000000000078 /* zh-Hans */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		AD0000000000000000000057 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				AB0000000000000000000079 /* en */,
+				AB0000000000000000000080 /* zh-Hans */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		AD0000000000000000000058 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				AB0000000000000000000081 /* en */,
+				AB0000000000000000000082 /* zh-Hans */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin PBXSourcesBuildPhase section */
 		AA0000000000000000000006 /* Sources */ = {
@@ -594,7 +674,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Golden Hour Compass";
+				INFOPLIST_KEY_CFBundleDisplayName = "Twilight Compass";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "用于读取本机经纬度，在设备上用天文公式本地推算蓝调与金调；不访问互联网。";
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "用于在蓝调或金调时段开始前发送本地提醒。/ Sends local alerts before the next blue or golden hour.";
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -624,7 +704,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Golden Hour Compass";
+				INFOPLIST_KEY_CFBundleDisplayName = "Twilight Compass";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "用于读取本机经纬度，在设备上用天文公式本地推算蓝调与金调；不访问互联网。";
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "用于在蓝调或金调时段开始前发送本地提醒。/ Sends local alerts before the next blue or golden hour.";
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -654,7 +734,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Golden Hour Compass";
+				INFOPLIST_KEY_CFBundleDisplayName = "Twilight Compass";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "用于读取本机经纬度，在手表上用天文公式本地推算蓝调与金调；不访问互联网。";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = time.golden.GoldenHourCompass;
@@ -684,7 +764,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Golden Hour Compass";
+				INFOPLIST_KEY_CFBundleDisplayName = "Twilight Compass";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "用于读取本机经纬度，在手表上用天文公式本地推算蓝调与金调；不访问互联网。";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = time.golden.GoldenHourCompass;
@@ -713,7 +793,7 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Apps/GoldenTime/Watch/GoldenTimeWatchWidget/GoldenTimeWatchWidgetInfo.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Golden Hour Compass";
+				INFOPLIST_KEY_CFBundleDisplayName = "Twilight Compass";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -741,7 +821,7 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Apps/GoldenTime/Watch/GoldenTimeWatchWidget/GoldenTimeWatchWidgetInfo.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Golden Hour Compass";
+				INFOPLIST_KEY_CFBundleDisplayName = "Twilight Compass";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -809,7 +889,7 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Apps/GoldenTime/iOS/GoldenTimeIOSWidget/GoldenTimeIOSWidgetInfo.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Golden Hour Compass";
+				INFOPLIST_KEY_CFBundleDisplayName = "Twilight Compass";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -837,7 +917,7 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Apps/GoldenTime/iOS/GoldenTimeIOSWidget/GoldenTimeIOSWidgetInfo.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Golden Hour Compass";
+				INFOPLIST_KEY_CFBundleDisplayName = "Twilight Compass";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

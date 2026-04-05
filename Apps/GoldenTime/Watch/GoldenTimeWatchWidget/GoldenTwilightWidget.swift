@@ -5,7 +5,7 @@ import WidgetKit
 
 /// 无参数配置；用于在 watchOS「你的小组件 / Smart Stack」与表盘复杂功能中注册 Widget（`AppIntentConfiguration` 比纯 `StaticConfiguration` 更容易出现在系统列表里）。
 struct GoldenTwilightWidgetIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource { "Golden Hour Compass" }
+    static var title: LocalizedStringResource { "Twilight Compass" }
 
     static var description: IntentDescription {
         IntentDescription("Next blue hour and golden hour from cached location.")
@@ -182,7 +182,7 @@ struct GoldenTwilightWidget: Widget {
         ) { entry in
             GoldenTwilightWidgetView(entry: entry)
         }
-        .configurationDisplayName("Golden Hour Compass")
+        .configurationDisplayName(GTCopy.systemAppDisplayName())
         .description("Next blue hour and golden hour starts from cached location.")
         .supportedFamilies([
             .accessoryCircular,

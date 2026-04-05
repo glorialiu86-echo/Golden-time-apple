@@ -33,6 +33,8 @@ struct GoldenTimePhoneRootView: View {
 
     /// Large time in the page header only.
     private static let mainClockFontSize: CGFloat = 65
+    /// User-requested 20% larger compass presentation on iPhone home screen.
+    private static let compassDialHeight: CGFloat = 336
 
     var body: some View {
         let skin = GTPhaseSkin(phase: model.phase)
@@ -60,14 +62,17 @@ struct GoldenTimePhoneRootView: View {
             }
             .onAppear {
                 GTAppGroup.migrateStandardToSharedIfNeeded()
+                model.syncContentLanguageWithAppPreference()
                 publishCompanionSyncAndReloadWidgets()
                 model.beginForegroundLocationSession()
             }
             .onReceive(NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)) { _ in
                 systemLocaleBump = UUID()
+                model.syncContentLanguageWithAppPreference()
                 publishCompanionSyncAndReloadWidgets()
             }
             .onChange(of: langPreferenceRaw) { _, _ in
+                model.syncContentLanguageWithAppPreference()
                 publishCompanionSyncAndReloadWidgets()
             }
             .onChange(of: twilightModeRaw) { _, _ in
@@ -206,7 +211,7 @@ struct GoldenTimePhoneRootView: View {
                 sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
                 moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees
             )
-            .frame(height: 280)
+            .frame(height: Self.compassDialHeight)
             .frame(maxWidth: .infinity)
         } else {
             Text(GTCopy.compassCardNeedLocation(lang))

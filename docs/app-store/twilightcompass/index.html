@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Twilight Compass / 光影罗盘</title>
+  <style>
+    :root {
+      --sky: #dfe9fb;
+      --mist: #cfdcf6;
+      --sun: #ffbd4a;
+      --blue: #86acef;
+      --ink: #1f2738;
+      --soft: #65708a;
+      --line: rgba(31, 39, 56, 0.12);
+      --card: rgba(255, 255, 255, 0.78);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top, rgba(255, 189, 74, 0.26), rgba(255, 189, 74, 0) 28%),
+        linear-gradient(180deg, var(--sky), var(--mist));
+      min-height: 100vh;
+    }
+
+    main {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 40px 20px 64px;
+    }
+
+    .hero {
+      padding: 28px;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: var(--card);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 16px 40px rgba(84, 106, 148, 0.12);
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--soft);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 38px;
+      line-height: 1.1;
+    }
+
+    .subtitle {
+      margin: 14px 0 0;
+      font-size: 17px;
+      line-height: 1.7;
+      color: var(--soft);
+      max-width: 720px;
+    }
+
+    .links {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-top: 22px;
+    }
+
+    a.card {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      padding: 20px;
+      border-radius: 22px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.74));
+    }
+
+    a.card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 26px rgba(84, 106, 148, 0.12);
+    }
+
+    .tag {
+      font-size: 12px;
+      color: var(--soft);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .card h2 {
+      margin: 10px 0 8px;
+      font-size: 24px;
+    }
+
+    .card p {
+      margin: 0;
+      line-height: 1.7;
+      color: var(--soft);
+    }
+
+    .meta {
+      margin-top: 20px;
+      color: var(--soft);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <p class="eyebrow">Twilight Compass / 光影罗盘</p>
+      <h1>Support and Legal</h1>
+      <p class="subtitle">Public support and privacy pages for the Twilight Compass iOS app. These URLs are intended for App Store Connect.</p>
+
+      <div class="links">
+        <a class="card" href="./privacy-policy.html">
+          <div class="tag">Privacy</div>
+          <h2>Privacy Policy / 隐私政策</h2>
+          <p>How location, notifications, and on-device preferences are used by the app.</p>
+        </a>
+
+        <a class="card" href="./support.html">
+          <div class="tag">Support</div>
+          <h2>Support / 支持</h2>
+          <p>Support scope, troubleshooting notes, developer identity, and support email.</p>
+        </a>
+      </div>
+
+      <p class="meta">
+        Developer: Shanghai Youyicheng Information Technology Co., Ltd.<br>
+        开发者：上海佑一程信息科技有限公司<br>
+        Email: <a href="mailto:developer@auroracapture.com">developer@auroracapture.com</a>
+      </p>
+    </section>
+  </main>
+</body>
+</html>
