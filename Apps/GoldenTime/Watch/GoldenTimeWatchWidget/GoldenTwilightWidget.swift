@@ -165,7 +165,7 @@ struct GoldenTwilightWidgetView: View {
         let (cs, ce) = entry.clockStartEnd(blue: blue)
         GoldenTimeTwilightWindowCard(
             skin: skin,
-            title: blue ? GTCopy.widgetTwilightTitleBlue(entry.lang) : GTCopy.widgetTwilightTitleGolden(entry.lang),
+            title: blue ? GTCopy.blueHourTitle(entry.lang) : GTCopy.goldenHourTitle(entry.lang),
             systemImage: blue ? "moon.stars.fill" : "sun.horizon.fill",
             blue: blue,
             useClockTimes: entry.useClockTimes,
@@ -174,10 +174,8 @@ struct GoldenTwilightWidgetView: View {
             clockEnd: ce,
             now: entry.date,
             lang: entry.lang,
-            metrics: .watchAccessoryRectangular,
-            showsCardFill: false,
-            timeStyle: .widgetStacked,
-            widgetEdgeAlignment: .leading
+            metrics: .watch,
+            showsCardFill: false
         )
         .padding(widgetContentMargins)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
