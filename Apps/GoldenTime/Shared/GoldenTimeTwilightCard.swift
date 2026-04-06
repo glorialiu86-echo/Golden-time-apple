@@ -49,6 +49,11 @@ public enum GTTwilightWidgetEdgeAlignment: Sendable {
     case trailing
 }
 
+public enum GTTwilightWidgetCountdownLayout: Sendable {
+    case standard
+    case splitHoursMinutes
+}
+
 public enum GTTwilightCountdownLine {
     public static func text(from fromDate: Date, to toDate: Date, lang: GTAppLanguage) -> String? {
         let ti = toDate.timeIntervalSince(fromDate)
@@ -82,6 +87,7 @@ public struct GoldenTimeTwilightWindowCard: View {
     public var timeStyle: GTTwilightWindowTimeStyle
     /// Used when `timeStyle == .widgetStacked` (medium widget right half uses `.trailing`).
     public var widgetEdgeAlignment: GTTwilightWidgetEdgeAlignment
+    public var widgetCountdownLayout: GTTwilightWidgetCountdownLayout
 
     public init(
         skin: GTPhaseSkin,
@@ -97,7 +103,8 @@ public struct GoldenTimeTwilightWindowCard: View {
         metrics: GoldenTimeTwilightCardMetrics,
         showsCardFill: Bool = true,
         timeStyle: GTTwilightWindowTimeStyle = .standard,
-        widgetEdgeAlignment: GTTwilightWidgetEdgeAlignment = .leading
+        widgetEdgeAlignment: GTTwilightWidgetEdgeAlignment = .leading,
+        widgetCountdownLayout: GTTwilightWidgetCountdownLayout = .standard
     ) {
         self.skin = skin
         self.title = title
@@ -113,6 +120,7 @@ public struct GoldenTimeTwilightWindowCard: View {
         self.showsCardFill = showsCardFill
         self.timeStyle = timeStyle
         self.widgetEdgeAlignment = widgetEdgeAlignment
+        self.widgetCountdownLayout = widgetCountdownLayout
     }
 
     public var body: some View {
@@ -384,24 +392,119 @@ public struct GoldenTimeTwilightWindowCard: View {
         let textAlign: TextAlignment = edge == .leading ? .leading : .trailing
         let frameAlign: Alignment = edge == .leading ? .leading : .trailing
         VStack(alignment: edge == .leading ? .leading : .trailing, spacing: 4) {
+            switch widgetCountdownLayout {
+            case .standard:
+                Text(label)
+                    .font(.system(size: m.countdownLabelFontSize, weight: .semibold, design: .rounded))
+                    .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blueCard))
+                    .multilineTextAlignment(textAlign)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.75)
+                    .frame(maxWidth: .infinity, alignment: frameAlign)
+                Text(value)
+                    .font(.system(size: m.timeFontSize, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blueCard))
+                    .multilineTextAlignment(textAlign)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.78)
+                    .frame(maxWidth: .infinity, alignment: frameAlign)
+            case .splitHoursMinutes:
+                splitCountdownStacked(
+                    label: label,
+                    value: value,
+                    blueCard: blueCard,
+                    skin: skin,
+                    m: m,
+                    edge: edge,
+                    textAlign: textAlign,
+                    frameAlign: frameAlign
+                )
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: frameAlign)
+        .accessibilityLabel(a11y)
+    }
+
+    @ViewBuilder
+    private func splitCountdownStacked(
+        label: String,
+        value: String,
+        blueCard: Bool,
+        skin: GTPhaseSkin,
+        m: GoldenTimeTwilightCardMetrics,
+        edge: GTTwilightWidgetEdgeAlignment,
+        textAlign: TextAlignment,
+        frameAlign: Alignment
+    ) -> some View {
+        let parts = splitWidgetCountdownParts(from: value)
+        let valueFont = Font.system(size: m.timeFontSize, weight: .bold, design: .rounded)
+
+        if let hours = parts.hoursLine {
             Text(label)
                 .font(.system(size: m.countdownLabelFontSize, weight: .semibold, design: .rounded))
                 .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blueCard))
                 .multilineTextAlignment(textAlign)
-                .lineLimit(2)
+                .lineLimit(1)
                 .minimumScaleFactor(0.75)
                 .frame(maxWidth: .infinity, alignment: frameAlign)
-            Text(value)
-                .font(.system(size: m.timeFontSize, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blueCard))
-                .multilineTextAlignment(textAlign)
-                .lineLimit(2)
-                .minimumScaleFactor(0.78)
-                .frame(maxWidth: .infinity, alignment: frameAlign)
+            VStack(alignment: edge == .leading ? .leading : .trailing, spacing: 0) {
+                Text(hours)
+                    .font(valueFont)
+                    .monospacedDigit()
+                    .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blueCard))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                    .frame(maxWidth: .infinity, alignment: frameAlign)
+                Text(parts.minutesLine)
+                    .font(valueFont)
+                    .monospacedDigit()
+                    .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blueCard))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                    .frame(maxWidth: .infinity, alignment: frameAlign)
+            }
+        } else {
+            VStack(alignment: edge == .leading ? .leading : .trailing, spacing: 2) {
+                Text(label)
+                    .font(.system(size: m.countdownLabelFontSize, weight: .semibold, design: .rounded))
+                    .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blueCard))
+                    .multilineTextAlignment(textAlign)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .frame(maxWidth: .infinity, alignment: frameAlign)
+                Text(parts.minutesLine)
+                    .font(valueFont)
+                    .monospacedDigit()
+                    .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blueCard))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                    .frame(maxWidth: .infinity, alignment: frameAlign)
+            }
+            .frame(maxWidth: .infinity, alignment: frameAlign)
         }
-        .frame(maxWidth: .infinity, alignment: frameAlign)
-        .accessibilityLabel(a11y)
+    }
+
+    private func splitWidgetCountdownParts(from value: String) -> (hoursLine: String?, minutesLine: String) {
+        switch lang {
+        case .chinese:
+            if let hourRange = value.range(of: "小时"),
+               let minuteRange = value.range(of: "分", options: .backwards)
+            {
+                let hoursLine = String(value[..<hourRange.upperBound])
+                let minutesLine = String(value[hourRange.upperBound..<minuteRange.upperBound])
+                return (hoursLine, minutesLine)
+            }
+        case .english:
+            let parts = value.split(separator: " ", omittingEmptySubsequences: true)
+            if parts.count >= 2,
+               parts[0].hasSuffix("h"),
+               parts[1].hasSuffix("m")
+            {
+                return (String(parts[0]), String(parts[1]))
+            }
+        }
+        return (nil, value)
     }
 
     @ViewBuilder

@@ -254,7 +254,8 @@ struct GoldenTwilightIOSWidgetView: View {
             metrics: .iosWidgetMediumHalf,
             showsCardFill: false,
             timeStyle: .widgetStacked,
-            widgetEdgeAlignment: edge
+            widgetEdgeAlignment: edge,
+            widgetCountdownLayout: .splitHoursMinutes
         )
         .padding(widgetInsetsForMediumHalf(edge: edge))
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
