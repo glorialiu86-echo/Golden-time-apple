@@ -138,8 +138,6 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     private static let latKey = GoldenTimeLocationCache.latitudeKey
     private static let lonKey = GoldenTimeLocationCache.longitudeKey
     private static let tsKey = GoldenTimeLocationCache.timestampKey
-    private static let pendingWidgetReloadKey = "gt.phone.pendingWidgetReload"
-    private static let pendingPhoneStatePushKey = "gt.phone.pendingPhoneStatePush"
 
     private let coordFormatter: NumberFormatter = {
         let f = NumberFormatter()
@@ -192,6 +190,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         clockNow = now
         if activeFix != nil {
             recomputeEngineIfNeeded(now: now, force: true)
+            Self.reloadTwilightWidgetTimelines()
         }
         rebuildDailyDerivedStateIfNeeded(now: now, force: true)
         refreshLiveState(now: now)
@@ -276,10 +275,6 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         pendingSettingsLocationAction != nil
     }
 
-    var hasDeferredExternalOutputs: Bool {
-        Self.defaults.bool(forKey: Self.pendingWidgetReloadKey) || Self.defaults.bool(forKey: Self.pendingPhoneStatePushKey)
-    }
-
     func requestLocationAccessFromSettings() {
         prepareLocationPipeline()
         switch locationReader?.authorizationStatus ?? .notDetermined {
@@ -353,19 +348,6 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         locationHeartbeat?.cancel()
         locationHeartbeat = nil
         shouldSkipNextHeadingTickHaptic = true
-    }
-
-    func flushDeferredExternalOutputs() {
-        if Self.defaults.bool(forKey: Self.pendingWidgetReloadKey) {
-            #if canImport(WidgetKit)
-            WidgetCenter.shared.reloadTimelines(ofKind: GTIOWidgetKind.twilight)
-            #endif
-            Self.defaults.removeObject(forKey: Self.pendingWidgetReloadKey)
-        }
-        if Self.defaults.bool(forKey: Self.pendingPhoneStatePushKey) {
-            GTWatchConnectivitySync.shared.pushPhoneStateFromStore()
-            Self.defaults.removeObject(forKey: Self.pendingPhoneStatePushKey)
-        }
     }
 
     private func handleLocationUpdate(_ loc: CLLocation) {
@@ -604,7 +586,14 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         defaults.set(fix.latitude, forKey: latKey)
         defaults.set(fix.longitude, forKey: lonKey)
         defaults.set(fix.timestamp.timeIntervalSince1970, forKey: tsKey)
-        defaults.set(true, forKey: pendingWidgetReloadKey)
-        defaults.set(true, forKey: pendingPhoneStatePushKey)
+        reloadTwilightWidgetTimelines()
+        GTWatchConnectivitySync.shared.pushPhoneStateFromStore()
+    }
+
+    /// Home-screen widgets do not observe `UserDefaults`; ask WidgetKit to re-run the timeline after cache or settings change.
+    private static func reloadTwilightWidgetTimelines() {
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadTimelines(ofKind: GTIOWidgetKind.twilight)
+        #endif
     }
 }

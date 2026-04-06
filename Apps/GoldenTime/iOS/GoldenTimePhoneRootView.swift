@@ -27,7 +27,7 @@ struct GoldenTimePhoneRootView: View {
     @State private var allowCompassMapBase = false
     @State private var hasBootstrapped = false
     @State private var needsForegroundResume = false
-    @State private var needsDeferredCompanionSync = false
+    @State private var companionSyncTask: Task<Void, Never>?
     @State private var showInitialCompassOverlay = false
     @State private var initialCompassOverlayTask: Task<Void, Never>?
     /// Bumps when `NSLocale.currentLocaleDidChangeNotification` fires so `uiLang` re-evaluates while preference is「跟随系统」.
@@ -83,6 +83,7 @@ struct GoldenTimePhoneRootView: View {
             }
             .onAppear {
                 model.syncContentLanguageWithAppPreference()
+                scheduleCompanionSync()
                 if !hasShownInitialCompassOverlay {
                     hasShownInitialCompassOverlay = true
                     showInitialCompassOverlay = true
@@ -95,7 +96,10 @@ struct GoldenTimePhoneRootView: View {
                 guard !hasBootstrapped else { return }
                 hasBootstrapped = true
                 await Task.yield()
+                GTAppGroup.migrateStandardToSharedIfNeeded()
+                GTWatchConnectivitySync.shared.activate()
                 model.syncContentLanguageWithAppPreference()
+                scheduleCompanionSync()
                 model.beginForegroundLocationSession(requestImmediately: true)
                 allowCompassMapBase = true
                 if showInitialCompassOverlay, scenePhase == .active {
@@ -105,20 +109,20 @@ struct GoldenTimePhoneRootView: View {
             .onReceive(NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)) { _ in
                 systemLocaleBump = UUID()
                 model.syncContentLanguageWithAppPreference()
-                markCompanionSyncDirty()
+                scheduleCompanionSync()
             }
             .onChange(of: langPreferenceRaw) { _, _ in
                 model.syncContentLanguageWithAppPreference()
-                markCompanionSyncDirty()
+                scheduleCompanionSync()
             }
             .onChange(of: twilightModeRaw) { _, _ in
-                markCompanionSyncDirty()
+                scheduleCompanionSync()
             }
             .onChange(of: mapCameraDistanceStorage) { _, _ in
-                markCompanionSyncDirty()
+                scheduleCompanionSync()
             }
             .onChange(of: networkReachability.hasNetworkRoute) { _, _ in
-                markCompanionSyncDirty()
+                scheduleCompanionSync()
             }
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
@@ -128,12 +132,12 @@ struct GoldenTimePhoneRootView: View {
                     }
                     guard hasBootstrapped, needsForegroundResume else { return }
                     needsForegroundResume = false
+                    scheduleCompanionSync()
                     model.beginForegroundLocationSession(requestImmediately: true)
                 case .background:
                     initialCompassOverlayTask?.cancel()
                     needsForegroundResume = true
                     model.endForegroundLocationSession()
-                    flushDeferredExternalSync()
                 default:
                     initialCompassOverlayTask?.cancel()
                 }
@@ -417,18 +421,16 @@ struct GoldenTimePhoneRootView: View {
             twilightModeRaw: twilightModeRaw,
             mapCameraDistance: mapCameraDistanceStorage
         )
-        model.flushDeferredExternalOutputs()
+        model.syncContentLanguageWithAppPreference()
     }
 
-    private func markCompanionSyncDirty() {
-        needsDeferredCompanionSync = true
-    }
-
-    private func flushDeferredExternalSync() {
-        guard needsDeferredCompanionSync || model.hasDeferredExternalOutputs else { return }
-        GTAppGroup.migrateStandardToSharedIfNeeded()
-        publishCompanionSyncAndReloadWidgets()
-        needsDeferredCompanionSync = false
+    private func scheduleCompanionSync() {
+        companionSyncTask?.cancel()
+        companionSyncTask = Task { @MainActor in
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            publishCompanionSyncAndReloadWidgets()
+        }
     }
 
     private func scheduleInitialCompassOverlayDismissal() {
