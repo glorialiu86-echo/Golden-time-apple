@@ -145,14 +145,14 @@ private extension GoldenTimeTwilightCardMetrics {
     )
 
     static let iosWidgetMediumHalf = GoldenTimeTwilightCardMetrics(
-        timeFontSize: 34,
+        timeFontSize: 38,
         mainSlotHeight: 0,
         countdownLabelFontSize: 15,
         horizontalPadding: 0,
         verticalPadding: 0,
         cornerRadius: 0,
-        titleFont: .caption.weight(.semibold),
-        symbolFont: .caption.weight(.semibold)
+        titleFont: .subheadline.weight(.semibold),
+        symbolFont: .subheadline.weight(.semibold)
     )
 }
 
