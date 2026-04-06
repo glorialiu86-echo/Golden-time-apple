@@ -62,6 +62,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     private var settingsLocationFeedbackResetTask: Task<Void, Never>?
     private var settingsLocationRefreshTimeoutTask: Task<Void, Never>?
     private var lastAuthorizationGrantedUptime: TimeInterval?
+    private var lastHeadingAppliedUptime: TimeInterval?
 
     private var activeFix: LocationFix?
     private var lastEngineDayStart: Date?
@@ -233,9 +234,15 @@ final class GoldenTimePhoneViewModel: ObservableObject {
                 guard let self else { return }
                 self.deviceHeadingDegrees = v
                 if let h = v {
+                    GTPerfTrace.mark(
+                        Self.performanceLog,
+                        "phone vm applied heading=\(String(format: "%.1f", h)) afterPrev=\(GTPerfTrace.milliseconds(since: self.lastHeadingAppliedUptime))"
+                    )
+                    self.lastHeadingAppliedUptime = GTPerfTrace.uptime()
                     self.triggerHeadingTickHapticIfNeeded(headingDegrees: h)
                 } else {
                     self.headingThirtyDegreeBucket = nil
+                    self.lastHeadingAppliedUptime = nil
                 }
             }
             .store(in: &cancellables)

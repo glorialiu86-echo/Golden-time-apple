@@ -20,6 +20,7 @@ final class PhoneLocationReader: NSObject, ObservableObject, @unchecked Sendable
     private var wantsHeadingUpdates = false
     private var authorizationPromptStartUptime: TimeInterval?
     private var locationRequestStartUptime: TimeInterval?
+    private var lastHeadingUpdateUptime: TimeInterval?
 
     override init() {
         super.init()
@@ -122,11 +123,21 @@ extension PhoneLocationReader: CLLocationManagerDelegate {
         let magH = newHeading.magneticHeading
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
+            let updateUptime = GTPerfTrace.uptime()
             if trueH >= 0 {
                 self.headingDegrees = trueH
+                GTPerfTrace.mark(
+                    Self.performanceLog,
+                    "phone didUpdateHeading source=true heading=\(String(format: "%.1f", trueH)) afterPrev=\(GTPerfTrace.milliseconds(since: self.lastHeadingUpdateUptime))"
+                )
             } else if magH >= 0 {
                 self.headingDegrees = magH
+                GTPerfTrace.mark(
+                    Self.performanceLog,
+                    "phone didUpdateHeading source=mag heading=\(String(format: "%.1f", magH)) afterPrev=\(GTPerfTrace.milliseconds(since: self.lastHeadingUpdateUptime))"
+                )
             }
+            self.lastHeadingUpdateUptime = updateUptime
         }
     }
 
