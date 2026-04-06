@@ -353,6 +353,9 @@ struct TwilightCompassCard: View {
         GTCompassMapSettings.defaultCameraDistanceMeters
     /// Set from `MKMapView` delegate when raster tiles finish rendering (best-effort); watch sets optimistically.
     @State private var mapTilesReady = false
+    #if os(iOS)
+    @State private var isMapPresentationReady = false
+    #endif
 
     private var mapCameraDistanceValue: CLLocationDistance {
         let raw = mapCameraDistanceStorage
@@ -425,7 +428,7 @@ struct TwilightCompassCard: View {
             #endif
             Group {
                 #if os(iOS)
-                if showMapBase {
+                if showMapBase, isMapPresentationReady {
                     let mapDiameter = CompassMapFrame.mapDiskDiameter(side: side)
                     let railH = min(side * 0.58, 172)
                     HStack(alignment: .center, spacing: railGap) {
@@ -497,6 +500,17 @@ struct TwilightCompassCard: View {
         .onChange(of: chromeIsLight) { _, _ in
             if showMapBase { mapTilesReady = false }
         }
+        #if os(iOS)
+        .task(id: showMapBase) {
+            guard showMapBase else {
+                isMapPresentationReady = false
+                return
+            }
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            isMapPresentationReady = true
+        }
+        #endif
         #endif
     }
 
@@ -729,7 +743,7 @@ private struct TwilightCompassDrawing: View {
     }
 
     var body: some View {
-        Canvas { context, size in
+        Canvas(opaque: false, colorMode: .nonLinear, rendersAsynchronously: true) { context, size in
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
             let outerR = min(size.width, size.height) / 2 - 20
             let sectorR = outerR * 0.935
