@@ -25,12 +25,8 @@ struct GoldenTimePhoneRootView: View {
         twilightModeRaw != GTTwilightDisplayMode.countdown.rawValue
     }
 
-    /// `GOLDEN_TIME_NO_MAP_BASE=1` forces gradient-only compass. Otherwise show `MapKit` when the device has a network route.
     private var compassShowsMapBase: Bool {
         guard allowCompassMapBase else { return false }
-        if ProcessInfo.processInfo.environment["GOLDEN_TIME_NO_MAP_BASE"] == "1" {
-            return false
-        }
         return networkReachability.hasNetworkRoute
     }
 

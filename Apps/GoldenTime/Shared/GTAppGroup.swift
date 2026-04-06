@@ -2,7 +2,7 @@ import Foundation
 
 /// App Group for iPhone + Watch + widgets: language preference (`gt.uiLanguage`: `zh` / `en` / `system`) + iPhone-written effective mirror for Watch, twilight card mode, compass UI flags, cached GPS.
 public enum GTAppGroup {
-    public static let suiteName = "group.time.golden.TwilightCompass"
+    public static let suiteName = "group.time.golden.GoldenHourCompass"
     /// Keep one stable `UserDefaults` instance so SwiftUI `@AppStorage` observers stay on the same store object.
     public nonisolated(unsafe) static let shared: UserDefaults = UserDefaults(suiteName: suiteName) ?? .standard
 
