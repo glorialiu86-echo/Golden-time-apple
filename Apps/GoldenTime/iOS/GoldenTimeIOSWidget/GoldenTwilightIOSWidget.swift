@@ -1,38 +1,71 @@
+import AppIntents
 import GoldenTimeCore
 import SwiftUI
 import WidgetKit
 
-// MARK: - Timeline (same data as watch widget: App Group cache + engine)
+// MARK: - Timeline
 
 struct GoldenTwilightIOSEntry: TimelineEntry {
     var date: Date
     var lang: GTAppLanguage
     var blueLine: String
     var goldenLine: String
+    /// Small widget only; medium ignores and shows both.
+    var smallSlot: GTWidgetTwilightFocus
 }
 
-struct GoldenTwilightIOSProvider: TimelineProvider {
+struct GoldenTwilightIOSWidgetIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource { LocalizedStringResource(stringLiteral: "Twilight Compass") }
+
+    static var description: IntentDescription {
+        IntentDescription("Next blue hour and golden hour from cached location.")
+    }
+
+    @Parameter(title: "Small widget shows", default: .blueHour)
+    var smallSlot: GTWidgetTwilightFocus
+}
+
+struct GoldenTwilightIOSProvider: AppIntentTimelineProvider {
+    typealias Intent = GoldenTwilightIOSWidgetIntent
+    typealias Entry = GoldenTwilightIOSEntry
+
+    func recommendations() -> [AppIntentRecommendation<GoldenTwilightIOSWidgetIntent>] {
+        let blue = GoldenTwilightIOSWidgetIntent()
+        var golden = GoldenTwilightIOSWidgetIntent()
+        golden.smallSlot = .goldenHour
+        return [
+            AppIntentRecommendation(intent: blue, description: "Blue hour on the small widget."),
+            AppIntentRecommendation(intent: golden, description: "Golden hour on the small widget."),
+        ]
+    }
+
     func placeholder(in _: Context) -> GoldenTwilightIOSEntry {
-        GoldenTwilightIOSEntry(date: Date(), lang: .chinese, blueLine: "—", goldenLine: "—")
+        GoldenTwilightIOSEntry(
+            date: Date(),
+            lang: .chinese,
+            blueLine: "—",
+            goldenLine: "—",
+            smallSlot: .blueHour
+        )
     }
 
-    func getSnapshot(in _: Context, completion: @escaping (GoldenTwilightIOSEntry) -> Void) {
-        completion(makeEntry())
+    func snapshot(for configuration: GoldenTwilightIOSWidgetIntent, in _: Context) async -> GoldenTwilightIOSEntry {
+        makeEntry(smallSlot: configuration.smallSlot)
     }
 
-    func getTimeline(in _: Context, completion: @escaping (Timeline<GoldenTwilightIOSEntry>) -> Void) {
-        let entry = makeEntry()
+    func timeline(for configuration: GoldenTwilightIOSWidgetIntent, in _: Context) async -> Timeline<GoldenTwilightIOSEntry> {
+        let entry = makeEntry(smallSlot: configuration.smallSlot)
         let refresh = Calendar.current.date(byAdding: .minute, value: 15, to: entry.date) ?? entry.date.addingTimeInterval(900)
-        completion(Timeline(entries: [entry], policy: .after(refresh)))
+        return Timeline(entries: [entry], policy: .after(refresh))
     }
 
-    private func makeEntry() -> GoldenTwilightIOSEntry {
+    private func makeEntry(smallSlot: GTWidgetTwilightFocus) -> GoldenTwilightIOSEntry {
         let suite = GTAppGroup.shared
         GTAppGroup.materializeDefaultPreferencesIfNeeded()
         let lang = GTAppLanguage.widgetLanguageIOS(suite: suite)
         let now = Date()
         guard suite.object(forKey: GoldenTimeLocationCache.latitudeKey) != nil else {
-            return GoldenTwilightIOSEntry(date: now, lang: lang, blueLine: "—", goldenLine: "—")
+            return GoldenTwilightIOSEntry(date: now, lang: lang, blueLine: "—", goldenLine: "—", smallSlot: smallSlot)
         }
         let lat = suite.double(forKey: GoldenTimeLocationCache.latitudeKey)
         let lon = suite.double(forKey: GoldenTimeLocationCache.longitudeKey)
@@ -55,11 +88,73 @@ struct GoldenTwilightIOSProvider: TimelineProvider {
         }
         let b = line(for: engine.nextBlueWindow(after: now))
         let g = line(for: engine.nextGoldenWindow(after: now))
-        return GoldenTwilightIOSEntry(date: now, lang: lang, blueLine: b, goldenLine: g)
+        return GoldenTwilightIOSEntry(date: now, lang: lang, blueLine: b, goldenLine: g, smallSlot: smallSlot)
     }
 }
 
-// MARK: - Views
+// MARK: - Module-style cards (aligned with `GoldenTimeTwilightWindowCard` / `GTPhaseSkin.day`)
+
+private struct TwilightIOSHomeModuleCard: View {
+    var blue: Bool
+    var title: String
+    var systemImage: String
+    var valueLine: String
+    var cornerRadius: CGFloat
+
+    var body: some View {
+        let skin = GTPhaseSkin.day
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
+                Text(title)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            Text(valueLine)
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: skin.twilightCardGradient(blue: blue),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(skin.panelStroke, lineWidth: 1)
+                )
+        )
+    }
+}
+
+private extension GoldenTwilightIOSEntry {
+    func title(blue: Bool) -> String {
+        blue ? GTCopy.blueHourTitle(lang) : GTCopy.goldenHourTitle(lang)
+    }
+
+    func symbol(blue: Bool) -> String {
+        blue ? "moon.stars.fill" : "sun.horizon.fill"
+    }
+
+    func line(blue: Bool) -> String {
+        blue ? blueLine : goldenLine
+    }
+}
 
 struct GoldenTwilightIOSWidgetView: View {
     @Environment(\.widgetFamily) private var family
@@ -68,163 +163,62 @@ struct GoldenTwilightIOSWidgetView: View {
     var body: some View {
         switch family {
         case .systemSmall:
-            smallContent
-                .containerBackground(GTWidgetSurface.homeBackground, for: .widget)
+            smallBody
+                .containerBackground(homeWidgetChromeBackground, for: .widget)
         case .systemMedium:
-            mediumContent
-                .containerBackground(GTWidgetSurface.homeBackground, for: .widget)
-        case .systemLarge:
-            largeContent
-                .containerBackground(GTWidgetSurface.homeBackground, for: .widget)
-        case .systemExtraLarge:
-            extraLargeContent
-                .containerBackground(GTWidgetSurface.homeBackground, for: .widget)
-        case .accessoryCircular:
-            ZStack {
-                AccessoryWidgetBackground()
-                VStack(spacing: 2) {
-                    Image(systemName: "sun.horizon.fill")
-                        .font(.caption2)
-                    Text(entry.goldenLine)
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.45)
-                }
-                .foregroundStyle(GTWidgetSurface.accessoryPrimary)
-                .padding(.horizontal, 2)
-            }
-            .containerBackground(Color.clear, for: .widget)
-        case .accessoryRectangular:
-            VStack(alignment: .leading, spacing: 4) {
-                Text(GTCopy.widgetStackTitle(entry.lang))
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(GTWidgetSurface.accessorySecondary)
-                twilightRows(
-                    font: .subheadline.weight(.medium),
-                    iconSize: 12,
-                    rowForeground: GTWidgetSurface.accessoryPrimary
-                )
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(6)
-            .containerBackground(Color.clear, for: .widget)
-        case .accessoryInline:
-            Text("\(entry.blueLine)  \(entry.goldenLine)")
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(GTWidgetSurface.accessoryPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
-                .containerBackground(Color.clear, for: .widget)
-        @unknown default:
-            mediumContent
-                .containerBackground(GTWidgetSurface.homeBackground, for: .widget)
+            mediumBody
+                .containerBackground(homeWidgetChromeBackground, for: .widget)
+        default:
+            mediumBody
+                .containerBackground(homeWidgetChromeBackground, for: .widget)
         }
     }
 
-    private var smallContent: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(GTCopy.widgetStackTitle(entry.lang))
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(GTWidgetSurface.homeTitleMuted)
-            twilightRows(
-                font: .caption2.weight(.medium),
-                iconSize: 11,
-                rowForeground: GTWidgetSurface.homeBody
+    private var homeWidgetChromeBackground: Color {
+        Color(red: 14 / 255, green: 15 / 255, blue: 18 / 255)
+    }
+
+    private var smallBody: some View {
+        let blue = entry.smallSlot == .blueHour
+        return TwilightIOSHomeModuleCard(
+            blue: blue,
+            title: entry.title(blue: blue),
+            systemImage: entry.symbol(blue: blue),
+            valueLine: entry.line(blue: blue),
+            cornerRadius: 18
+        )
+        .padding(10)
+    }
+
+    private var mediumBody: some View {
+        HStack(spacing: 8) {
+            TwilightIOSHomeModuleCard(
+                blue: true,
+                title: entry.title(blue: true),
+                systemImage: entry.symbol(blue: true),
+                valueLine: entry.line(blue: true),
+                cornerRadius: 16
+            )
+            TwilightIOSHomeModuleCard(
+                blue: false,
+                title: entry.title(blue: false),
+                systemImage: entry.symbol(blue: false),
+                valueLine: entry.line(blue: false),
+                cornerRadius: 16
             )
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private var mediumContent: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(GTCopy.widgetStackTitle(entry.lang))
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(GTWidgetSurface.homeBody)
-            twilightRows(
-                font: .body.weight(.medium),
-                iconSize: 14,
-                rowForeground: GTWidgetSurface.homeBody
-            )
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private var largeContent: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(GTCopy.widgetStackTitle(entry.lang))
-                .font(.headline)
-                .foregroundStyle(GTWidgetSurface.homeBody)
-            twilightRows(
-                font: .title3.weight(.medium),
-                iconSize: 18,
-                rowForeground: GTWidgetSurface.homeBody
-            )
-            Text(GTCopy.widgetOpenAppHint(entry.lang))
-                .font(.caption)
-                .foregroundStyle(GTWidgetSurface.homeFootnote)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private var extraLargeContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(GTCopy.widgetStackTitle(entry.lang))
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(GTWidgetSurface.homeBody)
-            twilightRows(
-                font: .title2.weight(.medium),
-                iconSize: 20,
-                rowForeground: GTWidgetSurface.homeBody
-            )
-            Spacer(minLength: 0)
-            Text(GTCopy.widgetOpenAppHint(entry.lang))
-                .font(.footnote)
-                .foregroundStyle(GTWidgetSurface.homeFootnote)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    @ViewBuilder
-    private func twilightRows(font: Font, iconSize: CGFloat?, rowForeground: Color) -> some View {
-        Label {
-            Text(entry.blueLine)
-                .font(font.monospacedDigit())
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
-        } icon: {
-            Image(systemName: "moon.stars.fill")
-                .font(iconSize.map { .system(size: $0) } ?? .caption2)
-        }
-        .foregroundStyle(rowForeground)
-        Label {
-            Text(entry.goldenLine)
-                .font(font.monospacedDigit())
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
-        } icon: {
-            Image(systemName: "sun.horizon.fill")
-                .font(iconSize.map { .system(size: $0) } ?? .caption2)
-        }
-        .foregroundStyle(rowForeground)
+        .padding(10)
     }
 }
 
 struct GoldenTwilightIOSWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: GTIOWidgetKind.twilight, provider: GoldenTwilightIOSProvider()) { entry in
+        AppIntentConfiguration(kind: GTIOWidgetKind.twilight, intent: GoldenTwilightIOSWidgetIntent.self, provider: GoldenTwilightIOSProvider()) {
+            entry in
             GoldenTwilightIOSWidgetView(entry: entry)
         }
         .configurationDisplayName(GTCopy.systemAppDisplayName())
-        .description("Next blue hour and golden hour from cached location. Open the app once to refresh GPS.")
-        .supportedFamilies([
-            .systemSmall,
-            .systemMedium,
-            .systemLarge,
-            .systemExtraLarge,
-            .accessoryCircular,
-            .accessoryRectangular,
-            .accessoryInline,
-        ])
+        .description("Small: pick blue or golden. Medium: both side by side. Uses cached location — open the app once to refresh GPS.")
+        .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
