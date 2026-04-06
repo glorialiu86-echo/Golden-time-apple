@@ -89,11 +89,11 @@ final class PhoneLocationReader: NSObject, ObservableObject, @unchecked Sendable
             return
         }
         switch manager.authorizationStatus {
-        case .denied, .restricted:
+        case .authorizedAlways, .authorizedWhenInUse:
+            manager.startUpdatingHeading()
+        default:
             manager.stopUpdatingHeading()
             headingDegrees = nil
-        default:
-            manager.startUpdatingHeading()
         }
     }
 
