@@ -26,6 +26,8 @@
 		AC0000000000000000000017 /* GTAppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000016 /* GTAppGroup.swift */; };
 		AC0000000000000000000018 /* PhoneContentLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000009 /* PhoneContentLanguage.swift */; };
 		AC0000000000000000000019 /* GTAppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000016 /* GTAppGroup.swift */; };
+		AC0000000000000000000088 /* GTWatchConnectivitySync.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000088 /* GTWatchConnectivitySync.swift */; };
+		AC0000000000000000000089 /* GTWatchConnectivitySync.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000088 /* GTWatchConnectivitySync.swift */; };
 		AC0000000000000000000020 /* GTPhaseSkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000017 /* GTPhaseSkin.swift */; };
 		AC0000000000000000000021 /* GoldenTimeTwilightCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000018 /* GoldenTimeTwilightCard.swift */; };
 		AC0000000000000000000022 /* GTPhaseSkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000017 /* GTPhaseSkin.swift */; };
@@ -161,6 +163,7 @@
 		AB0000000000000000000016 /* GTAppGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTAppGroup.swift; sourceTree = "<group>"; };
 		AB0000000000000000000017 /* GTPhaseSkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTPhaseSkin.swift; sourceTree = "<group>"; };
 		AB0000000000000000000018 /* GoldenTimeTwilightCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoldenTimeTwilightCard.swift; sourceTree = "<group>"; };
+		AB0000000000000000000088 /* GTWatchConnectivitySync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTWatchConnectivitySync.swift; sourceTree = "<group>"; };
 		AB0000000000000000000019 /* GoldenTime.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GoldenTime.entitlements; sourceTree = "<group>"; };
 		AB0000000000000000000020 /* GoldenTimeWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GoldenTimeWatch.entitlements; sourceTree = "<group>"; };
 		AB0000000000000000000021 /* GoldenTimeWatchWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GoldenTimeWatchWidgetExtension.entitlements; sourceTree = "<group>"; };
@@ -295,6 +298,7 @@
 			isa = PBXGroup;
 			children = (
 				AB0000000000000000000016 /* GTAppGroup.swift */,
+				AB0000000000000000000088 /* GTWatchConnectivitySync.swift */,
 				AB0000000000000000000014 /* NetworkReachability.swift */,
 				AB0000000000000000000017 /* GTPhaseSkin.swift */,
 				AB0000000000000000000070 /* GTWidgetSurface.swift */,
@@ -553,6 +557,7 @@
 				AC0000000000000000000015 /* NetworkReachability.swift in Sources */,
 				AC0000000000000000000016 /* GTAppIconPalette.swift in Sources */,
 				AC0000000000000000000017 /* GTAppGroup.swift in Sources */,
+				AC0000000000000000000088 /* GTWatchConnectivitySync.swift in Sources */,
 				AC0000000000000000000020 /* GTPhaseSkin.swift in Sources */,
 				AC0000000000000000000070 /* GTWidgetSurface.swift in Sources */,
 				AC0000000000000000000021 /* GoldenTimeTwilightCard.swift in Sources */,
@@ -569,6 +574,7 @@
 				AC0000000000000000000005 /* WatchLocationReader.swift in Sources */,
 				AC0000000000000000000018 /* PhoneContentLanguage.swift in Sources */,
 				AC0000000000000000000019 /* GTAppGroup.swift in Sources */,
+				AC0000000000000000000089 /* GTWatchConnectivitySync.swift in Sources */,
 				AC0000000000000000000022 /* GTPhaseSkin.swift in Sources */,
 				AC0000000000000000000071 /* GTWidgetSurface.swift in Sources */,
 				AC0000000000000000000023 /* GoldenTimeTwilightCard.swift in Sources */,

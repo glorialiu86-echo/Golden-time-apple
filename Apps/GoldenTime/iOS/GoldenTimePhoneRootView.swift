@@ -10,6 +10,8 @@ struct GoldenTimePhoneRootView: View {
     @AppStorage(GTAppLanguage.storageKey, store: GTAppGroup.shared) private var langPreferenceRaw: String =
         GTAppLanguage.followSystemStorageValue
     @AppStorage(GTTwilightDisplayMode.storageKey, store: GTAppGroup.shared) private var twilightModeRaw: String = GTTwilightDisplayMode.clockTimes.rawValue
+    @AppStorage(GTCompassMapSettings.storageKey, store: GTAppGroup.shared) private var mapCameraDistanceStorage: Double =
+        GTCompassMapSettings.defaultCameraDistanceMeters
     @State private var showSettings = false
     /// Bumps when `NSLocale.currentLocaleDidChangeNotification` fires so `uiLang` re-evaluates while preference is「跟随系统」.
     @State private var systemLocaleBump = UUID()
@@ -76,7 +78,11 @@ struct GoldenTimePhoneRootView: View {
                 publishCompanionSyncAndReloadWidgets()
             }
             .onChange(of: twilightModeRaw) { _, _ in
+                publishCompanionSyncAndReloadWidgets()
                 WidgetCenter.shared.reloadTimelines(ofKind: GTIOWidgetKind.twilight)
+            }
+            .onChange(of: mapCameraDistanceStorage) { _, _ in
+                publishCompanionSyncAndReloadWidgets()
             }
             .onChange(of: networkReachability.hasNetworkRoute) { _, _ in
                 publishCompanionSyncAndReloadWidgets()
@@ -320,6 +326,12 @@ struct GoldenTimePhoneRootView: View {
         let effective = GTAppLanguage.phoneDisplayLanguage(preferenceRaw: langPreferenceRaw)
         GTAppGroup.shared.set(effective.rawValue, forKey: GTAppLanguage.effectiveMirrorKey)
         GTAppGroup.shared.set(compassShowsMapBase, forKey: GTCompanionUISync.showCompassMapBaseKey)
+        GTWatchConnectivitySync.shared.pushPhoneState(
+            languagePreferenceRaw: langPreferenceRaw,
+            effectiveLanguageRaw: effective.rawValue,
+            twilightModeRaw: twilightModeRaw,
+            mapCameraDistance: mapCameraDistanceStorage
+        )
         model.syncContentLanguageWithAppPreference()
         WidgetCenter.shared.reloadTimelines(ofKind: GTIOWidgetKind.twilight)
     }
