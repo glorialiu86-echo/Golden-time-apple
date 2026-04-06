@@ -66,6 +66,7 @@ struct GoldenTimePhoneRootView: View {
                 GTAppGroup.migrateStandardToSharedIfNeeded()
                 model.syncContentLanguageWithAppPreference()
                 publishCompanionSyncAndReloadWidgets()
+                model.startLocationPipeline()
                 model.beginForegroundLocationSession()
             }
             .onReceive(NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)) { _ in

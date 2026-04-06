@@ -24,7 +24,8 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     }
 
     private let engine = GoldenTimeEngine()
-    private let locationReader = PhoneLocationReader()
+    /// Created after the first frame so `CLLocationManager` setup never blocks the launch screen.
+    private var locationReader: PhoneLocationReader?
     private var cancellables = Set<AnyCancellable>()
     private var locationHeartbeat: AnyCancellable?
     private var pendingSettingsLocationAction: SettingsLocationAction?
@@ -126,47 +127,6 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             activeFix = cached
             updateCoordLabels(lat: cached.latitude, lon: cached.longitude)
         }
-
-        locationReader.$latestFix
-            .compactMap { $0 }
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] loc in
-                self?.handleLocationUpdate(loc)
-            }
-            .store(in: &cancellables)
-
-        locationAuthorizationStatus = locationReader.authorizationStatus
-        locationReader.$authorizationStatus
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] status in
-                self?.locationAuthorizationStatus = status
-                self?.recomputeStatusLine()
-                self?.handleLocationAuthorizationChange(status)
-            }
-            .store(in: &cancellables)
-
-        locationReader.$lastLocationRequestFailed
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.recomputeStatusLine()
-                self?.handleLocationRequestFailure()
-            }
-            .store(in: &cancellables)
-
-        locationReader.$headingDegrees
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] v in
-                guard let self else { return }
-                self.deviceHeadingDegrees = v
-                if let h = v {
-                    self.triggerHeadingTickHapticIfNeeded(headingDegrees: h)
-                } else {
-                    self.headingThirtyDegreeBucket = nil
-                }
-            }
-            .store(in: &cancellables)
-
-        locationReader.requestLocation()
         let now = Date()
         if activeFix != nil {
             recomputeEngineIfNeeded(now: now, force: true)
@@ -186,6 +146,54 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
+    /// Wire Core Location after SwiftUI has presented the root view to avoid launch-screen stalls.
+    func startLocationPipeline() {
+        guard locationReader == nil else { return }
+        let reader = PhoneLocationReader()
+        locationReader = reader
+
+        reader.$latestFix
+            .compactMap { $0 }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] loc in
+                self?.handleLocationUpdate(loc)
+            }
+            .store(in: &cancellables)
+
+        locationAuthorizationStatus = reader.authorizationStatus
+        reader.$authorizationStatus
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] status in
+                self?.locationAuthorizationStatus = status
+                self?.recomputeStatusLine()
+                self?.handleLocationAuthorizationChange(status)
+            }
+            .store(in: &cancellables)
+
+        reader.$lastLocationRequestFailed
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.recomputeStatusLine()
+                self?.handleLocationRequestFailure()
+            }
+            .store(in: &cancellables)
+
+        reader.$headingDegrees
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] v in
+                guard let self else { return }
+                self.deviceHeadingDegrees = v
+                if let h = v {
+                    self.triggerHeadingTickHapticIfNeeded(headingDegrees: h)
+                } else {
+                    self.headingThirtyDegreeBucket = nil
+                }
+            }
+            .store(in: &cancellables)
+
+        reader.requestLocation()
+    }
+
     /// Call when the persisted language preference or system locale may have changed.
     func syncContentLanguageWithAppPreference() {
         let next = GTAppLanguage.widgetLanguageIOS(suite: Self.defaults)
@@ -202,7 +210,8 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     }
 
     func refreshGPS() {
-        locationReader.requestLocation()
+        startLocationPipeline()
+        locationReader?.requestLocation()
     }
 
     var isPerformingSettingsLocationAction: Bool {
@@ -210,12 +219,13 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     }
 
     func requestLocationAccessFromSettings() {
-        switch locationReader.authorizationStatus {
+        startLocationPipeline()
+        switch locationReader?.authorizationStatus ?? .notDetermined {
         case .notDetermined:
             settingsLocationFeedbackResetTask?.cancel()
             pendingSettingsLocationAction = .requestingAuthorization
             settingsLocationFeedback = .waitingForPermission
-            locationReader.requestLocation()
+            locationReader?.requestLocation()
         case .authorizedAlways, .authorizedWhenInUse:
             refreshLocationFromSettings()
         case .denied:
@@ -226,18 +236,19 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             settingsLocationFeedbackResetTask?.cancel()
             pendingSettingsLocationAction = .requestingAuthorization
             settingsLocationFeedback = .waitingForPermission
-            locationReader.requestLocation()
+            locationReader?.requestLocation()
         }
     }
 
     func refreshLocationFromSettings() {
-        switch locationReader.authorizationStatus {
+        startLocationPipeline()
+        switch locationReader?.authorizationStatus ?? .notDetermined {
         case .authorizedAlways, .authorizedWhenInUse:
             settingsLocationFeedbackResetTask?.cancel()
             pendingSettingsLocationAction = .refreshing
             settingsLocationFeedback = .refreshing
             startSettingsLocationRefreshTimeout()
-            locationReader.requestLocation()
+            locationReader?.requestLocation()
         case .notDetermined:
             requestLocationAccessFromSettings()
         case .denied:
@@ -303,7 +314,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     }
 
     private func handleLocationRequestFailure() {
-        guard locationReader.lastLocationRequestFailed, pendingSettingsLocationAction == .refreshing else { return }
+        guard locationReader?.lastLocationRequestFailed == true, pendingSettingsLocationAction == .refreshing else { return }
         finishSettingsLocationAction(with: .failed, autoClear: true)
     }
 
@@ -468,12 +479,12 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             statusLine = ""
             return
         }
-        let auth = locationReader.authorizationStatus
+        let auth = locationReader?.authorizationStatus ?? locationAuthorizationStatus
         if auth == .denied || auth == .restricted {
             statusLine = GTCopy.coordinatesUnavailable(contentLanguage)
             return
         }
-        if auth == .authorizedAlways || auth == .authorizedWhenInUse, locationReader.lastLocationRequestFailed {
+        if auth == .authorizedAlways || auth == .authorizedWhenInUse, locationReader?.lastLocationRequestFailed == true {
             statusLine = GTCopy.coordinatesUnavailable(contentLanguage)
             return
         }
