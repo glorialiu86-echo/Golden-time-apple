@@ -479,7 +479,7 @@ struct TwilightCompassCard: View {
                 chromeIsLight: chromeIsLight
             )
 
-            CompassNeedleOverlay(headingDegrees: heading, side: side)
+            CompassNeedleOverlay(side: side)
         }
         .frame(width: side, height: side)
     }
@@ -569,18 +569,9 @@ private struct CompassSkyBodyMarkers: View {
     }
 }
 
-/// True-north indicator using Apple’s **SF Symbol** `location.north.fill` (same family as Maps / compass), rotated with device heading.
+/// Fixed orientation indicator using Apple’s **SF Symbol** `location.north.fill` (same family as Maps / compass).
 private struct CompassNeedleOverlay: View {
-    var headingDegrees: Double
     var side: CGFloat
-
-    /// Clockwise degrees from screen top to geographic north (same convention as `TwilightCompassDrawing.screenAngleDeg`).
-    private var northDegreesFromTopClockwise: Double {
-        var d = 0 - headingDegrees
-        while d > 180 { d -= 360 }
-        while d < -180 { d += 360 }
-        return d
-    }
 
     var body: some View {
         ZStack {
@@ -588,7 +579,6 @@ private struct CompassNeedleOverlay: View {
                 .shadow(color: .black.opacity(0.28), radius: 4, x: 0, y: 2)
         }
         .frame(width: side, height: side)
-        .rotationEffect(.degrees(northDegreesFromTopClockwise))
     }
 }
 
