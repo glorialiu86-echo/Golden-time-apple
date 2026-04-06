@@ -137,7 +137,6 @@ private extension GoldenTwilightEntry {
 struct GoldenTwilightWidgetView: View {
     @Environment(\.widgetFamily) private var family
     @Environment(\.widgetContentMargins) private var widgetContentMargins
-    @Environment(\.widgetRenderingMode) private var widgetRenderingMode
     var entry: GoldenTwilightEntry
 
     private var skin: GTPhaseSkin {
@@ -146,16 +145,10 @@ struct GoldenTwilightWidgetView: View {
 
     var body: some View {
         switch family {
-        case .accessoryCircular:
-            circularComplicationMark
         case .accessoryRectangular:
             rectangularBody
         default:
-            Image("WidgetComplicationMark")
-                .resizable()
-                .scaledToFit()
-                .padding(7)
-                .containerBackground(Color.clear, for: .widget)
+            rectangularBody
         }
     }
 
@@ -184,15 +177,6 @@ struct GoldenTwilightWidgetView: View {
         }
     }
 
-    private var circularComplicationMark: some View {
-        Image("WidgetComplicationMark")
-            .resizable()
-            .renderingMode(.original)
-            .widgetAccentedRenderingMode(WidgetAccentedRenderingMode.fullColor)
-            .scaledToFit()
-            .padding(widgetRenderingMode == .fullColor ? 3 : 5)
-        .containerBackground(Color.clear, for: .widget)
-    }
 }
 
 struct GoldenTwilightWidget: Widget {
@@ -205,8 +189,8 @@ struct GoldenTwilightWidget: Widget {
             GoldenTwilightWidgetView(entry: entry)
         }
         .configurationDisplayName(GTCopy.systemAppDisplayName())
-        .description("Circular: app mark only. Rectangular: same twilight card as iPhone small (pick Next Blue or Next Golden). Cached location — open the app on iPhone once to refresh.")
-        .supportedFamilies([.accessoryCircular, .accessoryRectangular])
+        .description("Rectangular twilight card for Apple Watch. Pick Next Blue or Next Golden. Cached location — open the app on iPhone once to refresh.")
+        .supportedFamilies([.accessoryRectangular])
         .contentMarginsDisabled()
     }
 }
