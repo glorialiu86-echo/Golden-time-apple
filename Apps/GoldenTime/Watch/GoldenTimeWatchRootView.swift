@@ -42,7 +42,7 @@ struct GoldenTimeWatchRootView: View {
                 watchTwilightPage(skin: skin, now: tickNow)
                 watchCompassPage(skin: skin)
             }
-            .tabViewStyle(.page(indexDisplayMode: .automatic))
+            .tabViewStyle(.verticalPage)
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { date in
             tickNow = date
