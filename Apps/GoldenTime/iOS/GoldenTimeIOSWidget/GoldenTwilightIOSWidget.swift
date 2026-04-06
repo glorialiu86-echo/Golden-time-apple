@@ -203,16 +203,18 @@ struct GoldenTwilightIOSWidgetView: View {
             clockEnd: ce,
             now: entry.date,
             lang: entry.lang,
-            metrics: .iosWidgetSmall
+            metrics: .iosWidgetSmall,
+            showsCardFill: false
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        .clipShape(ContainerRelativeShape())
-        .containerBackground(for: .widget) { Color.clear }
+        .containerBackground(for: .widget) {
+            twilightWidgetSingleContainerBackground(skin: skin, blue: blue)
+        }
     }
 
     @ViewBuilder
     private var mediumBody: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 0) {
             if entry.blueTwilightFirst {
                 mediumHalfCard(blue: true)
                 mediumHalfCard(blue: false)
@@ -222,8 +224,9 @@ struct GoldenTwilightIOSWidgetView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        .clipShape(ContainerRelativeShape())
-        .containerBackground(for: .widget) { Color.clear }
+        .containerBackground(for: .widget) {
+            twilightWidgetMediumContainerBackground(skin: skin, blueTwilightFirst: entry.blueTwilightFirst)
+        }
     }
 
     private func mediumHalfCard(blue: Bool) -> some View {
@@ -239,10 +242,53 @@ struct GoldenTwilightIOSWidgetView: View {
             clockEnd: ce,
             now: entry.date,
             lang: entry.lang,
-            metrics: .iosWidgetMediumHalf
+            metrics: .iosWidgetMediumHalf,
+            showsCardFill: false
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
+}
+
+// MARK: - Full-bleed widget chrome (gradient is the container, like Maps)
+
+private func twilightWidgetSingleContainerBackground(skin: GTPhaseSkin, blue: Bool) -> some View {
+    let gradient = LinearGradient(
+        colors: skin.twilightCardGradient(blue: blue),
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    return ContainerRelativeShape()
+        .fill(gradient)
+        .overlay(
+            ContainerRelativeShape()
+                .strokeBorder(skin.panelStroke, lineWidth: 1)
+        )
+}
+
+private func twilightWidgetMediumContainerBackground(skin: GTPhaseSkin, blueTwilightFirst: Bool) -> some View {
+    HStack(spacing: 0) {
+        if blueTwilightFirst {
+            twilightWidgetHalfGradient(skin: skin, blue: true)
+            twilightWidgetHalfGradient(skin: skin, blue: false)
+        } else {
+            twilightWidgetHalfGradient(skin: skin, blue: false)
+            twilightWidgetHalfGradient(skin: skin, blue: true)
+        }
+    }
+    .clipShape(ContainerRelativeShape())
+    .overlay(
+        ContainerRelativeShape()
+            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+    )
+}
+
+private func twilightWidgetHalfGradient(skin: GTPhaseSkin, blue: Bool) -> some View {
+    LinearGradient(
+        colors: skin.twilightCardGradient(blue: blue),
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
 }
 
 struct GoldenTwilightIOSWidget: Widget {

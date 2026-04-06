@@ -63,6 +63,8 @@ public struct GoldenTimeTwilightWindowCard: View {
     public var now: Date
     public var lang: GTAppLanguage
     public var metrics: GoldenTimeTwilightCardMetrics
+    /// When `false`, only the foreground is drawn (no in-view gradient); use with a full-bleed `containerBackground` (e.g. home-screen widgets).
+    public var showsCardFill: Bool
 
     public init(
         skin: GTPhaseSkin,
@@ -75,7 +77,8 @@ public struct GoldenTimeTwilightWindowCard: View {
         clockEnd: String,
         now: Date,
         lang: GTAppLanguage,
-        metrics: GoldenTimeTwilightCardMetrics
+        metrics: GoldenTimeTwilightCardMetrics,
+        showsCardFill: Bool = true
     ) {
         self.skin = skin
         self.title = title
@@ -88,11 +91,12 @@ public struct GoldenTimeTwilightWindowCard: View {
         self.now = now
         self.lang = lang
         self.metrics = metrics
+        self.showsCardFill = showsCardFill
     }
 
     public var body: some View {
         let m = metrics
-        VStack(alignment: .center, spacing: 7) {
+        let core = VStack(alignment: .center, spacing: 7) {
             HStack(alignment: .firstTextBaseline, spacing: 7) {
                 Image(systemName: systemImage)
                     .font(m.symbolFont)
@@ -157,20 +161,29 @@ public struct GoldenTimeTwilightWindowCard: View {
         .padding(.horizontal, m.horizontalPadding)
         .padding(.vertical, m.verticalPadding)
         .frame(maxWidth: .infinity, alignment: .center)
-        .background(
-            RoundedRectangle(cornerRadius: m.cornerRadius, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: skin.twilightCardGradient(blue: blue),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+
+        Group {
+            if showsCardFill {
+                core
+                    .background(
+                        RoundedRectangle(cornerRadius: m.cornerRadius, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: skin.twilightCardGradient(blue: blue),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: m.cornerRadius, style: .continuous)
+                                    .strokeBorder(skin.panelStroke, lineWidth: 1)
+                            )
                     )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: m.cornerRadius, style: .continuous)
-                        .strokeBorder(skin.panelStroke, lineWidth: 1)
-                )
-        )
+            } else {
+                core
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            }
+        }
     }
 
     @ViewBuilder
