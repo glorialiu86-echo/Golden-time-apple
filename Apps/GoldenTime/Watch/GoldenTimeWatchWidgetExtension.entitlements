@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.time.golden.GoldenHourCompass</string>
+		<string>group.time.golden.TwilightCompass</string>
 	</array>
 </dict>
 </plist>
