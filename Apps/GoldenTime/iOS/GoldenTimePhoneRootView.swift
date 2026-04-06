@@ -97,6 +97,9 @@ struct GoldenTimePhoneRootView: View {
             .task {
                 guard !hasBootstrapped else { return }
                 hasBootstrapped = true
+                #if DEBUG
+                GTPerfTrace.resetDebugLogFile()
+                #endif
                 bootstrapScheduledUptime = GTPerfTrace.uptime()
                 GTPerfTrace.mark(Self.performanceLog, "phone bootstrap scheduled")
                 initialCompassLoadingTask?.cancel()

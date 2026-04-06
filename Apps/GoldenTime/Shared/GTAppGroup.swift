@@ -91,6 +91,10 @@ enum GTPerformanceLog {
 }
 
 enum GTPerfTrace {
+    #if DEBUG
+    private static let logFileName = "gt-perf-trace.log"
+    #endif
+
     static func uptime() -> TimeInterval {
         ProcessInfo.processInfo.systemUptime
     }
@@ -107,7 +111,46 @@ enum GTPerfTrace {
     static func mark(_ logger: Logger, _ message: String) {
         logger.notice("\(message, privacy: .public)")
         NSLog("[GTPerf] %@", message)
+        #if DEBUG
+        appendToDebugLogFile(message)
+        #endif
     }
+
+    #if DEBUG
+    static func resetDebugLogFile() {
+        guard let url = debugLogFileURL() else { return }
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? Data().write(to: url, options: .atomic)
+    }
+
+    private static func appendToDebugLogFile(_ message: String) {
+        guard let url = debugLogFileURL() else { return }
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+        let line = "\(timestamp) [GTPerf] \(message)\n"
+        guard let data = line.data(using: .utf8) else { return }
+        let fm = FileManager.default
+        try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if !fm.fileExists(atPath: url.path) {
+            try? data.write(to: url, options: .atomic)
+            return
+        }
+        guard let handle = try? FileHandle(forWritingTo: url) else { return }
+        defer { try? handle.close() }
+        do {
+            try handle.seekToEnd()
+            try handle.write(contentsOf: data)
+        } catch {
+            return
+        }
+    }
+
+    private static func debugLogFileURL() -> URL? {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: GTAppGroup.suiteName)?
+            .appending(path: "Logs", directoryHint: .isDirectory)
+            .appending(path: logFileName, directoryHint: .notDirectory)
+    }
+    #endif
 }
 
 /// Raw values stored in App Group (mirrors phone toggle).
