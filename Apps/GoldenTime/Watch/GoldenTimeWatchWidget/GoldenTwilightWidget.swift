@@ -12,6 +12,10 @@ struct GoldenTwilightWidgetIntent: WidgetConfigurationIntent {
         IntentDescription("Next blue and golden twilight from cached location.")
     }
 
+    static var parameterSummary: some ParameterSummary {
+        Summary("Show \(\.$rectangleSlot)")
+    }
+
     @Parameter(title: LocalizedStringResource(stringLiteral: "Rectangular widget shows"), default: .blueHour)
     var rectangleSlot: GTWidgetTwilightFocus
 }
@@ -35,6 +39,7 @@ struct GoldenTwilightProvider: AppIntentTimelineProvider {
     func recommendations() -> [AppIntentRecommendation<GoldenTwilightWidgetIntent>] {
         let blue = GoldenTwilightWidgetIntent()
         let golden = GoldenTwilightWidgetIntent()
+        blue.rectangleSlot = .blueHour
         golden.rectangleSlot = .goldenHour
         return [
             AppIntentRecommendation(intent: blue, description: "Next Blue on the rectangular widget."),
