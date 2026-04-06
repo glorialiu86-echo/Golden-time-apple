@@ -293,20 +293,24 @@ struct GoldenTimePhoneRootView: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            LinearGradient(
-                colors: skin.chromeGradient,
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .frame(height: Self.compassDialHeight)
-            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        )
+        .frame(height: Self.compassDialHeight)
+        .background {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [skin.upper.opacity(0.985), skin.lower.opacity(0.985)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        }
         .overlay(
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .stroke(skin.panelStroke, lineWidth: 1)
         )
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .allowsHitTesting(false)
+        .zIndex(1)
     }
 
     /// Compass usage note at page bottom (below dial).
