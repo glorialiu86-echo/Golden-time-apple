@@ -253,26 +253,47 @@ struct GoldenTimeWatchRootView: View {
     }
 
     private func watchCompassLoadingShell(skin: GTPhaseSkin) -> some View {
-        VStack(spacing: 10) {
-            ProgressView()
-                .tint(skin.ink)
-                .scaleEffect(0.95)
+        VStack {
+            VStack(spacing: 12) {
+                ProgressView()
+                    .tint(skin.ink)
+                    .scaleEffect(1.12)
 
-            Text(GTCopy.compassInitialLoadingTitle(lang))
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(skin.ink)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
+                Text(GTCopy.compassInitialLoadingTitle(lang))
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(skin.ink)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
 
-            Text(GTCopy.compassInitialLoadingSubtitle(lang))
-                .font(.system(size: 11, weight: .regular, design: .rounded))
-                .foregroundStyle(skin.chromeSecondaryForeground)
-                .multilineTextAlignment(.center)
-                .lineLimit(3)
-                .minimumScaleFactor(0.8)
+                Text(GTCopy.compassInitialLoadingSubtitle(lang))
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(skin.chromeSecondaryForeground)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.82)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 18)
+            .frame(maxWidth: .infinity)
+            .background {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [skin.upper.opacity(0.985), skin.lower.opacity(0.985)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(skin.panelStroke, lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(skin.isLightChrome ? 0.08 : 0.22), radius: 10, y: 4)
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
