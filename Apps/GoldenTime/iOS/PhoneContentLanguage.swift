@@ -202,6 +202,20 @@ enum GTCopy {
         }
     }
 
+    static func compassInitialLoadingTitle(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "正在准备罗盘与方位…"
+        case .english: return "Preparing compass and bearings..."
+        }
+    }
+
+    static func compassInitialLoadingSubtitle(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "首次打开可能需要几秒。"
+        case .english: return "First launch can take a few seconds."
+        }
+    }
+
     static func liveSegment(_ lang: GTAppLanguage) -> String {
         switch lang {
         case .chinese: return "进行中"
