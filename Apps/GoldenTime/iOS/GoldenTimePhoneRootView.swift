@@ -22,11 +22,14 @@ struct GoldenTimePhoneRootView: View {
     @AppStorage(GTTwilightDisplayMode.storageKey, store: GTAppGroup.shared) private var twilightModeRaw: String = GTTwilightDisplayMode.clockTimes.rawValue
     @AppStorage(GTCompassMapSettings.storageKey, store: GTAppGroup.shared) private var mapCameraDistanceStorage: Double =
         GTCompassMapSettings.defaultCameraDistanceMeters
+    @AppStorage("gt.phone.initialCompassOverlayShown") private var hasShownInitialCompassOverlay = false
     @State private var showSettings = false
     @State private var allowCompassMapBase = false
     @State private var hasBootstrapped = false
     @State private var needsForegroundResume = false
     @State private var needsDeferredCompanionSync = false
+    @State private var showInitialCompassOverlay = false
+    @State private var initialCompassOverlayTask: Task<Void, Never>?
     /// Bumps when `NSLocale.currentLocaleDidChangeNotification` fires so `uiLang` re-evaluates while preference is「跟随系统」.
     @State private var systemLocaleBump = UUID()
 
@@ -80,6 +83,13 @@ struct GoldenTimePhoneRootView: View {
             }
             .onAppear {
                 model.syncContentLanguageWithAppPreference()
+                if !hasShownInitialCompassOverlay {
+                    hasShownInitialCompassOverlay = true
+                    showInitialCompassOverlay = true
+                    if scenePhase == .active {
+                        scheduleInitialCompassOverlayDismissal()
+                    }
+                }
             }
             .task {
                 guard !hasBootstrapped else { return }
@@ -88,6 +98,9 @@ struct GoldenTimePhoneRootView: View {
                 model.syncContentLanguageWithAppPreference()
                 model.beginForegroundLocationSession(requestImmediately: true)
                 allowCompassMapBase = true
+                if showInitialCompassOverlay, scenePhase == .active {
+                    scheduleInitialCompassOverlayDismissal()
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)) { _ in
                 systemLocaleBump = UUID()
@@ -110,15 +123,19 @@ struct GoldenTimePhoneRootView: View {
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .active:
+                    if showInitialCompassOverlay {
+                        scheduleInitialCompassOverlayDismissal()
+                    }
                     guard hasBootstrapped, needsForegroundResume else { return }
                     needsForegroundResume = false
                     model.beginForegroundLocationSession(requestImmediately: true)
                 case .background:
+                    initialCompassOverlayTask?.cancel()
                     needsForegroundResume = true
                     model.endForegroundLocationSession()
                     flushDeferredExternalSync()
                 default:
-                    break
+                    initialCompassOverlayTask?.cancel()
                 }
             }
             .sheet(isPresented: $showSettings) {
@@ -222,36 +239,74 @@ struct GoldenTimePhoneRootView: View {
     /// Circular compass below twilight cards (cards stay the visual focus).
     @ViewBuilder
     private func compassDialBlock(skin: GTPhaseSkin, lang: GTAppLanguage) -> some View {
-        if let coord = model.mapCoordinate {
-            TwilightCompassCard(
-                showMapBase: compassShowsMapBase,
-                chromeGradient: skin.chromeGradient,
-                compassInk: skin.ink,
-                compassStroke: skin.panelStroke,
-                chromeIsLight: skin.isLightChrome,
-                uiLanguage: lang,
-                coordinate: coord,
-                deviceHeadingDegrees: model.deviceHeadingDegrees,
-                blueSectorArcAzimuths: model.blueSectorArcAzimuths,
-                goldenSectorArcAzimuths: model.goldenSectorArcAzimuths,
-                blueSectorColors: skin.twilightCardGradient(blue: true),
-                goldenSectorColors: skin.twilightCardGradient(blue: false),
-                compassDayNight: model.compassDayNight,
-                daySectorTint: skin.compassDayDiskTint,
-                nightSectorTint: skin.compassNightDiskTint,
-                sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
-                moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees
-            )
-            .frame(height: Self.compassDialHeight)
-            .frame(maxWidth: .infinity)
-        } else {
-            Text(GTCopy.compassCardNeedLocation(lang))
+        ZStack {
+            if let coord = model.mapCoordinate {
+                TwilightCompassCard(
+                    showMapBase: compassShowsMapBase,
+                    chromeGradient: skin.chromeGradient,
+                    compassInk: skin.ink,
+                    compassStroke: skin.panelStroke,
+                    chromeIsLight: skin.isLightChrome,
+                    uiLanguage: lang,
+                    coordinate: coord,
+                    deviceHeadingDegrees: model.deviceHeadingDegrees,
+                    blueSectorArcAzimuths: model.blueSectorArcAzimuths,
+                    goldenSectorArcAzimuths: model.goldenSectorArcAzimuths,
+                    blueSectorColors: skin.twilightCardGradient(blue: true),
+                    goldenSectorColors: skin.twilightCardGradient(blue: false),
+                    compassDayNight: model.compassDayNight,
+                    daySectorTint: skin.compassDayDiskTint,
+                    nightSectorTint: skin.compassNightDiskTint,
+                    sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
+                    moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees
+                )
+            } else {
+                Text(GTCopy.compassCardNeedLocation(lang))
+                    .font(.caption)
+                    .foregroundStyle(skin.chromeSecondaryForeground)
+                    .frame(maxWidth: .infinity)
+                    .multilineTextAlignment(.center)
+                    .padding(.vertical, 8)
+            }
+            if showInitialCompassOverlay {
+                compassInitialLoadingOverlay(skin: skin, lang: lang)
+            }
+        }
+        .frame(height: Self.compassDialHeight)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func compassInitialLoadingOverlay(skin: GTPhaseSkin, lang: GTAppLanguage) -> some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .tint(skin.ink)
+                .scaleEffect(1.08)
+
+            Text(GTCopy.compassInitialLoadingTitle(lang))
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(skin.ink)
+                .multilineTextAlignment(.center)
+
+            Text(GTCopy.compassInitialLoadingSubtitle(lang))
                 .font(.caption)
                 .foregroundStyle(skin.chromeSecondaryForeground)
-                .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
-                .padding(.vertical, 8)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            LinearGradient(
+                colors: skin.chromeGradient,
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .frame(height: Self.compassDialHeight)
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(skin.panelStroke, lineWidth: 1)
+        )
+        .allowsHitTesting(false)
     }
 
     /// Compass usage note at page bottom (below dial).
@@ -370,5 +425,14 @@ struct GoldenTimePhoneRootView: View {
         GTAppGroup.migrateStandardToSharedIfNeeded()
         publishCompanionSyncAndReloadWidgets()
         needsDeferredCompanionSync = false
+    }
+
+    private func scheduleInitialCompassOverlayDismissal() {
+        initialCompassOverlayTask?.cancel()
+        initialCompassOverlayTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled else { return }
+            showInitialCompassOverlay = false
+        }
     }
 }
