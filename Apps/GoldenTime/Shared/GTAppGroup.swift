@@ -3,6 +3,26 @@ import Foundation
 import WidgetKit
 #endif
 
+#if DEBUG
+enum GTDebugLaunchOverrides {
+    static let nowEnvironmentKey = "GOLDEN_TIME_DEBUG_NOW_ISO8601"
+
+    static func currentDate() -> Date {
+        guard let raw = ProcessInfo.processInfo.environment[nowEnvironmentKey], !raw.isEmpty else {
+            return Date()
+        }
+        let fractionalFormatter = ISO8601DateFormatter()
+        fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let plainFormatter = ISO8601DateFormatter()
+        plainFormatter.formatOptions = [.withInternetDateTime]
+        if let parsed = fractionalFormatter.date(from: raw) ?? plainFormatter.date(from: raw) {
+            return parsed
+        }
+        return Date()
+    }
+}
+#endif
+
 /// App Group for iPhone + Watch + widgets: language preference (`gt.uiLanguage`: `zh` / `en` / `system`) + iPhone-written effective mirror for Watch, twilight card mode, compass UI flags, cached GPS.
 public enum GTAppGroup {
     public static let suiteName = "group.time.golden.GoldenHourCompass"

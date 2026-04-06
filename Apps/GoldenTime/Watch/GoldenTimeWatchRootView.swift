@@ -13,7 +13,13 @@ struct GoldenTimeWatchRootView: View {
 
     @StateObject private var model = GoldenTimeWatchViewModel()
     /// Drive clock / engine ticks without `TimelineView` (watchOS Simulator has been observed stuck on the launch screen with periodic Timeline + TabView).
-    @State private var tickNow = Date()
+    @State private var tickNow: Date = {
+        #if DEBUG
+        GTDebugLaunchOverrides.currentDate()
+        #else
+        Date()
+        #endif
+    }()
     @AppStorage(GTAppLanguage.storageKey, store: GTAppGroup.shared) private var langPreferenceRaw: String =
         GTAppLanguage.followSystemStorageValue
     @AppStorage(GTAppLanguage.effectiveMirrorKey, store: GTAppGroup.shared) private var langEffectiveMirrorRaw: String = ""
@@ -39,6 +45,14 @@ struct GoldenTimeWatchRootView: View {
         companionShowCompassMapBase
     }
 
+    private func currentNow() -> Date {
+        #if DEBUG
+        GTDebugLaunchOverrides.currentDate()
+        #else
+        Date()
+        #endif
+    }
+
     var body: some View {
         let skin = GTPhaseSkin(phase: model.phase)
         let pageGradient = LinearGradient(
@@ -58,10 +72,12 @@ struct GoldenTimeWatchRootView: View {
             .tabViewStyle(.verticalPage)
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { date in
-            tickNow = date
-            model.refreshForTimeline(now: date)
+            let now = currentNow()
+            tickNow = now
+            model.refreshForTimeline(now: now)
         }
         .onAppear {
+            tickNow = currentNow()
             model.syncContentLanguageWithStorage()
             model.refreshForTimeline(now: tickNow)
         }

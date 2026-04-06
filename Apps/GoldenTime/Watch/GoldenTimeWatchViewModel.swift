@@ -43,7 +43,13 @@ final class GoldenTimeWatchViewModel: ObservableObject {
     @Published private(set) var compassDayNight: CompassDayNightInput?
     @Published private(set) var compassSunBodyAzimuthDegrees: Double?
     @Published private(set) var compassMoonBodyAzimuthDegrees: Double?
-    @Published private(set) var clockNow = Date()
+    @Published private(set) var clockNow: Date = {
+        #if DEBUG
+        GTDebugLaunchOverrides.currentDate()
+        #else
+        Date()
+        #endif
+    }()
     @Published private(set) var latitudeText = "—"
     @Published private(set) var longitudeText = "—"
     @Published private(set) var locationHint: String
@@ -69,6 +75,14 @@ final class GoldenTimeWatchViewModel: ObservableObject {
         return f
     }()
 
+    private func currentNow() -> Date {
+        #if DEBUG
+        GTDebugLaunchOverrides.currentDate()
+        #else
+        Date()
+        #endif
+    }
+
     init() {
         locationHint = "…"
 
@@ -77,7 +91,8 @@ final class GoldenTimeWatchViewModel: ObservableObject {
             locationHint = GTAppLanguage.resolved() == .chinese ? "已缓存 GPS" : "Cached GPS"
         }
 
-        let now = Date()
+        let now = currentNow()
+        clockNow = now
         if activeFix != nil {
             recomputeEngineIfNeeded(now: now, force: true)
         }
@@ -152,7 +167,7 @@ final class GoldenTimeWatchViewModel: ObservableObject {
         activeFix = fix
         Self.saveCachedFix(fix)
         locationHint = contentLanguage == .chinese ? "GPS 已更新" : "GPS updated"
-        let now = Date()
+        let now = currentNow()
         recomputeEngineIfNeeded(now: now, force: true)
         rebuildDailyDerivedStateIfNeeded(now: now, force: true)
         refreshTwilightPageState(now: now)
