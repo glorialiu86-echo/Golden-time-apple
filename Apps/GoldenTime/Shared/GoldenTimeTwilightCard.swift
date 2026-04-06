@@ -207,7 +207,7 @@ public struct GoldenTimeTwilightWindowCard: View {
         let edge = widgetEdgeAlignment
         let hAlign: HorizontalAlignment = edge == .leading ? .leading : .trailing
         let rowAlign: Alignment = edge == .leading ? .topLeading : .topTrailing
-        VStack(alignment: hAlign, spacing: 6) {
+        VStack(alignment: hAlign, spacing: 0) {
             Group {
                 if edge == .leading {
                     HStack(alignment: .firstTextBaseline, spacing: 5) {
@@ -236,6 +236,9 @@ public struct GoldenTimeTwilightWindowCard: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: edge == .leading ? .leading : .trailing)
+            .padding(.bottom, 6)
+
+            Spacer(minLength: 0)
 
             Group {
                 if useClockTimes {
@@ -255,7 +258,7 @@ public struct GoldenTimeTwilightWindowCard: View {
         }
         .padding(.horizontal, m.horizontalPadding)
         .padding(.vertical, m.verticalPadding)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: rowAlign)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     @ViewBuilder
@@ -353,7 +356,7 @@ public struct GoldenTimeTwilightWindowCard: View {
         let digit = Font.system(size: m.timeFontSize, weight: .bold, design: .rounded)
         let tagSize = max(9, m.timeFontSize * 0.26)
         let rowAlign: Alignment = edge == .leading ? .leading : .trailing
-        HStack(alignment: .firstTextBaseline, spacing: 5) {
+        HStack(alignment: .center, spacing: 5) {
             Text(tag)
                 .font(.system(size: tagSize, weight: .medium, design: .rounded))
                 .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
