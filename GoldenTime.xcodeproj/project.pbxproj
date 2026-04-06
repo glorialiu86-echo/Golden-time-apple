@@ -774,7 +774,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Twilight Compass";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "用于读取本机经纬度，在手表上用天文公式本地推算蓝调与金调；不访问互联网。";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Used to obtain the device’s latitude and longitude, and compute blue hour and golden hour locally on-device using astronomical formulas.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = time.golden.GoldenHourCompass;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -806,7 +806,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Twilight Compass";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "用于读取本机经纬度，在手表上用天文公式本地推算蓝调与金调；不访问互联网。";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Used to obtain the device’s latitude and longitude, and compute blue hour and golden hour locally on-device using astronomical formulas.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = time.golden.GoldenHourCompass;
 				LD_RUNPATH_SEARCH_PATHS = (
