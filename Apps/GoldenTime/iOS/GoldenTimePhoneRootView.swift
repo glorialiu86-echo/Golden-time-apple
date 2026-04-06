@@ -29,6 +29,7 @@ struct GoldenTimePhoneRootView: View {
     @State private var showSettings = false
     @State private var allowCompassMapBase = false
     @State private var hasBootstrapped = false
+    @State private var needsForegroundResume = false
     @State private var companionSyncTask: Task<Void, Never>?
     @State private var bootstrapScheduledUptime: TimeInterval?
     @State private var loggedFirstCoordinateRender = false
@@ -158,11 +159,15 @@ struct GoldenTimePhoneRootView: View {
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .active:
-                    guard hasBootstrapped else { return }
+                    guard hasBootstrapped, needsForegroundResume else { return }
+                    needsForegroundResume = false
                     scheduleCompanionSync()
                     model.beginForegroundLocationSession(requestImmediately: true)
-                default:
+                case .background:
+                    needsForegroundResume = true
                     model.endForegroundLocationSession()
+                default:
+                    break
                 }
             }
             .sheet(isPresented: $showSettings) {
