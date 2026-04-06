@@ -910,7 +910,7 @@ private struct TwilightCompassDrawing: View {
         let r = norm360(riseScreen)
         let s = norm360(setScreen)
         let m = norm360(midScreen)
-        var L = clockwiseDelta(from: r, to: s)
+        let L = clockwiseDelta(from: r, to: s)
         if L < 0.25 { return nil }
         if L >= 359.75 {
             return (r, 360, r, 0)

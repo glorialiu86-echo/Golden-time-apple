@@ -59,7 +59,7 @@ private enum GTWatchSyncPayload {
 }
 
 final class GTWatchConnectivitySync: NSObject, WCSessionDelegate, @unchecked Sendable {
-    nonisolated(unsafe) static let shared = GTWatchConnectivitySync()
+    static let shared = GTWatchConnectivitySync()
 
     private let store = GTAppGroup.shared
     #if os(iOS)
