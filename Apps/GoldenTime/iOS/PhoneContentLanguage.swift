@@ -241,6 +241,21 @@ enum GTCopy {
         }
     }
 
+    /// Home-screen twilight widget header. English uses title case and omits “hour”.
+    static func widgetTwilightTitleBlue(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "下一次蓝调"
+        case .english: return "Next Blue"
+        }
+    }
+
+    static func widgetTwilightTitleGolden(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "下一次金调"
+        case .english: return "Next Golden"
+        }
+    }
+
     static func a11ySwitchToCountdown(_ lang: GTAppLanguage) -> String {
         switch lang {
         case .chinese: return "切换到倒计时"

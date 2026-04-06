@@ -156,9 +156,9 @@ private extension GoldenTimeTwilightCardMetrics {
     )
 }
 
-/// Shorter labels (“下一次金调” / “下一次蓝调”) — same copy as reminder settings; widget-only use.
+/// Widget header: ZH matches reminders; EN is “Next Blue” / “Next Golden” (no “hour”).
 private func iosWidgetTwilightTitle(blue: Bool, lang: GTAppLanguage) -> String {
-    blue ? GTCopy.settingsReminderTargetBlue(lang) : GTCopy.settingsReminderTargetGolden(lang)
+    blue ? GTCopy.widgetTwilightTitleBlue(lang) : GTCopy.widgetTwilightTitleGolden(lang)
 }
 
 private extension GoldenTwilightIOSEntry {
