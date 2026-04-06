@@ -226,6 +226,21 @@ enum GTCopy {
         }
     }
 
+    /// Tiny prefix on home-screen widget clock rows (before start / end instant or “live”).
+    static func twilightClockStartTag(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "开始"
+        case .english: return "Start"
+        }
+    }
+
+    static func twilightClockEndTag(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "结束"
+        case .english: return "End"
+        }
+    }
+
     static func a11ySwitchToCountdown(_ lang: GTAppLanguage) -> String {
         switch lang {
         case .chinese: return "切换到倒计时"

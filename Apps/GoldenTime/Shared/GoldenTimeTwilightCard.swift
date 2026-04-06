@@ -322,33 +322,51 @@ public struct GoldenTimeTwilightWindowCard: View {
 
     @ViewBuilder
     private func clockTimesStacked(m: GoldenTimeTwilightCardMetrics, edge: GTTwilightWidgetEdgeAlignment) -> some View {
-        let digit = Font.system(size: m.timeFontSize, weight: .bold, design: .rounded)
-        let arrowSize = max(12, m.timeFontSize * 0.36)
-        let textAlign: TextAlignment = edge == .leading ? .leading : .trailing
         let frameAlign: Alignment = edge == .leading ? .leading : .trailing
-        VStack(alignment: edge == .leading ? .leading : .trailing, spacing: 4) {
-            Text(clockStart)
-                .font(digit)
-                .monospacedDigit()
-                .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
-                .multilineTextAlignment(textAlign)
-                .lineLimit(2)
-                .minimumScaleFactor(0.82)
-                .frame(maxWidth: .infinity, alignment: frameAlign)
-            Image(systemName: "arrow.down")
-                .font(.system(size: arrowSize, weight: .bold, design: .rounded))
-                .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
-                .frame(maxWidth: .infinity, alignment: frameAlign)
-            Text(clockEnd)
-                .font(digit)
-                .monospacedDigit()
-                .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
-                .multilineTextAlignment(textAlign)
-                .lineLimit(2)
-                .minimumScaleFactor(0.82)
-                .frame(maxWidth: .infinity, alignment: frameAlign)
+        VStack(alignment: edge == .leading ? .leading : .trailing, spacing: 5) {
+            clockLabeledInstantRow(
+                tag: GTCopy.twilightClockStartTag(lang),
+                value: clockStart,
+                m: m,
+                edge: edge
+            )
+            clockLabeledInstantRow(
+                tag: GTCopy.twilightClockEndTag(lang),
+                value: clockEnd,
+                m: m,
+                edge: edge
+            )
         }
         .frame(maxWidth: .infinity, alignment: frameAlign)
+        .accessibilityLabel(
+            "\(GTCopy.twilightClockStartTag(lang)) \(clockStart), \(GTCopy.twilightClockEndTag(lang)) \(clockEnd)"
+        )
+    }
+
+    @ViewBuilder
+    private func clockLabeledInstantRow(
+        tag: String,
+        value: String,
+        m: GoldenTimeTwilightCardMetrics,
+        edge: GTTwilightWidgetEdgeAlignment
+    ) -> some View {
+        let digit = Font.system(size: m.timeFontSize, weight: .bold, design: .rounded)
+        let tagSize = max(9, m.timeFontSize * 0.26)
+        let rowAlign: Alignment = edge == .leading ? .leading : .trailing
+        HStack(alignment: .firstTextBaseline, spacing: 5) {
+            Text(tag)
+                .font(.system(size: tagSize, weight: .medium, design: .rounded))
+                .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
+                .fixedSize(horizontal: true, vertical: false)
+            Text(value)
+                .font(digit)
+                .monospacedDigit()
+                .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
+                .lineLimit(2)
+                .minimumScaleFactor(0.82)
+                .multilineTextAlignment(edge == .leading ? .leading : .trailing)
+        }
+        .frame(maxWidth: .infinity, alignment: rowAlign)
     }
 
     @ViewBuilder
