@@ -39,8 +39,14 @@ public struct GoldenTimeTwilightCardMetrics: Sendable {
 public enum GTTwilightWindowTimeStyle: Sendable {
     /// Single-line clock span with arrow; countdown label and value on one row (in-app default).
     case standard
-    /// Home-screen widget: clock start / arrow / end on separate lines; countdown label above value.
+    /// Home-screen widget: top-aligned, stacked times, title de-emphasized.
     case widgetStacked
+}
+
+/// Horizontal edge for home-screen widget halves (left column leading, right column trailing).
+public enum GTTwilightWidgetEdgeAlignment: Sendable {
+    case leading
+    case trailing
 }
 
 public enum GTTwilightCountdownLine {
@@ -74,6 +80,8 @@ public struct GoldenTimeTwilightWindowCard: View {
     /// When `false`, only the foreground is drawn (no in-view gradient); use with a full-bleed `containerBackground` (e.g. home-screen widgets).
     public var showsCardFill: Bool
     public var timeStyle: GTTwilightWindowTimeStyle
+    /// Used when `timeStyle == .widgetStacked` (medium widget right half uses `.trailing`).
+    public var widgetEdgeAlignment: GTTwilightWidgetEdgeAlignment
 
     public init(
         skin: GTPhaseSkin,
@@ -88,7 +96,8 @@ public struct GoldenTimeTwilightWindowCard: View {
         lang: GTAppLanguage,
         metrics: GoldenTimeTwilightCardMetrics,
         showsCardFill: Bool = true,
-        timeStyle: GTTwilightWindowTimeStyle = .standard
+        timeStyle: GTTwilightWindowTimeStyle = .standard,
+        widgetEdgeAlignment: GTTwilightWidgetEdgeAlignment = .leading
     ) {
         self.skin = skin
         self.title = title
@@ -103,117 +112,14 @@ public struct GoldenTimeTwilightWindowCard: View {
         self.metrics = metrics
         self.showsCardFill = showsCardFill
         self.timeStyle = timeStyle
+        self.widgetEdgeAlignment = widgetEdgeAlignment
     }
 
     public var body: some View {
         let m = metrics
-        let headerSpacing: CGFloat = timeStyle == .widgetStacked ? 5 : 7
-        let columnSpacing: CGFloat = timeStyle == .widgetStacked ? 5 : 7
-        let core = VStack(alignment: .center, spacing: columnSpacing) {
-            HStack(alignment: .center, spacing: headerSpacing) {
-                Image(systemName: systemImage)
-                    .font(m.symbolFont)
-                    .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
-                Group {
-                    if timeStyle == .widgetStacked {
-                        Text(title)
-                            .font(m.titleFont)
-                            .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.82)
-                    } else {
-                        Text(title)
-                            .font(m.titleFont)
-                            .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
-                    }
-                }
-            }
-
-            Group {
-                if useClockTimes {
-                    if timeStyle == .widgetStacked {
-                        clockTimesStacked(m: m)
-                    } else {
-                        HStack(alignment: .center, spacing: 6) {
-                            Text(clockStart)
-                                .font(.system(size: m.timeFontSize, weight: .bold, design: .rounded))
-                                .monospacedDigit()
-                                .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.42)
-                            Image(systemName: "arrow.right")
-                                .font(.system(size: m.timeFontSize * 0.58, weight: .bold, design: .rounded))
-                                .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
-                                .frame(width: max(18, m.timeFontSize * 0.75), alignment: .center)
-                                .offset(y: -1)
-                            Text(clockEnd)
-                                .font(.system(size: m.timeFontSize, weight: .bold, design: .rounded))
-                                .monospacedDigit()
-                                .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.42)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    }
-                } else if let w = window {
-                    let startTs = w.start.timeIntervalSince1970
-                    let endTs = w.end.timeIntervalSince1970
-                    let nowTs = now.timeIntervalSince1970
-                    if nowTs < startTs,
-                       let cd = GTTwilightCountdownLine.text(from: now, to: w.start, lang: lang)
-                    {
-                        let a11y = "\(GTCopy.countdownUntilStartLabel(lang)) \(cd)"
-                        if timeStyle == .widgetStacked {
-                            countdownStacked(
-                                label: GTCopy.countdownUntilStartLabel(lang),
-                                value: cd,
-                                a11y: a11y,
-                                blueCard: blue,
-                                skin: skin,
-                                m: m
-                            )
-                        } else {
-                            countdownRow(label: GTCopy.countdownUntilStartLabel(lang), value: cd, a11y: a11y, blueCard: blue, skin: skin, m: m)
-                        }
-                    } else if nowTs < endTs,
-                              let cd = GTTwilightCountdownLine.text(from: now, to: w.end, lang: lang)
-                    {
-                        let a11y = "\(GTCopy.countdownUntilEndLabel(lang)) \(cd)"
-                        if timeStyle == .widgetStacked {
-                            countdownStacked(
-                                label: GTCopy.countdownUntilEndLabel(lang),
-                                value: cd,
-                                a11y: a11y,
-                                blueCard: blue,
-                                skin: skin,
-                                m: m
-                            )
-                        } else {
-                            countdownRow(label: GTCopy.countdownUntilEndLabel(lang), value: cd, a11y: a11y, blueCard: blue, skin: skin, m: m)
-                        }
-                    } else {
-                        Text("—")
-                            .font(.title3.weight(.bold))
-                            .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    }
-                } else {
-                    Text("—")
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                }
-            }
-            .frame(height: m.mainSlotHeight)
-            .frame(maxWidth: .infinity)
-        }
-        .padding(.horizontal, m.horizontalPadding)
-        .padding(.vertical, m.verticalPadding)
-        .frame(maxWidth: .infinity, alignment: .center)
-
         Group {
             if showsCardFill {
-                core
+                coreContent(m: m)
                     .background(
                         RoundedRectangle(cornerRadius: m.cornerRadius, style: .continuous)
                             .fill(
@@ -229,60 +135,252 @@ public struct GoldenTimeTwilightWindowCard: View {
                             )
                     )
             } else {
-                core
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                coreContent(m: m)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
     }
 
     @ViewBuilder
-    private func clockTimesStacked(m: GoldenTimeTwilightCardMetrics) -> some View {
+    private func coreContent(m: GoldenTimeTwilightCardMetrics) -> some View {
+        if timeStyle == .widgetStacked {
+            widgetStackedCore(m: m)
+        } else {
+            standardCore(m: m)
+        }
+    }
+
+    @ViewBuilder
+    private func standardCore(m: GoldenTimeTwilightCardMetrics) -> some View {
+        let columnSpacing: CGFloat = 7
+        VStack(alignment: .center, spacing: columnSpacing) {
+            HStack(alignment: .center, spacing: 7) {
+                Image(systemName: systemImage)
+                    .font(m.symbolFont)
+                    .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
+                Text(title)
+                    .font(m.titleFont)
+                    .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
+            }
+
+            Group {
+                if useClockTimes {
+                    HStack(alignment: .center, spacing: 6) {
+                        Text(clockStart)
+                            .font(.system(size: m.timeFontSize, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.42)
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: m.timeFontSize * 0.58, weight: .bold, design: .rounded))
+                            .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
+                            .frame(width: max(18, m.timeFontSize * 0.75), alignment: .center)
+                            .offset(y: -1)
+                        Text(clockEnd)
+                            .font(.system(size: m.timeFontSize, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.42)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                } else if let w = window {
+                    standardCountdownBody(window: w, m: m)
+                } else {
+                    Text("—")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                }
+            }
+            .frame(height: m.mainSlotHeight)
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, m.horizontalPadding)
+        .padding(.vertical, m.verticalPadding)
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    @ViewBuilder
+    private func widgetStackedCore(m: GoldenTimeTwilightCardMetrics) -> some View {
+        let edge = widgetEdgeAlignment
+        let hAlign: HorizontalAlignment = edge == .leading ? .leading : .trailing
+        let rowAlign: Alignment = edge == .leading ? .topLeading : .topTrailing
+        VStack(alignment: hAlign, spacing: 6) {
+            Group {
+                if edge == .leading {
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        Image(systemName: systemImage)
+                            .font(m.symbolFont)
+                            .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
+                        Text(title)
+                            .font(m.titleFont)
+                            .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                        Spacer(minLength: 0)
+                    }
+                } else {
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        Spacer(minLength: 0)
+                        Image(systemName: systemImage)
+                            .font(m.symbolFont)
+                            .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
+                        Text(title)
+                            .font(m.titleFont)
+                            .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: edge == .leading ? .leading : .trailing)
+
+            Group {
+                if useClockTimes {
+                    clockTimesStacked(m: m, edge: edge)
+                } else if let w = window {
+                    widgetCountdownBody(window: w, m: m, edge: edge)
+                } else {
+                    Text("—")
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
+                        .frame(maxWidth: .infinity, alignment: edge == .leading ? .leading : .trailing)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: rowAlign)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, m.horizontalPadding)
+        .padding(.vertical, m.verticalPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: rowAlign)
+    }
+
+    @ViewBuilder
+    private func standardCountdownBody(window w: (start: Date, end: Date), m: GoldenTimeTwilightCardMetrics) -> some View {
+        let startTs = w.start.timeIntervalSince1970
+        let endTs = w.end.timeIntervalSince1970
+        let nowTs = now.timeIntervalSince1970
+        if nowTs < startTs,
+           let cd = GTTwilightCountdownLine.text(from: now, to: w.start, lang: lang)
+        {
+            let a11y = "\(GTCopy.countdownUntilStartLabel(lang)) \(cd)"
+            countdownRow(label: GTCopy.countdownUntilStartLabel(lang), value: cd, a11y: a11y, blueCard: blue, skin: skin, m: m)
+        } else if nowTs < endTs,
+                  let cd = GTTwilightCountdownLine.text(from: now, to: w.end, lang: lang)
+        {
+            let a11y = "\(GTCopy.countdownUntilEndLabel(lang)) \(cd)"
+            countdownRow(label: GTCopy.countdownUntilEndLabel(lang), value: cd, a11y: a11y, blueCard: blue, skin: skin, m: m)
+        } else {
+            Text("—")
+                .font(.title3.weight(.bold))
+                .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        }
+    }
+
+    @ViewBuilder
+    private func widgetCountdownBody(window w: (start: Date, end: Date), m: GoldenTimeTwilightCardMetrics, edge: GTTwilightWidgetEdgeAlignment) -> some View {
+        let startTs = w.start.timeIntervalSince1970
+        let endTs = w.end.timeIntervalSince1970
+        let nowTs = now.timeIntervalSince1970
+        if nowTs < startTs,
+           let cd = GTTwilightCountdownLine.text(from: now, to: w.start, lang: lang)
+        {
+            let a11y = "\(GTCopy.countdownUntilStartLabel(lang)) \(cd)"
+            countdownStacked(
+                label: GTCopy.countdownUntilStartLabel(lang),
+                value: cd,
+                a11y: a11y,
+                blueCard: blue,
+                skin: skin,
+                m: m,
+                edge: edge
+            )
+        } else if nowTs < endTs,
+                  let cd = GTTwilightCountdownLine.text(from: now, to: w.end, lang: lang)
+        {
+            let a11y = "\(GTCopy.countdownUntilEndLabel(lang)) \(cd)"
+            countdownStacked(
+                label: GTCopy.countdownUntilEndLabel(lang),
+                value: cd,
+                a11y: a11y,
+                blueCard: blue,
+                skin: skin,
+                m: m,
+                edge: edge
+            )
+        } else {
+            Text("—")
+                .font(.title2.weight(.bold))
+                .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
+                .frame(maxWidth: .infinity, alignment: edge == .leading ? .leading : .trailing)
+        }
+    }
+
+    @ViewBuilder
+    private func clockTimesStacked(m: GoldenTimeTwilightCardMetrics, edge: GTTwilightWidgetEdgeAlignment) -> some View {
         let digit = Font.system(size: m.timeFontSize, weight: .bold, design: .rounded)
-        let arrowSize = max(11, m.timeFontSize * 0.32)
-        VStack(spacing: 3) {
+        let arrowSize = max(12, m.timeFontSize * 0.36)
+        let textAlign: TextAlignment = edge == .leading ? .leading : .trailing
+        let frameAlign: Alignment = edge == .leading ? .leading : .trailing
+        VStack(alignment: edge == .leading ? .leading : .trailing, spacing: 4) {
             Text(clockStart)
                 .font(digit)
                 .monospacedDigit()
                 .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
-                .multilineTextAlignment(.center)
+                .multilineTextAlignment(textAlign)
                 .lineLimit(2)
-                .minimumScaleFactor(0.78)
-                .frame(maxWidth: .infinity)
+                .minimumScaleFactor(0.82)
+                .frame(maxWidth: .infinity, alignment: frameAlign)
             Image(systemName: "arrow.down")
                 .font(.system(size: arrowSize, weight: .bold, design: .rounded))
                 .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
+                .frame(maxWidth: .infinity, alignment: frameAlign)
             Text(clockEnd)
                 .font(digit)
                 .monospacedDigit()
                 .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
-                .multilineTextAlignment(.center)
+                .multilineTextAlignment(textAlign)
                 .lineLimit(2)
-                .minimumScaleFactor(0.78)
-                .frame(maxWidth: .infinity)
+                .minimumScaleFactor(0.82)
+                .frame(maxWidth: .infinity, alignment: frameAlign)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, alignment: frameAlign)
     }
 
     @ViewBuilder
-    private func countdownStacked(label: String, value: String, a11y: String, blueCard: Bool, skin: GTPhaseSkin, m: GoldenTimeTwilightCardMetrics) -> some View {
-        VStack(alignment: .center, spacing: 3) {
+    private func countdownStacked(
+        label: String,
+        value: String,
+        a11y: String,
+        blueCard: Bool,
+        skin: GTPhaseSkin,
+        m: GoldenTimeTwilightCardMetrics,
+        edge: GTTwilightWidgetEdgeAlignment
+    ) -> some View {
+        let textAlign: TextAlignment = edge == .leading ? .leading : .trailing
+        let frameAlign: Alignment = edge == .leading ? .leading : .trailing
+        VStack(alignment: edge == .leading ? .leading : .trailing, spacing: 4) {
             Text(label)
                 .font(.system(size: m.countdownLabelFontSize, weight: .semibold, design: .rounded))
                 .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blueCard))
-                .multilineTextAlignment(.center)
+                .multilineTextAlignment(textAlign)
                 .lineLimit(2)
-                .minimumScaleFactor(0.72)
-                .frame(maxWidth: .infinity)
+                .minimumScaleFactor(0.75)
+                .frame(maxWidth: .infinity, alignment: frameAlign)
             Text(value)
                 .font(.system(size: m.timeFontSize, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blueCard))
-                .multilineTextAlignment(.center)
+                .multilineTextAlignment(textAlign)
                 .lineLimit(2)
-                .minimumScaleFactor(0.72)
-                .frame(maxWidth: .infinity)
+                .minimumScaleFactor(0.78)
+                .frame(maxWidth: .infinity, alignment: frameAlign)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, alignment: frameAlign)
         .accessibilityLabel(a11y)
     }
 

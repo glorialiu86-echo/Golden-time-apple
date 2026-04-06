@@ -132,27 +132,27 @@ struct GoldenTwilightIOSProvider: AppIntentTimelineProvider {
 // MARK: - Metrics (widget targets; same structure as in-app `GoldenTimeTwilightWindowCard`)
 
 private extension GoldenTimeTwilightCardMetrics {
-    /// Single small tile: gradient fills the widget via `ContainerRelativeShape`.
+    /// Insets come from `@Environment(\.widgetContentMargins)` on the widget view; keep card padding at 0.
     static let iosWidgetSmall = GoldenTimeTwilightCardMetrics(
-        timeFontSize: 32,
-        mainSlotHeight: 78,
-        countdownLabelFontSize: 18,
-        horizontalPadding: 5,
-        verticalPadding: 4,
+        timeFontSize: 38,
+        mainSlotHeight: 0,
+        countdownLabelFontSize: 17,
+        horizontalPadding: 0,
+        verticalPadding: 0,
         cornerRadius: 0,
-        titleFont: .headline.weight(.bold),
-        symbolFont: .body.weight(.semibold)
+        titleFont: .subheadline.weight(.semibold),
+        symbolFont: .callout.weight(.semibold)
     )
 
     static let iosWidgetMediumHalf = GoldenTimeTwilightCardMetrics(
-        timeFontSize: 24,
-        mainSlotHeight: 58,
+        timeFontSize: 29,
+        mainSlotHeight: 0,
         countdownLabelFontSize: 14,
-        horizontalPadding: 4,
-        verticalPadding: 3,
+        horizontalPadding: 0,
+        verticalPadding: 0,
         cornerRadius: 0,
-        titleFont: .subheadline.weight(.bold),
-        symbolFont: .footnote.weight(.semibold)
+        titleFont: .caption.weight(.semibold),
+        symbolFont: .caption.weight(.semibold)
     )
 }
 
@@ -176,6 +176,7 @@ private extension GoldenTwilightIOSEntry {
 
 struct GoldenTwilightIOSWidgetView: View {
     @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetContentMargins) private var widgetContentMargins
     var entry: GoldenTwilightIOSEntry
 
     private var skin: GTPhaseSkin {
@@ -210,9 +211,11 @@ struct GoldenTwilightIOSWidgetView: View {
             lang: entry.lang,
             metrics: .iosWidgetSmall,
             showsCardFill: false,
-            timeStyle: .widgetStacked
+            timeStyle: .widgetStacked,
+            widgetEdgeAlignment: .leading
         )
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .padding(widgetContentMargins)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .containerBackground(for: .widget) {
             twilightWidgetSingleContainerBackground(skin: skin, blue: blue)
         }
@@ -222,20 +225,20 @@ struct GoldenTwilightIOSWidgetView: View {
     private var mediumBody: some View {
         HStack(spacing: 0) {
             if entry.blueTwilightFirst {
-                mediumHalfCard(blue: true)
-                mediumHalfCard(blue: false)
+                mediumHalfCard(blue: true, edge: .leading)
+                mediumHalfCard(blue: false, edge: .trailing)
             } else {
-                mediumHalfCard(blue: false)
-                mediumHalfCard(blue: true)
+                mediumHalfCard(blue: false, edge: .leading)
+                mediumHalfCard(blue: true, edge: .trailing)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .containerBackground(for: .widget) {
             twilightWidgetMediumContainerBackground(skin: skin, blueTwilightFirst: entry.blueTwilightFirst)
         }
     }
 
-    private func mediumHalfCard(blue: Bool) -> some View {
+    private func mediumHalfCard(blue: Bool, edge: GTTwilightWidgetEdgeAlignment) -> some View {
         let (cs, ce) = entry.clockStartEnd(blue: blue)
         return GoldenTimeTwilightWindowCard(
             skin: skin,
@@ -250,9 +253,20 @@ struct GoldenTwilightIOSWidgetView: View {
             lang: entry.lang,
             metrics: .iosWidgetMediumHalf,
             showsCardFill: false,
-            timeStyle: .widgetStacked
+            timeStyle: .widgetStacked,
+            widgetEdgeAlignment: edge
         )
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .padding(widgetInsetsForMediumHalf(edge: edge))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    /// Split system widget margins: left column uses leading/top/bottom; right column uses trailing/top/bottom.
+    private func widgetInsetsForMediumHalf(edge: GTTwilightWidgetEdgeAlignment) -> EdgeInsets {
+        let m = widgetContentMargins
+        if edge == .leading {
+            return EdgeInsets(top: m.top, leading: m.leading, bottom: m.bottom, trailing: m.trailing * 0.35)
+        }
+        return EdgeInsets(top: m.top, leading: m.leading * 0.35, bottom: m.bottom, trailing: m.trailing)
     }
 }
 
