@@ -434,7 +434,7 @@ struct GoldenTimePhoneRootView: View {
     private func scheduleInitialCompassOverlayDismissal() {
         initialCompassOverlayTask?.cancel()
         initialCompassOverlayTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(5))
+            try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled else { return }
             showInitialCompassOverlay = false
         }
