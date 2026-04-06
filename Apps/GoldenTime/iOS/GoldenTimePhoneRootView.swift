@@ -28,6 +28,9 @@ struct GoldenTimePhoneRootView: View {
     @State private var hasBootstrapped = false
     @State private var needsForegroundResume = false
     @State private var companionSyncTask: Task<Void, Never>?
+    @State private var startupSyncTask: Task<Void, Never>?
+    @State private var hasUnlockedStartupSync = false
+    @State private var needsDeferredCompanionSync = false
     @State private var showInitialCompassOverlay = false
     @State private var initialCompassOverlayTask: Task<Void, Never>?
     /// Bumps when `NSLocale.currentLocaleDidChangeNotification` fires so `uiLang` re-evaluates while preference is「跟随系统」.
@@ -83,7 +86,6 @@ struct GoldenTimePhoneRootView: View {
             }
             .onAppear {
                 model.syncContentLanguageWithAppPreference()
-                scheduleCompanionSync()
                 if !hasShownInitialCompassOverlay {
                     hasShownInitialCompassOverlay = true
                     showInitialCompassOverlay = true
@@ -96,12 +98,15 @@ struct GoldenTimePhoneRootView: View {
                 guard !hasBootstrapped else { return }
                 hasBootstrapped = true
                 await Task.yield()
-                GTAppGroup.migrateStandardToSharedIfNeeded()
-                GTWatchConnectivitySync.shared.activate()
+                GTPhoneStartupSyncGate.isUnlocked = false
+                hasUnlockedStartupSync = false
+                needsDeferredCompanionSync = true
                 model.syncContentLanguageWithAppPreference()
-                scheduleCompanionSync()
                 model.beginForegroundLocationSession(requestImmediately: true)
                 allowCompassMapBase = true
+                if scenePhase == .active {
+                    scheduleStartupSyncUnlock()
+                }
                 if showInitialCompassOverlay, scenePhase == .active {
                     scheduleInitialCompassOverlayDismissal()
                 }
@@ -109,20 +114,20 @@ struct GoldenTimePhoneRootView: View {
             .onReceive(NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)) { _ in
                 systemLocaleBump = UUID()
                 model.syncContentLanguageWithAppPreference()
-                scheduleCompanionSync()
+                requestCompanionSync()
             }
             .onChange(of: langPreferenceRaw) { _, _ in
                 model.syncContentLanguageWithAppPreference()
-                scheduleCompanionSync()
+                requestCompanionSync()
             }
             .onChange(of: twilightModeRaw) { _, _ in
-                scheduleCompanionSync()
+                requestCompanionSync()
             }
             .onChange(of: mapCameraDistanceStorage) { _, _ in
-                scheduleCompanionSync()
+                requestCompanionSync()
             }
             .onChange(of: networkReachability.hasNetworkRoute) { _, _ in
-                scheduleCompanionSync()
+                requestCompanionSync()
             }
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
@@ -130,16 +135,21 @@ struct GoldenTimePhoneRootView: View {
                     if showInitialCompassOverlay {
                         scheduleInitialCompassOverlayDismissal()
                     }
+                    if hasBootstrapped, !hasUnlockedStartupSync {
+                        scheduleStartupSyncUnlock()
+                    }
                     guard hasBootstrapped, needsForegroundResume else { return }
                     needsForegroundResume = false
-                    scheduleCompanionSync()
                     model.beginForegroundLocationSession(requestImmediately: true)
                 case .background:
                     initialCompassOverlayTask?.cancel()
+                    startupSyncTask?.cancel()
                     needsForegroundResume = true
                     model.endForegroundLocationSession()
+                    flushDeferredExternalSync()
                 default:
                     initialCompassOverlayTask?.cancel()
+                    startupSyncTask?.cancel()
                 }
             }
             .sheet(isPresented: $showSettings) {
@@ -421,7 +431,7 @@ struct GoldenTimePhoneRootView: View {
             twilightModeRaw: twilightModeRaw,
             mapCameraDistance: mapCameraDistanceStorage
         )
-        model.syncContentLanguageWithAppPreference()
+        model.flushDeferredExternalOutputs()
     }
 
     private func scheduleCompanionSync() {
@@ -431,6 +441,37 @@ struct GoldenTimePhoneRootView: View {
             guard !Task.isCancelled else { return }
             publishCompanionSyncAndReloadWidgets()
         }
+    }
+
+    private func requestCompanionSync() {
+        if hasUnlockedStartupSync {
+            scheduleCompanionSync()
+        } else {
+            needsDeferredCompanionSync = true
+        }
+    }
+
+    private func scheduleStartupSyncUnlock() {
+        startupSyncTask?.cancel()
+        startupSyncTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            GTAppGroup.migrateStandardToSharedIfNeeded()
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled else { return }
+            GTWatchConnectivitySync.shared.activate()
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled else { return }
+            hasUnlockedStartupSync = true
+            GTPhoneStartupSyncGate.isUnlocked = true
+            flushDeferredExternalSync()
+        }
+    }
+
+    private func flushDeferredExternalSync() {
+        guard needsDeferredCompanionSync || model.hasDeferredExternalOutputs else { return }
+        publishCompanionSyncAndReloadWidgets()
+        needsDeferredCompanionSync = false
     }
 
     private func scheduleInitialCompassOverlayDismissal() {
