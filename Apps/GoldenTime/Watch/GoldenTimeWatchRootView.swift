@@ -69,8 +69,9 @@ struct GoldenTimeWatchRootView: View {
 
     @ViewBuilder
     private func watchTwilightPage(skin: GTPhaseSkin, now: Date) -> some View {
-        ScrollView {
+        GeometryReader { geo in
             VStack(alignment: .center, spacing: 10) {
+                Spacer(minLength: 0)
                 if model.mapCoordinate != nil {
                     VStack(spacing: 8) {
                         if model.blueTwilightFirst {
@@ -97,9 +98,10 @@ struct GoldenTimeWatchRootView: View {
                         .foregroundStyle(skin.chromeSecondaryForeground)
                         .multilineTextAlignment(.center)
                 }
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, 4)
-            .frame(maxWidth: .infinity)
+            .frame(width: geo.size.width, height: geo.size.height)
             .accessibilityIdentifier("gt.watch.twilightPage")
         }
     }
