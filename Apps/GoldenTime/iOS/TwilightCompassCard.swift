@@ -428,8 +428,12 @@ struct TwilightCompassCard: View {
         mapTilesReady ? heading : frozenMapHeadingDegrees
     }
 
+    private var shouldKeepMapLoaderAlive: Bool {
+        showMapBase && isMapPresentationReady
+    }
+
     private var shouldShowInteractiveMap: Bool {
-        showMapBase && isMapPresentationReady && !mapLoadingTimedOut
+        shouldKeepMapLoaderAlive && (!mapLoadingTimedOut || mapTilesReady)
     }
 
     private var shouldShowLoadingFallback: Bool {
@@ -517,6 +521,25 @@ struct TwilightCompassCard: View {
                         .frame(width: railW, height: railH)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if shouldKeepMapLoaderAlive {
+                    let mapDiameter = CompassMapFrame.mapDiskDiameter(side: side)
+                    ZStack {
+                        CompassMapUnderlay(
+                            mapTilesReady: $mapTilesReady,
+                            coordinate: coordinate,
+                            headingDegrees: effectiveMapHeading,
+                            cameraDistance: mapCameraDistanceValue,
+                            useDarkMapAppearance: !chromeIsLight
+                        )
+                        .frame(width: mapDiameter, height: mapDiameter)
+                        .clipShape(Circle())
+                        .opacity(0.001)
+                        gradientCompassDisk(side: side)
+                    }
+                    .frame(width: side, height: side)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .clipShape(Circle())
+                    .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, x: 0, y: shadowY)
                 } else {
                     mapOffCompassBlock(side: side)
                 }
