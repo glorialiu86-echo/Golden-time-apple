@@ -50,6 +50,7 @@ struct GoldenTimeWatchRootView: View {
         }
         .onAppear {
             GTAppGroup.migrateStandardToSharedIfNeeded()
+            GTWatchConnectivitySync.shared.activate()
             model.syncContentLanguageWithStorage()
             model.refreshForTimeline(now: tickNow)
         }

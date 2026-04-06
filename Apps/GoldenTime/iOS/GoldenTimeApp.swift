@@ -5,7 +5,6 @@ import UserNotifications
 struct GoldenTimeApp: App {
     init() {
         UNUserNotificationCenter.current().delegate = TwilightReminderNotificationDelegate.shared
-        GTWatchConnectivitySync.shared.activate()
     }
 
     var body: some Scene {

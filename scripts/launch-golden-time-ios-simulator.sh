@@ -54,7 +54,6 @@ xcodebuild \
   -configuration Debug \
   -destination "id=${UDID}" \
   -derivedDataPath "${DERIVED}" \
-  CODE_SIGNING_ALLOWED=NO \
   build
 
 APP="${DERIVED}/Build/Products/Debug-iphonesimulator/GoldenTime.app"

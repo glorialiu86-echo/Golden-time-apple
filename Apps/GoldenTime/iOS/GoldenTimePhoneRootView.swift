@@ -64,6 +64,7 @@ struct GoldenTimePhoneRootView: View {
             }
             .onAppear {
                 GTAppGroup.migrateStandardToSharedIfNeeded()
+                GTWatchConnectivitySync.shared.activate()
                 model.syncContentLanguageWithAppPreference()
                 publishCompanionSyncAndReloadWidgets()
                 model.startLocationPipeline()
