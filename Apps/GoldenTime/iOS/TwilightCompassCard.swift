@@ -1,6 +1,5 @@
 import CoreLocation
 import GoldenTimeCore
-import OSLog
 import SwiftUI
 #if os(iOS) || os(watchOS)
 import MapKit
@@ -87,8 +86,6 @@ private enum CompassMapDisplayCoordinate {
 
 #if os(iOS)
 private struct CompassMapUnderlay: UIViewRepresentable {
-    private static let performanceLog = Logger(subsystem: GTPerformanceLog.subsystem, category: "PhoneMap")
-
     @Binding var mapTilesReady: Bool
     var coordinate: CLLocationCoordinate2D
     /// True north clockwise; drives map rotation to match overlay geometry.
@@ -100,8 +97,6 @@ private struct CompassMapUnderlay: UIViewRepresentable {
 
     final class Coordinator: NSObject, MKMapViewDelegate {
         var mapTilesReady: Binding<Bool>
-        var lastUpdateUIViewUptime: TimeInterval?
-        var updateUIViewCount = 0
 
         init(mapTilesReady: Binding<Bool>) {
             self.mapTilesReady = mapTilesReady
@@ -111,18 +106,10 @@ private struct CompassMapUnderlay: UIViewRepresentable {
         func mapViewDidFinishRenderingMap(_ mapView: MKMapView, fullyRendered: Bool) {
             guard fullyRendered else { return }
             mapTilesReady.wrappedValue = true
-            GTPerfTrace.mark(
-                CompassMapUnderlay.performanceLog,
-                "phone map didFinishRenderingMap fullyRendered=true"
-            )
         }
 
         func mapViewDidFailLoadingMap(_ mapView: MKMapView, withError error: Error) {
             mapTilesReady.wrappedValue = false
-            GTPerfTrace.mark(
-                CompassMapUnderlay.performanceLog,
-                "phone map didFailLoadingMap error=\(error.localizedDescription)"
-            )
         }
     }
 
@@ -152,12 +139,10 @@ private struct CompassMapUnderlay: UIViewRepresentable {
             )
             map.setCameraZoomRange(z, animated: false)
         }
-        GTPerfTrace.mark(Self.performanceLog, "phone map makeUIView")
         return map
     }
 
     func updateUIView(_ mapView: MKMapView, context: Context) {
-        let callStartUptime = GTPerfTrace.uptime()
         if #available(iOS 13.0, *) {
             mapView.overrideUserInterfaceStyle = useDarkMapAppearance ? .dark : .unspecified
         }
@@ -173,17 +158,6 @@ private struct CompassMapUnderlay: UIViewRepresentable {
             heading: headingDegrees
         )
         mapView.setCamera(cam, animated: false)
-        let callEndUptime = GTPerfTrace.uptime()
-        context.coordinator.updateUIViewCount += 1
-        let callCount = context.coordinator.updateUIViewCount
-        let shouldLog = !mapTilesReady || callCount <= 5 || (callEndUptime - callStartUptime) > 0.008
-        if shouldLog {
-            GTPerfTrace.mark(
-                Self.performanceLog,
-                "phone map updateUIView #\(callCount) tilesReady=\(mapTilesReady) heading=\(String(format: "%.1f", headingDegrees)) distance=\(String(format: "%.0f", d)) sincePrev=\(GTPerfTrace.milliseconds(since: context.coordinator.lastUpdateUIViewUptime)) setCamera=\(GTPerfTrace.milliseconds(callEndUptime - callStartUptime))"
-            )
-        }
-        context.coordinator.lastUpdateUIViewUptime = callEndUptime
     }
 }
 

@@ -2,7 +2,6 @@ import Combine
 import CoreLocation
 import Foundation
 import GoldenTimeCore
-import OSLog
 import UIKit
 import WidgetKit
 
@@ -51,8 +50,6 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         case refreshing
     }
 
-    private static let performanceLog = Logger(subsystem: GTPerformanceLog.subsystem, category: "PhoneViewModel")
-
     private let engine = GoldenTimeEngine()
     /// Created after the first frame so `CLLocationManager` setup never blocks the launch screen.
     private var locationReader: PhoneLocationReader?
@@ -61,8 +58,6 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     private var pendingSettingsLocationAction: SettingsLocationAction?
     private var settingsLocationFeedbackResetTask: Task<Void, Never>?
     private var settingsLocationRefreshTimeoutTask: Task<Void, Never>?
-    private var lastAuthorizationGrantedUptime: TimeInterval?
-    private var lastHeadingAppliedUptime: TimeInterval?
 
     private var activeFix: LocationFix?
     private var lastEngineDayStart: Date?
@@ -137,6 +132,8 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     private static let latKey = GoldenTimeLocationCache.latitudeKey
     private static let lonKey = GoldenTimeLocationCache.longitudeKey
     private static let tsKey = GoldenTimeLocationCache.timestampKey
+    private static let pendingWidgetReloadKey = "gt.phone.pendingWidgetReload"
+    private static let pendingPhoneStatePushKey = "gt.phone.pendingPhoneStatePush"
 
     private let coordFormatter: NumberFormatter = {
         let f = NumberFormatter()
@@ -178,7 +175,6 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         clockNow = now
         if activeFix != nil {
             recomputeEngineIfNeeded(now: now, force: true)
-            Self.reloadTwilightWidgetTimelines()
         }
         rebuildDailyDerivedStateIfNeeded(now: now, force: true)
         refreshLiveState(now: now)
@@ -198,7 +194,6 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     /// Wire Core Location after SwiftUI has presented the root view to avoid launch-screen stalls.
     func prepareLocationPipeline() {
         guard locationReader == nil else { return }
-        Self.performanceLog.notice("phone location pipeline start")
         let reader = PhoneLocationReader()
         locationReader = reader
 
@@ -233,15 +228,9 @@ final class GoldenTimePhoneViewModel: ObservableObject {
                 guard let self else { return }
                 self.deviceHeadingDegrees = v
                 if let h = v {
-                    GTPerfTrace.mark(
-                        Self.performanceLog,
-                        "phone vm applied heading=\(String(format: "%.1f", h)) afterPrev=\(GTPerfTrace.milliseconds(since: self.lastHeadingAppliedUptime))"
-                    )
-                    self.lastHeadingAppliedUptime = GTPerfTrace.uptime()
                     self.triggerHeadingTickHapticIfNeeded(headingDegrees: h)
                 } else {
                     self.headingThirtyDegreeBucket = nil
-                    self.lastHeadingAppliedUptime = nil
                 }
             }
             .store(in: &cancellables)
@@ -268,6 +257,10 @@ final class GoldenTimePhoneViewModel: ObservableObject {
 
     var isPerformingSettingsLocationAction: Bool {
         pendingSettingsLocationAction != nil
+    }
+
+    var hasDeferredExternalOutputs: Bool {
+        Self.defaults.bool(forKey: Self.pendingWidgetReloadKey) || Self.defaults.bool(forKey: Self.pendingPhoneStatePushKey)
     }
 
     func requestLocationAccessFromSettings() {
@@ -342,11 +335,18 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         locationHeartbeat = nil
     }
 
+    func flushDeferredExternalOutputs() {
+        if Self.defaults.bool(forKey: Self.pendingWidgetReloadKey) {
+            WidgetCenter.shared.reloadTimelines(ofKind: GTIOWidgetKind.twilight)
+            Self.defaults.removeObject(forKey: Self.pendingWidgetReloadKey)
+        }
+        if Self.defaults.bool(forKey: Self.pendingPhoneStatePushKey) {
+            GTWatchConnectivitySync.shared.pushPhoneStateFromStore()
+            Self.defaults.removeObject(forKey: Self.pendingPhoneStatePushKey)
+        }
+    }
+
     private func handleLocationUpdate(_ loc: CLLocation) {
-        GTPerfTrace.mark(
-            Self.performanceLog,
-            "phone handleLocationUpdate received accuracy=\(String(format: "%.1f", loc.horizontalAccuracy)) afterAuthorized=\(GTPerfTrace.milliseconds(since: lastAuthorizationGrantedUptime))"
-        )
         applyLocation(loc)
         guard pendingSettingsLocationAction != nil else { return }
         finishSettingsLocationAction(with: .success, autoClear: true)
@@ -355,8 +355,6 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     private func handleLocationAuthorizationChange(_ status: CLAuthorizationStatus) {
         switch status {
         case .authorizedAlways, .authorizedWhenInUse:
-            lastAuthorizationGrantedUptime = GTPerfTrace.uptime()
-            GTPerfTrace.mark(Self.performanceLog, "phone authorization became available")
             guard pendingSettingsLocationAction == .requestingAuthorization else { return }
             pendingSettingsLocationAction = .refreshing
             settingsLocationFeedback = .refreshing
@@ -380,7 +378,6 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     }
 
     private func applyLocation(_ loc: CLLocation) {
-        let applyStart = GTPerfTrace.uptime()
         let fix = LocationFix(
             latitude: loc.coordinate.latitude,
             longitude: loc.coordinate.longitude,
@@ -394,10 +391,6 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         recomputeEngineIfNeeded(now: now, force: true)
         rebuildDailyDerivedStateIfNeeded(now: now, force: true)
         refreshLiveState(now: now)
-        GTPerfTrace.mark(
-            Self.performanceLog,
-            "phone applyLocation finished in \(GTPerfTrace.milliseconds(GTPerfTrace.uptime() - applyStart)) sinceAuthorized=\(GTPerfTrace.milliseconds(since: lastAuthorizationGrantedUptime)) lat=\(String(format: "%.5f", fix.latitude)) lon=\(String(format: "%.5f", fix.longitude))"
-        )
     }
 
     private func startSettingsLocationRefreshTimeout() {
@@ -481,7 +474,6 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             guard let a0 = engine.sunAzimuthDegrees(at: win.start), let a1 = engine.sunAzimuthDegrees(at: win.end) else { return nil }
             return (a0, a1)
         }
-        Self.performanceLog.debug("phone daily derived state rebuilt")
     }
 
     private func refreshLiveState(now: Date) {
@@ -590,12 +582,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         defaults.set(fix.latitude, forKey: latKey)
         defaults.set(fix.longitude, forKey: lonKey)
         defaults.set(fix.timestamp.timeIntervalSince1970, forKey: tsKey)
-        reloadTwilightWidgetTimelines()
-        GTWatchConnectivitySync.shared.pushPhoneStateFromStore()
-    }
-
-    /// Home-screen widgets do not observe `UserDefaults`; ask WidgetKit to re-run the timeline after cache or settings change.
-    private static func reloadTwilightWidgetTimelines() {
-        WidgetCenter.shared.reloadTimelines(ofKind: GTIOWidgetKind.twilight)
+        defaults.set(true, forKey: pendingWidgetReloadKey)
+        defaults.set(true, forKey: pendingPhoneStatePushKey)
     }
 }

@@ -1,6 +1,5 @@
 import Foundation
 import GoldenTimeCore
-import OSLog
 import SwiftUI
 
 #if DEBUG
@@ -15,8 +14,6 @@ private enum GTDebugTwilightMode {
 #endif
 
 struct GoldenTimePhoneRootView: View {
-    private static let performanceLog = Logger(subsystem: GTPerformanceLog.subsystem, category: "PhoneLaunch")
-
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var model = GoldenTimePhoneViewModel()
     @StateObject private var networkReachability = NetworkReachability()
@@ -25,17 +22,11 @@ struct GoldenTimePhoneRootView: View {
     @AppStorage(GTTwilightDisplayMode.storageKey, store: GTAppGroup.shared) private var twilightModeRaw: String = GTTwilightDisplayMode.clockTimes.rawValue
     @AppStorage(GTCompassMapSettings.storageKey, store: GTAppGroup.shared) private var mapCameraDistanceStorage: Double =
         GTCompassMapSettings.defaultCameraDistanceMeters
-    @AppStorage("gt.phone.initialCompassLoadingCompleted") private var hasCompletedInitialCompassLoading = false
     @State private var showSettings = false
     @State private var allowCompassMapBase = false
     @State private var hasBootstrapped = false
     @State private var needsForegroundResume = false
-    @State private var companionSyncTask: Task<Void, Never>?
-    @State private var bootstrapScheduledUptime: TimeInterval?
-    @State private var loggedFirstCoordinateRender = false
-    @State private var loggedFirstDataRender = false
-    @State private var showInitialCompassLoading = true
-    @State private var initialCompassLoadingTask: Task<Void, Never>?
+    @State private var needsDeferredCompanionSync = false
     /// Bumps when `NSLocale.currentLocaleDidChangeNotification` fires so `uiLang` re-evaluates while preference is「跟随系统」.
     @State private var systemLocaleBump = UUID()
 
@@ -89,86 +80,43 @@ struct GoldenTimePhoneRootView: View {
             }
             .onAppear {
                 model.syncContentLanguageWithAppPreference()
-                scheduleCompanionSync()
-            }
-            .onDisappear {
-                initialCompassLoadingTask?.cancel()
             }
             .task {
                 guard !hasBootstrapped else { return }
                 hasBootstrapped = true
-                #if DEBUG
-                GTPerfTrace.resetDebugLogFile()
-                #endif
-                bootstrapScheduledUptime = GTPerfTrace.uptime()
-                GTPerfTrace.mark(Self.performanceLog, "phone bootstrap scheduled")
-                initialCompassLoadingTask?.cancel()
-                if hasCompletedInitialCompassLoading {
-                    showInitialCompassLoading = false
-                } else {
-                    initialCompassLoadingTask = Task { @MainActor in
-                        try? await Task.sleep(for: .seconds(5))
-                        guard !Task.isCancelled else { return }
-                        hasCompletedInitialCompassLoading = true
-                        showInitialCompassLoading = false
-                    }
-                }
                 await Task.yield()
-                GTAppGroup.migrateStandardToSharedIfNeeded()
-                GTWatchConnectivitySync.shared.activate()
                 model.syncContentLanguageWithAppPreference()
-                scheduleCompanionSync()
                 model.beginForegroundLocationSession(requestImmediately: true)
                 allowCompassMapBase = true
-                GTPerfTrace.mark(
-                    Self.performanceLog,
-                    "phone bootstrap finished after \(GTPerfTrace.milliseconds(since: bootstrapScheduledUptime))"
-                )
-            }
-            .onChange(of: model.mapCoordinate != nil) { _, hasCoordinate in
-                guard hasCoordinate, !loggedFirstCoordinateRender else { return }
-                loggedFirstCoordinateRender = true
-                GTPerfTrace.mark(
-                    Self.performanceLog,
-                    "phone first coordinate-driven UI visible after \(GTPerfTrace.milliseconds(since: bootstrapScheduledUptime))"
-                )
-            }
-            .onChange(of: (model.phase != nil) || model.blueWindowRange != nil || model.goldenWindowRange != nil) { _, hasData in
-                guard hasData, !loggedFirstDataRender else { return }
-                loggedFirstDataRender = true
-                GTPerfTrace.mark(
-                    Self.performanceLog,
-                    "phone first twilight data visible after \(GTPerfTrace.milliseconds(since: bootstrapScheduledUptime))"
-                )
             }
             .onReceive(NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)) { _ in
                 systemLocaleBump = UUID()
                 model.syncContentLanguageWithAppPreference()
-                scheduleCompanionSync()
+                markCompanionSyncDirty()
             }
             .onChange(of: langPreferenceRaw) { _, _ in
                 model.syncContentLanguageWithAppPreference()
-                scheduleCompanionSync()
+                markCompanionSyncDirty()
             }
             .onChange(of: twilightModeRaw) { _, _ in
-                scheduleCompanionSync()
+                markCompanionSyncDirty()
             }
             .onChange(of: mapCameraDistanceStorage) { _, _ in
-                scheduleCompanionSync()
+                markCompanionSyncDirty()
             }
             .onChange(of: networkReachability.hasNetworkRoute) { _, _ in
-                scheduleCompanionSync()
+                markCompanionSyncDirty()
             }
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .active:
                     guard hasBootstrapped, needsForegroundResume else { return }
                     needsForegroundResume = false
-                    scheduleCompanionSync()
                     model.beginForegroundLocationSession(requestImmediately: true)
                 case .background:
                     needsForegroundResume = true
                     model.endForegroundLocationSession()
+                    flushDeferredExternalSync()
                 default:
                     break
                 }
@@ -274,9 +222,7 @@ struct GoldenTimePhoneRootView: View {
     /// Circular compass below twilight cards (cards stay the visual focus).
     @ViewBuilder
     private func compassDialBlock(skin: GTPhaseSkin, lang: GTAppLanguage) -> some View {
-        if showInitialCompassLoading, !hasCompletedInitialCompassLoading {
-            compassInitialLoadingShell(skin: skin, lang: lang)
-        } else if let coord = model.mapCoordinate {
+        if let coord = model.mapCoordinate {
             TwilightCompassCard(
                 showMapBase: compassShowsMapBase,
                 chromeGradient: skin.chromeGradient,
@@ -306,38 +252,6 @@ struct GoldenTimePhoneRootView: View {
                 .multilineTextAlignment(.center)
                 .padding(.vertical, 8)
         }
-    }
-
-    private func compassInitialLoadingShell(skin: GTPhaseSkin, lang: GTAppLanguage) -> some View {
-        VStack(spacing: 12) {
-            ProgressView()
-                .tint(skin.ink)
-                .scaleEffect(1.08)
-
-            Text(GTCopy.compassInitialLoadingTitle(lang))
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(skin.ink)
-                .multilineTextAlignment(.center)
-
-            Text(GTCopy.compassInitialLoadingSubtitle(lang))
-                .font(.caption)
-                .foregroundStyle(skin.chromeSecondaryForeground)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: Self.compassDialHeight)
-        .background(
-            LinearGradient(
-                colors: skin.chromeGradient,
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(skin.panelStroke, lineWidth: 1)
-        )
     }
 
     /// Compass usage note at page bottom (below dial).
@@ -437,21 +351,24 @@ struct GoldenTimePhoneRootView: View {
         let effective = GTAppLanguage.phoneDisplayLanguage(preferenceRaw: langPreferenceRaw)
         GTAppGroup.shared.set(effective.rawValue, forKey: GTAppLanguage.effectiveMirrorKey)
         GTAppGroup.shared.set(compassShowsMapBase, forKey: GTCompanionUISync.showCompassMapBaseKey)
+        GTWatchConnectivitySync.shared.activate()
         GTWatchConnectivitySync.shared.pushPhoneState(
             languagePreferenceRaw: langPreferenceRaw,
             effectiveLanguageRaw: effective.rawValue,
             twilightModeRaw: twilightModeRaw,
             mapCameraDistance: mapCameraDistanceStorage
         )
-        model.syncContentLanguageWithAppPreference()
+        model.flushDeferredExternalOutputs()
     }
 
-    private func scheduleCompanionSync() {
-        companionSyncTask?.cancel()
-        companionSyncTask = Task { @MainActor in
-            await Task.yield()
-            guard !Task.isCancelled else { return }
-            publishCompanionSyncAndReloadWidgets()
-        }
+    private func markCompanionSyncDirty() {
+        needsDeferredCompanionSync = true
+    }
+
+    private func flushDeferredExternalSync() {
+        guard needsDeferredCompanionSync || model.hasDeferredExternalOutputs else { return }
+        GTAppGroup.migrateStandardToSharedIfNeeded()
+        publishCompanionSyncAndReloadWidgets()
+        needsDeferredCompanionSync = false
     }
 }
