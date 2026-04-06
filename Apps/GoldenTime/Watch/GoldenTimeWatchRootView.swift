@@ -210,7 +210,9 @@ struct GoldenTimeWatchRootView: View {
     @ViewBuilder
     private func watchCompassPage(skin: GTPhaseSkin) -> some View {
         Group {
-            if let coord = model.mapCoordinate {
+            if hasVisitedCompassPage, !isCompassPagePresentationReady {
+                watchCompassLoadingShell(skin: skin)
+            } else if let coord = model.mapCoordinate {
                 GeometryReader { geo in
                     let span = min(geo.size.width, geo.size.height)
                     let side = max(span * 0.9, 1)
@@ -248,6 +250,30 @@ struct GoldenTimeWatchRootView: View {
             }
         }
         .accessibilityIdentifier("gt.watch.compassPage")
+    }
+
+    private func watchCompassLoadingShell(skin: GTPhaseSkin) -> some View {
+        VStack(spacing: 10) {
+            ProgressView()
+                .tint(skin.ink)
+                .scaleEffect(0.95)
+
+            Text(GTCopy.compassInitialLoadingTitle(lang))
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(skin.ink)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+
+            Text(GTCopy.compassInitialLoadingSubtitle(lang))
+                .font(.system(size: 11, weight: .regular, design: .rounded))
+                .foregroundStyle(skin.chromeSecondaryForeground)
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .minimumScaleFactor(0.8)
+        }
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func activateCompassPageIfNeeded() {
