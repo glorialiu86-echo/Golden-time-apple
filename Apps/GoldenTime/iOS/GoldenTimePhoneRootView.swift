@@ -25,6 +25,7 @@ struct GoldenTimePhoneRootView: View {
     @AppStorage(GTTwilightDisplayMode.storageKey, store: GTAppGroup.shared) private var twilightModeRaw: String = GTTwilightDisplayMode.clockTimes.rawValue
     @AppStorage(GTCompassMapSettings.storageKey, store: GTAppGroup.shared) private var mapCameraDistanceStorage: Double =
         GTCompassMapSettings.defaultCameraDistanceMeters
+    @AppStorage("gt.phone.initialCompassLoadingCompleted") private var hasCompletedInitialCompassLoading = false
     @State private var showSettings = false
     @State private var allowCompassMapBase = false
     @State private var hasBootstrapped = false
@@ -98,10 +99,15 @@ struct GoldenTimePhoneRootView: View {
                 bootstrapScheduledUptime = GTPerfTrace.uptime()
                 GTPerfTrace.mark(Self.performanceLog, "phone bootstrap scheduled")
                 initialCompassLoadingTask?.cancel()
-                initialCompassLoadingTask = Task { @MainActor in
-                    try? await Task.sleep(for: .seconds(5))
-                    guard !Task.isCancelled else { return }
+                if hasCompletedInitialCompassLoading {
                     showInitialCompassLoading = false
+                } else {
+                    initialCompassLoadingTask = Task { @MainActor in
+                        try? await Task.sleep(for: .seconds(5))
+                        guard !Task.isCancelled else { return }
+                        hasCompletedInitialCompassLoading = true
+                        showInitialCompassLoading = false
+                    }
                 }
                 await Task.yield()
                 GTAppGroup.migrateStandardToSharedIfNeeded()
@@ -260,7 +266,7 @@ struct GoldenTimePhoneRootView: View {
     /// Circular compass below twilight cards (cards stay the visual focus).
     @ViewBuilder
     private func compassDialBlock(skin: GTPhaseSkin, lang: GTAppLanguage) -> some View {
-        if showInitialCompassLoading {
+        if showInitialCompassLoading, !hasCompletedInitialCompassLoading {
             compassInitialLoadingShell(skin: skin, lang: lang)
         } else if let coord = model.mapCoordinate {
             TwilightCompassCard(
