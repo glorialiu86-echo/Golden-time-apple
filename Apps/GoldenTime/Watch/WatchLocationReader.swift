@@ -2,10 +2,13 @@ import Combine
 import CoreLocation
 import Foundation
 import GoldenTimeCore
+import OSLog
 
 /// Core Location callbacks hop to the main actor for `@Published` updates (Swift 6 concurrency).
 /// `CLLocationManager` and this delegate bridge are main-thread affinity; `@unchecked Sendable` avoids spurious `Task` capture diagnostics.
 final class WatchLocationReader: NSObject, ObservableObject, @unchecked Sendable {
+    private static let performanceLog = Logger(subsystem: GTPerformanceLog.subsystem, category: "WatchLocationReader")
+
     @Published private(set) var authorizationStatus: CLAuthorizationStatus = .notDetermined
     @Published private(set) var latestFix: LocationFix?
     /// Degrees clockwise from true north when available; else magnetic; `nil` until first heading update.
@@ -15,6 +18,8 @@ final class WatchLocationReader: NSObject, ObservableObject, @unchecked Sendable
     private var isAwaitingAuthorizationPrompt = false
     private var shouldRequestLocationAfterAuthorization = false
     private var wantsHeadingUpdates = false
+    private var authorizationPromptStartUptime: TimeInterval?
+    private var locationRequestStartUptime: TimeInterval?
 
     override init() {
         super.init()
@@ -46,6 +51,10 @@ final class WatchLocationReader: NSObject, ObservableObject, @unchecked Sendable
         Task { @MainActor [weak self] in
             guard let self else { return }
             self.authorizationStatus = self.manager.authorizationStatus
+            GTPerfTrace.mark(
+                Self.performanceLog,
+                "watch requestLocation called auth=\(self.manager.authorizationStatus.rawValue)"
+            )
             switch self.manager.authorizationStatus {
             case .notDetermined:
                 self.shouldRequestLocationAfterAuthorization = true
@@ -54,9 +63,13 @@ final class WatchLocationReader: NSObject, ObservableObject, @unchecked Sendable
                     return
                 }
                 self.isAwaitingAuthorizationPrompt = true
+                self.authorizationPromptStartUptime = GTPerfTrace.uptime()
+                GTPerfTrace.mark(Self.performanceLog, "watch authorization prompt requested")
                 self.manager.requestWhenInUseAuthorization()
             case .authorizedAlways, .authorizedWhenInUse:
                 self.shouldRequestLocationAfterAuthorization = false
+                self.locationRequestStartUptime = GTPerfTrace.uptime()
+                GTPerfTrace.mark(Self.performanceLog, "watch requestCurrentLocation issued")
                 self.manager.requestLocation()
             case .denied, .restricted:
                 self.shouldRequestLocationAfterAuthorization = false
@@ -86,12 +99,18 @@ extension WatchLocationReader: CLLocationManagerDelegate {
         Task { @MainActor [weak self] in
             guard let self else { return }
             self.authorizationStatus = status
+            GTPerfTrace.mark(
+                Self.performanceLog,
+                "watch authorization changed to \(status.rawValue) after \(GTPerfTrace.milliseconds(since: self.authorizationPromptStartUptime))"
+            )
             if status != .notDetermined {
                 self.isAwaitingAuthorizationPrompt = false
             }
             if status == .authorizedWhenInUse || status == .authorizedAlways {
                 if self.shouldRequestLocationAfterAuthorization {
                     self.shouldRequestLocationAfterAuthorization = false
+                    self.locationRequestStartUptime = GTPerfTrace.uptime()
+                    GTPerfTrace.mark(Self.performanceLog, "watch requestCurrentLocation issued after authorization")
                     self.manager.requestLocation()
                 }
             } else if status == .denied || status == .restricted {
@@ -122,7 +141,12 @@ extension WatchLocationReader: CLLocationManagerDelegate {
             timestamp: loc.timestamp
         )
         Task { @MainActor [weak self] in
-            self?.latestFix = fix
+            guard let self else { return }
+            GTPerfTrace.mark(
+                Self.performanceLog,
+                "watch didUpdateLocations count=\(locations.count) accuracy=\(String(format: "%.1f", loc.horizontalAccuracy)) age=\(String(format: "%.3f", -loc.timestamp.timeIntervalSinceNow))s afterRequest=\(GTPerfTrace.milliseconds(since: self.locationRequestStartUptime))"
+            )
+            self.latestFix = fix
         }
     }
 
@@ -130,7 +154,10 @@ extension WatchLocationReader: CLLocationManagerDelegate {
         Task { @MainActor [weak self] in
             guard let self else { return }
             self.authorizationStatus = self.manager.authorizationStatus
+            GTPerfTrace.mark(
+                Self.performanceLog,
+                "watch location request failed auth=\(self.manager.authorizationStatus.rawValue) error=\(error.localizedDescription)"
+            )
         }
-        _ = error
     }
 }

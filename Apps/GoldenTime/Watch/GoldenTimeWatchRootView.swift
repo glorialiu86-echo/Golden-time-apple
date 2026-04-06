@@ -29,6 +29,9 @@ struct GoldenTimeWatchRootView: View {
     @State private var selectedPage: WatchPage = .twilight
     @State private var hasVisitedCompassPage = false
     @State private var hasBootstrapped = false
+    @State private var bootstrapScheduledUptime: TimeInterval?
+    @State private var loggedFirstTwilightRenderable = false
+    @State private var loggedFirstCompassRenderable = false
 
     private var lang: GTAppLanguage {
         GTAppLanguage.watchResolved(
@@ -84,14 +87,32 @@ struct GoldenTimeWatchRootView: View {
         .task {
             guard !hasBootstrapped else { return }
             hasBootstrapped = true
-            Self.performanceLog.notice("watch bootstrap scheduled")
+            bootstrapScheduledUptime = GTPerfTrace.uptime()
+            GTPerfTrace.mark(Self.performanceLog, "watch bootstrap scheduled")
             await Task.yield()
             GTAppGroup.migrateStandardToSharedIfNeeded()
             GTWatchConnectivitySync.shared.activate()
             model.syncContentLanguageWithStorage()
             model.refreshForTimeline(now: tickNow)
             model.startLocationPipeline()
-            Self.performanceLog.notice("watch bootstrap finished")
+            GTPerfTrace.mark(
+                Self.performanceLog,
+                "watch bootstrap finished after \(GTPerfTrace.milliseconds(since: bootstrapScheduledUptime))"
+            )
+        }
+        .onChange(of: model.mapCoordinate != nil) { _, hasCoordinate in
+            guard hasCoordinate, !loggedFirstTwilightRenderable else { return }
+            loggedFirstTwilightRenderable = true
+            GTPerfTrace.mark(
+                Self.performanceLog,
+                "watch first twilight-page content visible after \(GTPerfTrace.milliseconds(since: bootstrapScheduledUptime))"
+            )
+            guard hasVisitedCompassPage, !loggedFirstCompassRenderable else { return }
+            loggedFirstCompassRenderable = true
+            GTPerfTrace.mark(
+                Self.performanceLog,
+                "watch compass page became renderable after \(GTPerfTrace.milliseconds(since: bootstrapScheduledUptime))"
+            )
         }
         .onChange(of: langPreferenceRaw) { _, _ in
             model.syncContentLanguageWithStorage()
@@ -106,7 +127,17 @@ struct GoldenTimeWatchRootView: View {
             let isCompassPage = page == .compass
             if isCompassPage, !hasVisitedCompassPage {
                 hasVisitedCompassPage = true
-                Self.performanceLog.notice("watch compass page first mounted")
+                GTPerfTrace.mark(
+                    Self.performanceLog,
+                    "watch compass page first mounted after \(GTPerfTrace.milliseconds(since: bootstrapScheduledUptime))"
+                )
+                if model.mapCoordinate != nil, !loggedFirstCompassRenderable {
+                    loggedFirstCompassRenderable = true
+                    GTPerfTrace.mark(
+                        Self.performanceLog,
+                        "watch compass page became renderable after \(GTPerfTrace.milliseconds(since: bootstrapScheduledUptime))"
+                    )
+                }
             }
             model.setCompassPageActive(isCompassPage)
         }

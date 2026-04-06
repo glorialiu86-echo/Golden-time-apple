@@ -29,6 +29,9 @@ struct GoldenTimePhoneRootView: View {
     @State private var allowCompassMapBase = false
     @State private var hasBootstrapped = false
     @State private var companionSyncTask: Task<Void, Never>?
+    @State private var bootstrapScheduledUptime: TimeInterval?
+    @State private var loggedFirstCoordinateRender = false
+    @State private var loggedFirstDataRender = false
     /// Bumps when `NSLocale.currentLocaleDidChangeNotification` fires so `uiLang` re-evaluates while preference is「跟随系统」.
     @State private var systemLocaleBump = UUID()
 
@@ -87,7 +90,8 @@ struct GoldenTimePhoneRootView: View {
             .task {
                 guard !hasBootstrapped else { return }
                 hasBootstrapped = true
-                Self.performanceLog.notice("phone bootstrap scheduled")
+                bootstrapScheduledUptime = GTPerfTrace.uptime()
+                GTPerfTrace.mark(Self.performanceLog, "phone bootstrap scheduled")
                 await Task.yield()
                 GTAppGroup.migrateStandardToSharedIfNeeded()
                 GTWatchConnectivitySync.shared.activate()
@@ -95,7 +99,26 @@ struct GoldenTimePhoneRootView: View {
                 scheduleCompanionSync()
                 model.beginForegroundLocationSession(requestImmediately: true)
                 allowCompassMapBase = true
-                Self.performanceLog.notice("phone bootstrap finished")
+                GTPerfTrace.mark(
+                    Self.performanceLog,
+                    "phone bootstrap finished after \(GTPerfTrace.milliseconds(since: bootstrapScheduledUptime))"
+                )
+            }
+            .onChange(of: model.mapCoordinate != nil) { _, hasCoordinate in
+                guard hasCoordinate, !loggedFirstCoordinateRender else { return }
+                loggedFirstCoordinateRender = true
+                GTPerfTrace.mark(
+                    Self.performanceLog,
+                    "phone first coordinate-driven UI visible after \(GTPerfTrace.milliseconds(since: bootstrapScheduledUptime))"
+                )
+            }
+            .onChange(of: (model.phase != nil) || model.blueWindowRange != nil || model.goldenWindowRange != nil) { _, hasData in
+                guard hasData, !loggedFirstDataRender else { return }
+                loggedFirstDataRender = true
+                GTPerfTrace.mark(
+                    Self.performanceLog,
+                    "phone first twilight data visible after \(GTPerfTrace.milliseconds(since: bootstrapScheduledUptime))"
+                )
             }
             .onReceive(NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)) { _ in
                 systemLocaleBump = UUID()

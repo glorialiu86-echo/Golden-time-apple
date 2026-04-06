@@ -61,6 +61,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     private var pendingSettingsLocationAction: SettingsLocationAction?
     private var settingsLocationFeedbackResetTask: Task<Void, Never>?
     private var settingsLocationRefreshTimeoutTask: Task<Void, Never>?
+    private var lastAuthorizationGrantedUptime: TimeInterval?
 
     private var activeFix: LocationFix?
     private var lastEngineDayStart: Date?
@@ -336,6 +337,10 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     }
 
     private func handleLocationUpdate(_ loc: CLLocation) {
+        GTPerfTrace.mark(
+            Self.performanceLog,
+            "phone handleLocationUpdate received accuracy=\(String(format: "%.1f", loc.horizontalAccuracy)) afterAuthorized=\(GTPerfTrace.milliseconds(since: lastAuthorizationGrantedUptime))"
+        )
         applyLocation(loc)
         guard pendingSettingsLocationAction != nil else { return }
         finishSettingsLocationAction(with: .success, autoClear: true)
@@ -344,6 +349,8 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     private func handleLocationAuthorizationChange(_ status: CLAuthorizationStatus) {
         switch status {
         case .authorizedAlways, .authorizedWhenInUse:
+            lastAuthorizationGrantedUptime = GTPerfTrace.uptime()
+            GTPerfTrace.mark(Self.performanceLog, "phone authorization became available")
             guard pendingSettingsLocationAction == .requestingAuthorization else { return }
             pendingSettingsLocationAction = .refreshing
             settingsLocationFeedback = .refreshing
@@ -367,6 +374,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     }
 
     private func applyLocation(_ loc: CLLocation) {
+        let applyStart = GTPerfTrace.uptime()
         let fix = LocationFix(
             latitude: loc.coordinate.latitude,
             longitude: loc.coordinate.longitude,
@@ -380,7 +388,10 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         recomputeEngineIfNeeded(now: now, force: true)
         rebuildDailyDerivedStateIfNeeded(now: now, force: true)
         refreshLiveState(now: now)
-        Self.performanceLog.notice("phone first fix applied")
+        GTPerfTrace.mark(
+            Self.performanceLog,
+            "phone applyLocation finished in \(GTPerfTrace.milliseconds(GTPerfTrace.uptime() - applyStart)) sinceAuthorized=\(GTPerfTrace.milliseconds(since: lastAuthorizationGrantedUptime)) lat=\(String(format: "%.5f", fix.latitude)) lon=\(String(format: "%.5f", fix.longitude))"
+        )
     }
 
     private func startSettingsLocationRefreshTimeout() {

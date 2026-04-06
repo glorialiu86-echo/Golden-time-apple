@@ -27,6 +27,7 @@ final class GoldenTimeWatchViewModel: ObservableObject {
     private var lastEngineDayStart: Date?
     private var lastDailyDerivedStateKey: DailyDerivedStateKey?
     private var isCompassPageActive = false
+    private var lastAuthorizationGrantedUptime: TimeInterval?
 
     @Published private(set) var blueStartText = "—"
     @Published private(set) var blueEndText = "—"
@@ -112,6 +113,10 @@ final class GoldenTimeWatchViewModel: ObservableObject {
             .compactMap { $0 }
             .receive(on: DispatchQueue.main)
             .sink { [weak self] fix in
+                GTPerfTrace.mark(
+                    Self.performanceLog,
+                    "watch latestFix published afterAuthorized=\(GTPerfTrace.milliseconds(since: self?.lastAuthorizationGrantedUptime))"
+                )
                 self?.applyNewFix(fix)
             }
             .store(in: &cancellables)
@@ -126,6 +131,10 @@ final class GoldenTimeWatchViewModel: ObservableObject {
         reader.$authorizationStatus
             .receive(on: DispatchQueue.main)
             .sink { [weak self] status in
+                if status == .authorizedAlways || status == .authorizedWhenInUse {
+                    self?.lastAuthorizationGrantedUptime = GTPerfTrace.uptime()
+                    GTPerfTrace.mark(Self.performanceLog, "watch authorization became available")
+                }
                 self?.updateHint(for: status)
             }
             .store(in: &cancellables)
@@ -164,6 +173,7 @@ final class GoldenTimeWatchViewModel: ObservableObject {
     }
 
     private func applyNewFix(_ fix: LocationFix) {
+        let applyStart = GTPerfTrace.uptime()
         activeFix = fix
         Self.saveCachedFix(fix)
         locationHint = contentLanguage == .chinese ? "GPS 已更新" : "GPS updated"
@@ -172,6 +182,10 @@ final class GoldenTimeWatchViewModel: ObservableObject {
         rebuildDailyDerivedStateIfNeeded(now: now, force: true)
         refreshTwilightPageState(now: now)
         refreshCompassStateIfNeeded(now: now, force: true)
+        GTPerfTrace.mark(
+            Self.performanceLog,
+            "watch applyNewFix finished in \(GTPerfTrace.milliseconds(GTPerfTrace.uptime() - applyStart)) sinceAuthorized=\(GTPerfTrace.milliseconds(since: lastAuthorizationGrantedUptime)) lat=\(String(format: "%.5f", fix.latitude)) lon=\(String(format: "%.5f", fix.longitude))"
+        )
     }
 
     private func recomputeEngineIfNeeded(now: Date, force: Bool = false) {

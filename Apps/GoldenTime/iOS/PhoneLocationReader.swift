@@ -1,9 +1,12 @@
 import Combine
 import CoreLocation
 import Foundation
+import OSLog
 
 /// GPS + device heading; feeds local sun-position math and heading-up compass. No network APIs.
 final class PhoneLocationReader: NSObject, ObservableObject, @unchecked Sendable {
+    private static let performanceLog = Logger(subsystem: GTPerformanceLog.subsystem, category: "PhoneLocationReader")
+
     @Published private(set) var authorizationStatus: CLAuthorizationStatus = .notDetermined
     @Published private(set) var latestFix: CLLocation?
     /// Cleared on each authorized `requestLocation` and on success; set when `didFailWithError` fires.
@@ -15,6 +18,8 @@ final class PhoneLocationReader: NSObject, ObservableObject, @unchecked Sendable
     private var isAwaitingAuthorizationPrompt = false
     private var shouldRequestLocationAfterAuthorization = false
     private var wantsHeadingUpdates = false
+    private var authorizationPromptStartUptime: TimeInterval?
+    private var locationRequestStartUptime: TimeInterval?
 
     override init() {
         super.init()
@@ -29,6 +34,10 @@ final class PhoneLocationReader: NSObject, ObservableObject, @unchecked Sendable
         Task { @MainActor [weak self] in
             guard let self else { return }
             self.authorizationStatus = self.manager.authorizationStatus
+            GTPerfTrace.mark(
+                Self.performanceLog,
+                "phone requestLocation called auth=\(self.manager.authorizationStatus.rawValue)"
+            )
             switch self.manager.authorizationStatus {
             case .notDetermined:
                 self.shouldRequestLocationAfterAuthorization = true
@@ -37,6 +46,8 @@ final class PhoneLocationReader: NSObject, ObservableObject, @unchecked Sendable
                     return
                 }
                 self.isAwaitingAuthorizationPrompt = true
+                self.authorizationPromptStartUptime = GTPerfTrace.uptime()
+                GTPerfTrace.mark(Self.performanceLog, "phone authorization prompt requested")
                 self.manager.requestWhenInUseAuthorization()
             case .authorizedAlways, .authorizedWhenInUse:
                 self.shouldRequestLocationAfterAuthorization = false
@@ -64,6 +75,8 @@ final class PhoneLocationReader: NSObject, ObservableObject, @unchecked Sendable
 
     private func requestCurrentLocation() {
         lastLocationRequestFailed = false
+        locationRequestStartUptime = GTPerfTrace.uptime()
+        GTPerfTrace.mark(Self.performanceLog, "phone requestCurrentLocation issued")
         manager.requestLocation()
     }
 
@@ -84,6 +97,10 @@ extension PhoneLocationReader: CLLocationManagerDelegate {
         Task { @MainActor [weak self] in
             guard let self else { return }
             self.authorizationStatus = status
+            GTPerfTrace.mark(
+                Self.performanceLog,
+                "phone authorization changed to \(status.rawValue) after \(GTPerfTrace.milliseconds(since: self.authorizationPromptStartUptime))"
+            )
             if status != .notDetermined {
                 self.isAwaitingAuthorizationPrompt = false
             }
@@ -118,6 +135,10 @@ extension PhoneLocationReader: CLLocationManagerDelegate {
             guard let self else { return }
             self.lastLocationRequestFailed = false
             self.latestFix = loc
+            GTPerfTrace.mark(
+                Self.performanceLog,
+                "phone didUpdateLocations count=\(locations.count) accuracy=\(String(format: "%.1f", loc.horizontalAccuracy)) age=\(String(format: "%.3f", -loc.timestamp.timeIntervalSinceNow))s afterRequest=\(GTPerfTrace.milliseconds(since: self.locationRequestStartUptime))"
+            )
         }
     }
 
@@ -126,7 +147,10 @@ extension PhoneLocationReader: CLLocationManagerDelegate {
             guard let self else { return }
             self.authorizationStatus = self.manager.authorizationStatus
             self.lastLocationRequestFailed = true
+            GTPerfTrace.mark(
+                Self.performanceLog,
+                "phone location request failed auth=\(self.manager.authorizationStatus.rawValue) error=\(error.localizedDescription)"
+            )
         }
-        _ = error
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
@@ -87,6 +88,26 @@ public enum GTAppGroup {
 
 enum GTPerformanceLog {
     static let subsystem = Bundle.main.bundleIdentifier ?? "time.golden.GoldenHourCompass"
+}
+
+enum GTPerfTrace {
+    static func uptime() -> TimeInterval {
+        ProcessInfo.processInfo.systemUptime
+    }
+
+    static func milliseconds(_ duration: TimeInterval) -> String {
+        String(format: "%.1fms", duration * 1_000)
+    }
+
+    static func milliseconds(since start: TimeInterval?) -> String {
+        guard let start else { return "n/a" }
+        return milliseconds(uptime() - start)
+    }
+
+    static func mark(_ logger: Logger, _ message: String) {
+        logger.notice("\(message, privacy: .public)")
+        NSLog("[GTPerf] %@", message)
+    }
 }
 
 /// Raw values stored in App Group (mirrors phone toggle).
