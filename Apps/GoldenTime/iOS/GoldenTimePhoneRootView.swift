@@ -1,6 +1,7 @@
 import Foundation
 import GoldenTimeCore
 import SwiftUI
+import CoreLocation
 
 #if DEBUG
 private enum GTDebugTwilightMode {
@@ -132,7 +133,8 @@ struct GoldenTimePhoneRootView: View {
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .active:
-                    if showInitialCompassOverlay {
+                    if showInitialCompassOverlay,
+                       model.locationAuthorizationStatus != .notDetermined {
                         scheduleInitialCompassOverlayDismissal()
                     }
                     if hasBootstrapped, !hasUnlockedStartupSync {
@@ -151,6 +153,11 @@ struct GoldenTimePhoneRootView: View {
                     initialCompassOverlayTask?.cancel()
                     startupSyncTask?.cancel()
                 }
+            }
+            .onChange(of: model.locationAuthorizationStatus) { _, status in
+                guard showInitialCompassOverlay, scenePhase == .active else { return }
+                guard status != .notDetermined else { return }
+                scheduleInitialCompassOverlayDismissal()
             }
             .sheet(isPresented: $showSettings) {
                 GoldenTimePhoneSettingsView(model: model)
@@ -475,6 +482,7 @@ struct GoldenTimePhoneRootView: View {
     }
 
     private func scheduleInitialCompassOverlayDismissal() {
+        guard model.locationAuthorizationStatus != .notDetermined else { return }
         initialCompassOverlayTask?.cancel()
         initialCompassOverlayTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(1))
