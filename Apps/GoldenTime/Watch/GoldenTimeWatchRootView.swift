@@ -28,6 +28,9 @@ struct GoldenTimeWatchRootView: View {
     @AppStorage(GTCompanionUISync.showCompassMapBaseKey, store: GTAppGroup.shared) private var companionShowCompassMapBase = true
     @State private var selectedPage: WatchPage = .twilight
     @State private var hasVisitedCompassPage = false
+    @State private var hasCompletedCompassWarmup = false
+    @State private var isCompassPagePresentationReady = false
+    @State private var compassPageActivationTask: Task<Void, Never>?
     @State private var hasBootstrapped = false
     @State private var bootstrapScheduledUptime: TimeInterval?
     @State private var loggedFirstTwilightRenderable = false
@@ -139,7 +142,12 @@ struct GoldenTimeWatchRootView: View {
                     )
                 }
             }
-            model.setCompassPageActive(isCompassPage)
+            if isCompassPage {
+                activateCompassPageIfNeeded()
+            } else {
+                compassPageActivationTask?.cancel()
+                model.setCompassPageActive(false)
+            }
         }
     }
 
@@ -202,12 +210,12 @@ struct GoldenTimeWatchRootView: View {
     @ViewBuilder
     private func watchCompassPage(skin: GTPhaseSkin) -> some View {
         Group {
-            if hasVisitedCompassPage, let coord = model.mapCoordinate {
+            if let coord = model.mapCoordinate {
                 GeometryReader { geo in
                     let span = min(geo.size.width, geo.size.height)
                     let side = max(span * 0.9, 1)
                     TwilightCompassCard(
-                        showMapBase: compassShowsMapBase,
+                        showMapBase: compassShowsMapBase && isCompassPagePresentationReady,
                         chromeGradient: skin.chromeGradient,
                         compassInk: skin.ink,
                         compassStroke: skin.panelStroke,
@@ -240,5 +248,23 @@ struct GoldenTimeWatchRootView: View {
             }
         }
         .accessibilityIdentifier("gt.watch.compassPage")
+    }
+
+    private func activateCompassPageIfNeeded() {
+        compassPageActivationTask?.cancel()
+        guard !hasCompletedCompassWarmup else {
+            isCompassPagePresentationReady = true
+            model.setCompassPageActive(true)
+            return
+        }
+
+        isCompassPagePresentationReady = false
+        compassPageActivationTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled, selectedPage == .compass else { return }
+            hasCompletedCompassWarmup = true
+            isCompassPagePresentationReady = true
+            model.setCompassPageActive(true)
+        }
     }
 }
