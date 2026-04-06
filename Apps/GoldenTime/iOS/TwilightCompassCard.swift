@@ -359,6 +359,10 @@ private struct WatchCompassMapUnderlay: View {
 /// Circular **heading-up** compass: top of the disk = phone forward; optional `MapKit` basemap when `showMapBase`.
 /// True-north **red glyph** pivots at center; optional degree ring + cardinals (localized). No system-style thick top heading bar.
 struct TwilightCompassCard: View {
+    #if os(iOS)
+    private static let mapLoadingFallbackDelay: Duration = .seconds(2)
+    #endif
+
     var showMapBase: Bool
     var chromeGradient: [Color]
     /// Primary ink for NSEW labels and heading arrow (matches twilight cards).
@@ -392,6 +396,8 @@ struct TwilightCompassCard: View {
     @State private var mapTilesReady = false
     #if os(iOS)
     @State private var isMapPresentationReady = false
+    @State private var mapLoadingTimedOut = false
+    @State private var frozenMapHeadingDegrees = 0.0
     #endif
 
     private var mapCameraDistanceValue: CLLocationDistance {
@@ -416,6 +422,20 @@ struct TwilightCompassCard: View {
     private var heading: Double {
         deviceHeadingDegrees ?? 0
     }
+
+    #if os(iOS)
+    private var effectiveMapHeading: Double {
+        mapTilesReady ? heading : frozenMapHeadingDegrees
+    }
+
+    private var shouldShowInteractiveMap: Bool {
+        showMapBase && isMapPresentationReady && !mapLoadingTimedOut
+    }
+
+    private var shouldShowLoadingFallback: Bool {
+        shouldShowInteractiveMap && !mapTilesReady
+    }
+    #endif
 
     private var shadowOpacity: Double {
         #if os(watchOS)
@@ -457,15 +477,15 @@ struct TwilightCompassCard: View {
     var body: some View {
         GeometryReader { geo in
             #if os(iOS)
-            let railW: CGFloat = showMapBase ? 15 : 0
-            let railGap: CGFloat = showMapBase ? 6 : 0
+            let railW: CGFloat = shouldShowInteractiveMap ? 15 : 0
+            let railGap: CGFloat = shouldShowInteractiveMap ? 6 : 0
             let side = min(geo.size.width - railW - railGap, geo.size.height)
             #else
             let side = min(geo.size.width, geo.size.height)
             #endif
             Group {
                 #if os(iOS)
-                if showMapBase, isMapPresentationReady {
+                if shouldShowInteractiveMap {
                     let mapDiameter = CompassMapFrame.mapDiskDiameter(side: side)
                     let railH = min(side * 0.58, 172)
                     HStack(alignment: .center, spacing: railGap) {
@@ -473,7 +493,7 @@ struct TwilightCompassCard: View {
                             CompassMapUnderlay(
                                 mapTilesReady: $mapTilesReady,
                                 coordinate: coordinate,
-                                headingDegrees: heading,
+                                headingDegrees: effectiveMapHeading,
                                 cameraDistance: mapCameraDistanceValue,
                                 useDarkMapAppearance: !chromeIsLight
                             )
@@ -533,20 +553,46 @@ struct TwilightCompassCard: View {
         .aspectRatio(1, contentMode: .fit)
         #if os(iOS) || os(watchOS)
         .onChange(of: showMapBase) { _, isOn in
-            if isOn { mapTilesReady = false }
+            if isOn {
+                mapTilesReady = false
+                #if os(iOS)
+                mapLoadingTimedOut = false
+                frozenMapHeadingDegrees = heading
+                #endif
+            }
         }
         .onChange(of: chromeIsLight) { _, _ in
-            if showMapBase { mapTilesReady = false }
+            if showMapBase {
+                mapTilesReady = false
+                #if os(iOS)
+                mapLoadingTimedOut = false
+                frozenMapHeadingDegrees = heading
+                #endif
+            }
         }
         #if os(iOS)
+        .onChange(of: mapTilesReady) { _, isReady in
+            if isReady {
+                mapLoadingTimedOut = false
+                frozenMapHeadingDegrees = heading
+            }
+        }
         .task(id: showMapBase) {
             guard showMapBase else {
                 isMapPresentationReady = false
+                mapLoadingTimedOut = false
                 return
             }
             await Task.yield()
             guard !Task.isCancelled else { return }
             isMapPresentationReady = true
+        }
+        .task(id: shouldShowLoadingFallback) {
+            guard shouldShowLoadingFallback else { return }
+            try? await Task.sleep(for: Self.mapLoadingFallbackDelay)
+            guard !Task.isCancelled else { return }
+            guard showMapBase, isMapPresentationReady, !mapTilesReady else { return }
+            mapLoadingTimedOut = true
         }
         #endif
         #endif
