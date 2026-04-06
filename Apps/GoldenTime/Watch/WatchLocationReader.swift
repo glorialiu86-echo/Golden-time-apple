@@ -16,7 +16,7 @@ final class WatchLocationReader: NSObject, ObservableObject, @unchecked Sendable
     override init() {
         super.init()
         manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
         manager.headingFilter = 5
         authorizationStatus = manager.authorizationStatus
         syncHeadingUpdates()

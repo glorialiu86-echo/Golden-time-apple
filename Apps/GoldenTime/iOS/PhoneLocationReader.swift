@@ -16,7 +16,7 @@ final class PhoneLocationReader: NSObject, ObservableObject, @unchecked Sendable
     override init() {
         super.init()
         manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
         manager.headingFilter = 3
         authorizationStatus = manager.authorizationStatus
         syncHeadingUpdates()

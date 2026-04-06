@@ -27,6 +27,61 @@ private enum CompassMapFrame {
         max(outerRimDiameter(side: side) - 10, 1)
     }
 }
+
+/// Apple Maps in mainland China uses GCJ-02-style display coordinates; keep astro math on raw GPS and shift only the basemap camera.
+private enum CompassMapDisplayCoordinate {
+    private static let earthSemiMajorAxis = 6_378_245.0
+    private static let eccentricitySquared = 0.006_693_421_622_965_943_23
+
+    static func adjusted(_ coordinate: CLLocationCoordinate2D) -> CLLocationCoordinate2D {
+        guard CLLocationCoordinate2DIsValid(coordinate), isInMainlandChina(coordinate) else { return coordinate }
+        let delta = offset(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        return CLLocationCoordinate2D(
+            latitude: coordinate.latitude + delta.latitude,
+            longitude: coordinate.longitude + delta.longitude
+        )
+    }
+
+    private static func isInMainlandChina(_ coordinate: CLLocationCoordinate2D) -> Bool {
+        let lat = coordinate.latitude
+        let lon = coordinate.longitude
+        guard lon >= 72.004, lon <= 137.8347, lat >= 0.8293, lat <= 55.8271 else { return false }
+        if lon >= 113.8, lon <= 114.5, lat >= 22.1, lat <= 22.6 { return false } // Hong Kong
+        if lon >= 113.4, lon <= 113.7, lat >= 22.0, lat <= 22.3 { return false } // Macau
+        if lon >= 119.0, lon <= 122.1, lat >= 21.8, lat <= 25.4 { return false } // Taiwan
+        return true
+    }
+
+    private static func offset(latitude: Double, longitude: Double) -> (latitude: Double, longitude: Double) {
+        let x = longitude - 105.0
+        let y = latitude - 35.0
+        let dLat = transformLatitude(x: x, y: y)
+        let dLon = transformLongitude(x: x, y: y)
+        let radLat = latitude / 180.0 * .pi
+        let magic = 1.0 - eccentricitySquared * pow(sin(radLat), 2)
+        let sqrtMagic = sqrt(magic)
+        let latOffset = (dLat * 180.0) /
+            ((earthSemiMajorAxis * (1.0 - eccentricitySquared)) / (magic * sqrtMagic) * .pi)
+        let lonOffset = (dLon * 180.0) / (earthSemiMajorAxis / sqrtMagic * cos(radLat) * .pi)
+        return (latOffset, lonOffset)
+    }
+
+    private static func transformLatitude(x: Double, y: Double) -> Double {
+        var result = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * sqrt(abs(x))
+        result += (20.0 * sin(6.0 * x * .pi) + 20.0 * sin(2.0 * x * .pi)) * 2.0 / 3.0
+        result += (20.0 * sin(y * .pi) + 40.0 * sin(y / 3.0 * .pi)) * 2.0 / 3.0
+        result += (160.0 * sin(y / 12.0 * .pi) + 320.0 * sin(y * .pi / 30.0)) * 2.0 / 3.0
+        return result
+    }
+
+    private static func transformLongitude(x: Double, y: Double) -> Double {
+        var result = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * sqrt(abs(x))
+        result += (20.0 * sin(6.0 * x * .pi) + 20.0 * sin(2.0 * x * .pi)) * 2.0 / 3.0
+        result += (20.0 * sin(x * .pi) + 40.0 * sin(x / 3.0 * .pi)) * 2.0 / 3.0
+        result += (150.0 * sin(x / 12.0 * .pi) + 300.0 * sin(x / 30.0 * .pi)) * 2.0 / 3.0
+        return result
+    }
+}
 #endif
 
 #if os(iOS)
@@ -92,11 +147,12 @@ private struct CompassMapUnderlay: UIViewRepresentable {
             mapView.overrideUserInterfaceStyle = useDarkMapAppearance ? .dark : .unspecified
         }
         guard CLLocationCoordinate2DIsValid(coordinate) else { return }
+        let displayCoordinate = CompassMapDisplayCoordinate.adjusted(coordinate)
         let d = cameraDistance.clamped(
             to: CompassMapCamera.minDistance ... CompassMapCamera.maxDistance
         )
         let cam = MKMapCamera(
-            lookingAtCenter: coordinate,
+            lookingAtCenter: displayCoordinate,
             fromDistance: d,
             pitch: 0,
             heading: headingDegrees
@@ -253,8 +309,9 @@ private struct WatchCompassMapUnderlay: View {
 
     private func applyCamera() {
         guard CLLocationCoordinate2DIsValid(coordinate) else { return }
+        let displayCoordinate = CompassMapDisplayCoordinate.adjusted(coordinate)
         let d = cameraDistance.clamped(to: CompassMapCamera.minDistance ... CompassMapCamera.maxDistance)
-        let cam = MapCamera(centerCoordinate: coordinate, distance: d, heading: headingDegrees, pitch: 0)
+        let cam = MapCamera(centerCoordinate: displayCoordinate, distance: d, heading: headingDegrees, pitch: 0)
         cameraPosition = .camera(cam)
     }
 }
