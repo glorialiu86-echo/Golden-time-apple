@@ -134,25 +134,25 @@ struct GoldenTwilightIOSProvider: AppIntentTimelineProvider {
 private extension GoldenTimeTwilightCardMetrics {
     /// Single small tile: gradient fills the widget via `ContainerRelativeShape`.
     static let iosWidgetSmall = GoldenTimeTwilightCardMetrics(
-        timeFontSize: 27,
-        mainSlotHeight: 46,
-        countdownLabelFontSize: 17,
+        timeFontSize: 34,
+        mainSlotHeight: 54,
+        countdownLabelFontSize: 21,
         horizontalPadding: 12,
-        verticalPadding: 7,
+        verticalPadding: 8,
         cornerRadius: 0,
-        titleFont: .subheadline.weight(.bold),
-        symbolFont: .footnote.weight(.semibold)
+        titleFont: .headline.weight(.bold),
+        symbolFont: .body.weight(.semibold)
     )
 
     static let iosWidgetMediumHalf = GoldenTimeTwilightCardMetrics(
-        timeFontSize: 20,
-        mainSlotHeight: 34,
-        countdownLabelFontSize: 12,
-        horizontalPadding: 7,
-        verticalPadding: 5,
+        timeFontSize: 27,
+        mainSlotHeight: 44,
+        countdownLabelFontSize: 16,
+        horizontalPadding: 8,
+        verticalPadding: 6,
         cornerRadius: 0,
-        titleFont: .caption.weight(.bold),
-        symbolFont: .caption2.weight(.semibold)
+        titleFont: .subheadline.weight(.bold),
+        symbolFont: .footnote.weight(.semibold)
     )
 }
 
