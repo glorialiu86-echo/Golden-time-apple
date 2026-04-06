@@ -19,9 +19,9 @@ final class GoldenTimeWatchUITests: XCTestCase {
         let twilight = app.scrollViews["gt.watch.twilightPage"].firstMatch
         XCTAssertTrue(twilight.waitForExistence(timeout: 20), "Twilight page should appear first")
 
-        app.swipeUp()
+        app.swipeLeft()
 
         let compass = app.otherElements["gt.watch.compassPage"].firstMatch
-        XCTAssertTrue(compass.waitForExistence(timeout: 15), "Compass page should appear after vertical paging")
+        XCTAssertTrue(compass.waitForExistence(timeout: 15), "Compass page should appear after paging TabView")
     }
 }

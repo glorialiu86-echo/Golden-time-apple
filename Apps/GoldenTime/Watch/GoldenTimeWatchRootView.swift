@@ -35,12 +35,14 @@ struct GoldenTimeWatchRootView: View {
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
-        GeometryReader { geo in
-            ZStack {
-                pageGradient
-                    .ignoresSafeArea()
-                verticalPagingTabView(size: geo.size, skin: skin)
+        ZStack {
+            pageGradient
+                .ignoresSafeArea()
+            TabView {
+                watchTwilightPage(skin: skin, now: tickNow)
+                watchCompassPage(skin: skin)
             }
+            .tabViewStyle(.page(indexDisplayMode: .automatic))
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { date in
             tickNow = date
@@ -63,22 +65,6 @@ struct GoldenTimeWatchRootView: View {
         .onChange(of: twilightModeRaw) { _, _ in
             model.objectWillChange.send()
         }
-    }
-
-    private func verticalPagingTabView(size: CGSize, skin: GTPhaseSkin) -> some View {
-        TabView {
-            watchTwilightPage(skin: skin, now: tickNow)
-                .frame(width: size.width, height: size.height)
-                .rotationEffect(.degrees(90))
-
-            watchCompassPage(skin: skin)
-                .frame(width: size.width, height: size.height)
-                .rotationEffect(.degrees(90))
-        }
-        .frame(width: size.height, height: size.width)
-        .rotationEffect(.degrees(-90), anchor: .topLeading)
-        .offset(x: 0, y: size.height)
-        .tabViewStyle(.page(indexDisplayMode: .automatic))
     }
 
     @ViewBuilder
