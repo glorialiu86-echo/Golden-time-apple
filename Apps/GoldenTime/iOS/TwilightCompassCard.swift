@@ -381,6 +381,7 @@ struct TwilightCompassCard: View {
     @State private var mapTilesReady = false
     #if os(iOS)
     @State private var isMapPresentationReady = false
+    @State private var frozenMapHeadingDegrees: Double?
     #endif
 
     private var mapCameraDistanceValue: CLLocationDistance {
@@ -405,6 +406,15 @@ struct TwilightCompassCard: View {
     private var heading: Double {
         deviceHeadingDegrees ?? 0
     }
+
+    #if os(iOS)
+    private var effectiveMapHeading: Double {
+        if showMapBase, !mapTilesReady {
+            return frozenMapHeadingDegrees ?? heading
+        }
+        return heading
+    }
+    #endif
 
     private var shadowOpacity: Double {
         #if os(watchOS)
@@ -462,7 +472,7 @@ struct TwilightCompassCard: View {
                             CompassMapUnderlay(
                                 mapTilesReady: $mapTilesReady,
                                 coordinate: coordinate,
-                                headingDegrees: heading,
+                                headingDegrees: effectiveMapHeading,
                                 cameraDistance: mapCameraDistanceValue,
                                 useDarkMapAppearance: !chromeIsLight
                             )
@@ -521,17 +531,34 @@ struct TwilightCompassCard: View {
         .aspectRatio(1, contentMode: .fit)
         #if os(iOS) || os(watchOS)
         .onChange(of: showMapBase) { _, isOn in
+            #if os(iOS)
+            frozenMapHeadingDegrees = isOn ? heading : nil
+            #endif
             if isOn { mapTilesReady = false }
         }
         .onChange(of: chromeIsLight) { _, _ in
-            if showMapBase { mapTilesReady = false }
+            if showMapBase {
+                #if os(iOS)
+                frozenMapHeadingDegrees = heading
+                #endif
+                mapTilesReady = false
+            }
         }
         #if os(iOS)
+        .onChange(of: mapTilesReady) { _, isReady in
+            if isReady {
+                frozenMapHeadingDegrees = nil
+            } else if showMapBase {
+                frozenMapHeadingDegrees = heading
+            }
+        }
         .task(id: showMapBase) {
             guard showMapBase else {
                 isMapPresentationReady = false
+                frozenMapHeadingDegrees = nil
                 return
             }
+            frozenMapHeadingDegrees = heading
             await Task.yield()
             guard !Task.isCancelled else { return }
             isMapPresentationReady = true
