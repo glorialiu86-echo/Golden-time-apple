@@ -381,6 +381,7 @@ struct TwilightCompassCard: View {
     @State private var mapTilesReady = false
     #if os(iOS)
     @State private var isMapPresentationReady = false
+    @State private var hasPresentedMapOnce = false
     @State private var frozenMapHeadingDegrees: Double?
     #endif
 
@@ -561,6 +562,11 @@ struct TwilightCompassCard: View {
             frozenMapHeadingDegrees = heading
             await Task.yield()
             guard !Task.isCancelled else { return }
+            if !hasPresentedMapOnce {
+                try? await Task.sleep(for: .milliseconds(1200))
+                guard !Task.isCancelled else { return }
+                hasPresentedMapOnce = true
+            }
             isMapPresentationReady = true
         }
         #endif
