@@ -9,10 +9,11 @@ public enum GTWidgetTwilightFocus: String, AppEnum {
         TypeDisplayRepresentation(name: LocalizedStringResource(stringLiteral: "Twilight"))
     }
 
+    /// Picker labels aligned with widget headers (EN omits “hour”).
     public static var caseDisplayRepresentations: [GTWidgetTwilightFocus: DisplayRepresentation] {
         [
-            .blueHour: DisplayRepresentation(title: LocalizedStringResource(stringLiteral: "Blue hour")),
-            .goldenHour: DisplayRepresentation(title: LocalizedStringResource(stringLiteral: "Golden hour")),
+            .blueHour: DisplayRepresentation(title: LocalizedStringResource(stringLiteral: "Next Blue")),
+            .goldenHour: DisplayRepresentation(title: LocalizedStringResource(stringLiteral: "Next Golden")),
         ]
     }
 }

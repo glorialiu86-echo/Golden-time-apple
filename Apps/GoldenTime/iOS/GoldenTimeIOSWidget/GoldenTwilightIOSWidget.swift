@@ -38,8 +38,8 @@ struct GoldenTwilightIOSProvider: AppIntentTimelineProvider {
         let golden = GoldenTwilightIOSWidgetIntent()
         golden.smallSlot = .goldenHour
         return [
-            AppIntentRecommendation(intent: blue, description: "Blue hour on the small widget."),
-            AppIntentRecommendation(intent: golden, description: "Golden hour on the small widget."),
+            AppIntentRecommendation(intent: blue, description: "Next Blue on the small widget."),
+            AppIntentRecommendation(intent: golden, description: "Next Golden on the small widget."),
         ]
     }
 
@@ -217,7 +217,7 @@ struct GoldenTwilightIOSWidgetView: View {
         .padding(widgetContentMargins)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .containerBackground(for: .widget) {
-            twilightWidgetSingleContainerBackground(skin: skin, blue: blue)
+            GTTwilightWidgetChrome.singleContainerBackground(skin: skin, blue: blue)
         }
     }
 
@@ -270,21 +270,7 @@ struct GoldenTwilightIOSWidgetView: View {
     }
 }
 
-// MARK: - Full-bleed widget chrome (gradient is the container, like Maps)
-
-private func twilightWidgetSingleContainerBackground(skin: GTPhaseSkin, blue: Bool) -> some View {
-    let gradient = LinearGradient(
-        colors: skin.twilightCardGradient(blue: blue),
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-    return ContainerRelativeShape()
-        .fill(gradient)
-        .overlay(
-            ContainerRelativeShape()
-                .strokeBorder(skin.panelStroke, lineWidth: 1)
-        )
-}
+// MARK: - Full-bleed medium widget chrome (gradient is the container, like Maps)
 
 private func twilightWidgetMediumContainerBackground(skin: GTPhaseSkin, blueTwilightFirst: Bool) -> some View {
     HStack(spacing: 0) {

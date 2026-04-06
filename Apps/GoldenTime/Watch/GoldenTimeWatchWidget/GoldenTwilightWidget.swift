@@ -9,10 +9,10 @@ struct GoldenTwilightWidgetIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource { LocalizedStringResource(stringLiteral: "Twilight Compass") }
 
     static var description: IntentDescription {
-        IntentDescription("Next blue hour and golden hour from cached location.")
+        IntentDescription("Next blue and golden twilight from cached location.")
     }
 
-    @Parameter(title: "Rectangle shows", default: .blueHour)
+    @Parameter(title: LocalizedStringResource(stringLiteral: "Rectangular widget shows"), default: .blueHour)
     var rectangleSlot: GTWidgetTwilightFocus
 }
 
@@ -21,8 +21,10 @@ struct GoldenTwilightWidgetIntent: WidgetConfigurationIntent {
 struct GoldenTwilightEntry: TimelineEntry {
     var date: Date
     var lang: GTAppLanguage
-    var blueLine: String
-    var goldenLine: String
+    var useClockTimes: Bool
+    var phase: PhaseState?
+    var blueWindow: (start: Date, end: Date)?
+    var goldenWindow: (start: Date, end: Date)?
     var rectangleSlot: GTWidgetTwilightFocus
 }
 
@@ -32,16 +34,24 @@ struct GoldenTwilightProvider: AppIntentTimelineProvider {
 
     func recommendations() -> [AppIntentRecommendation<GoldenTwilightWidgetIntent>] {
         let blue = GoldenTwilightWidgetIntent()
-        var golden = GoldenTwilightWidgetIntent()
+        let golden = GoldenTwilightWidgetIntent()
         golden.rectangleSlot = .goldenHour
         return [
-            AppIntentRecommendation(intent: blue, description: "Blue hour on the rectangular widget."),
-            AppIntentRecommendation(intent: golden, description: "Golden hour on the rectangular widget."),
+            AppIntentRecommendation(intent: blue, description: "Next Blue on the rectangular widget."),
+            AppIntentRecommendation(intent: golden, description: "Next Golden on the rectangular widget."),
         ]
     }
 
     func placeholder(in _: Context) -> GoldenTwilightEntry {
-        GoldenTwilightEntry(date: Date(), lang: .chinese, blueLine: "—", goldenLine: "—", rectangleSlot: .blueHour)
+        GoldenTwilightEntry(
+            date: Date(),
+            lang: .chinese,
+            useClockTimes: true,
+            phase: nil,
+            blueWindow: nil,
+            goldenWindow: nil,
+            rectangleSlot: .blueHour
+        )
     }
 
     func snapshot(for configuration: GoldenTwilightWidgetIntent, in _: Context) async -> GoldenTwilightEntry {
@@ -63,8 +73,10 @@ struct GoldenTwilightProvider: AppIntentTimelineProvider {
             return GoldenTwilightEntry(
                 date: now,
                 lang: lang,
-                blueLine: "—",
-                goldenLine: "—",
+                useClockTimes: true,
+                phase: nil,
+                blueWindow: nil,
+                goldenWindow: nil,
                 rectangleSlot: rectangleSlot
             )
         }
@@ -79,117 +91,101 @@ struct GoldenTwilightProvider: AppIntentTimelineProvider {
             ?? UserDefaults.standard.string(forKey: GTTwilightDisplayMode.storageKey)
         let useClockTimes =
             (modeRaw ?? GTTwilightDisplayMode.clockTimes.rawValue) != GTTwilightDisplayMode.countdown.rawValue
-        func line(for window: (start: Date, end: Date)?) -> String {
-            guard let window else { return "—" }
-            if useClockTimes {
-                return GTDateFormatters.twilightInstantLabel(window.start, lang: lang)
-            }
-            return GTTwilightCountdownLine.text(from: now, to: window.start, lang: lang)
-                ?? GTCopy.countdownLessThanOneMinute(lang)
-        }
-        let b = line(for: engine.nextBlueWindow(after: now))
-        let g = line(for: engine.nextGoldenWindow(after: now))
-        return GoldenTwilightEntry(date: now, lang: lang, blueLine: b, goldenLine: g, rectangleSlot: rectangleSlot)
+        let phase = engine.currentState(at: now)
+        let bWin = engine.blueWindowRelevant(at: now)
+        let gWin = engine.goldenWindowRelevant(at: now)
+        return GoldenTwilightEntry(
+            date: now,
+            lang: lang,
+            useClockTimes: useClockTimes,
+            phase: phase,
+            blueWindow: bWin,
+            goldenWindow: gWin,
+            rectangleSlot: rectangleSlot
+        )
     }
 }
 
-// MARK: - Views
+// MARK: - Metrics (watch accessory rectangular ≈ iPhone small layout, tighter type)
 
-private struct TwilightWatchAccessoryModule: View {
-    var blue: Bool
-    var title: String
-    var systemImage: String
-    var valueLine: String
-
-    var body: some View {
-        let skin = GTPhaseSkin.day
-        HStack(spacing: 8) {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: skin.twilightCardGradient(blue: blue),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(skin.panelStroke, lineWidth: 1)
-                )
-                .frame(width: 36, height: 36)
-                .overlay {
-                    Image(systemName: systemImage)
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
-                }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                Text(valueLine)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.55)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.vertical, 2)
-    }
+private extension GoldenTimeTwilightCardMetrics {
+    static let watchAccessoryRectangular = GoldenTimeTwilightCardMetrics(
+        timeFontSize: 24,
+        mainSlotHeight: 0,
+        countdownLabelFontSize: 12,
+        horizontalPadding: 0,
+        verticalPadding: 0,
+        cornerRadius: 0,
+        titleFont: .system(size: 12, weight: .semibold, design: .rounded),
+        symbolFont: .system(size: 11, weight: .semibold, design: .rounded)
+    )
 }
 
 private extension GoldenTwilightEntry {
-    func title(blue: Bool) -> String {
-        blue ? GTCopy.blueHourTitle(lang) : GTCopy.goldenHourTitle(lang)
-    }
-
-    func symbol(blue: Bool) -> String {
-        blue ? "moon.stars.fill" : "sun.horizon.fill"
-    }
-
-    func line(blue: Bool) -> String {
-        blue ? blueLine : goldenLine
+    func clockStartEnd(blue: Bool) -> (String, String) {
+        let window = blue ? blueWindow : goldenWindow
+        guard let w = window else { return ("—", "—") }
+        let isLive = (blue && phase == .blue) || (!blue && phase == .golden)
+        let startStr: String = isLive
+            ? GTCopy.liveSegment(lang)
+            : GTDateFormatters.twilightInstantLabel(w.start, lang: lang)
+        let endStr = GTDateFormatters.twilightInstantLabel(w.end, lang: lang)
+        return (startStr, endStr)
     }
 }
 
 struct GoldenTwilightWidgetView: View {
     @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetContentMargins) private var widgetContentMargins
     var entry: GoldenTwilightEntry
+
+    private var skin: GTPhaseSkin {
+        GTPhaseSkin(phase: entry.phase)
+    }
 
     var body: some View {
         switch family {
         case .accessoryCircular:
-            ZStack {
-                AccessoryWidgetBackground()
-                Image("WidgetComplicationMark")
-                    .resizable()
-                    .scaledToFit()
-                    .padding(7)
-            }
-            .containerBackground(Color.clear, for: .widget)
+            Image("WidgetComplicationMark")
+                .resizable()
+                .scaledToFit()
+                .padding(7)
+                .containerBackground(Color.clear, for: .widget)
         case .accessoryRectangular:
-            let blue = entry.rectangleSlot == .blueHour
-            TwilightWatchAccessoryModule(
-                blue: blue,
-                title: entry.title(blue: blue),
-                systemImage: entry.symbol(blue: blue),
-                valueLine: entry.line(blue: blue)
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .padding(.horizontal, 4)
-            .containerBackground(Color.clear, for: .widget)
+            rectangularBody
         default:
-            ZStack {
-                AccessoryWidgetBackground()
-                Image("WidgetComplicationMark")
-                    .resizable()
-                    .scaledToFit()
-                    .padding(7)
-            }
-            .containerBackground(Color.clear, for: .widget)
+            Image("WidgetComplicationMark")
+                .resizable()
+                .scaledToFit()
+                .padding(7)
+                .containerBackground(Color.clear, for: .widget)
+        }
+    }
+
+    @ViewBuilder
+    private var rectangularBody: some View {
+        let blue = entry.rectangleSlot == .blueHour
+        let (cs, ce) = entry.clockStartEnd(blue: blue)
+        GoldenTimeTwilightWindowCard(
+            skin: skin,
+            title: blue ? GTCopy.widgetTwilightTitleBlue(entry.lang) : GTCopy.widgetTwilightTitleGolden(entry.lang),
+            systemImage: blue ? "moon.stars.fill" : "sun.horizon.fill",
+            blue: blue,
+            useClockTimes: entry.useClockTimes,
+            window: blue ? entry.blueWindow : entry.goldenWindow,
+            clockStart: cs,
+            clockEnd: ce,
+            now: entry.date,
+            lang: entry.lang,
+            metrics: .watchAccessoryRectangular,
+            showsCardFill: false,
+            timeStyle: .widgetStacked,
+            widgetEdgeAlignment: .leading
+        )
+        .padding(widgetContentMargins)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .containerBackground(for: .widget) {
+            GTTwilightWidgetChrome.singleContainerBackground(skin: skin, blue: blue)
         }
     }
 }
@@ -204,7 +200,8 @@ struct GoldenTwilightWidget: Widget {
             GoldenTwilightWidgetView(entry: entry)
         }
         .configurationDisplayName(GTCopy.systemAppDisplayName())
-        .description("Circular: app mark. Rectangle: pick blue or golden. Uses cached location.")
+        .description("Circular: app mark only. Rectangular: same twilight card as iPhone small (pick Next Blue or Next Golden). Cached location — open the app on iPhone once to refresh.")
         .supportedFamilies([.accessoryCircular, .accessoryRectangular])
+        .contentMarginsDisabled()
     }
 }
