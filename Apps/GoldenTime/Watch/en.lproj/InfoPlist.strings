@@ -1,1 +1,2 @@
 "CFBundleDisplayName" = "Twilight Compass";
+"NSLocationWhenInUseUsageDescription" = "Used to obtain the device's latitude and longitude, and compute blue hour and golden hour locally on-device using astronomical formulas.";

@@ -1,1 +1,2 @@
 "CFBundleDisplayName" = "光影罗盘";
+"NSLocationWhenInUseUsageDescription" = "用于获取设备当前经纬度，并在本地根据天文公式计算蓝调与金调时间。";
