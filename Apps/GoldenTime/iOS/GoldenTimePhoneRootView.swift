@@ -3,6 +3,17 @@ import GoldenTimeCore
 import OSLog
 import SwiftUI
 
+#if DEBUG
+private enum GTDebugTwilightMode {
+    static let environmentKey = "GOLDEN_TIME_DEBUG_TWILIGHT_MODE"
+
+    static var override: GTTwilightDisplayMode? {
+        guard let raw = ProcessInfo.processInfo.environment[environmentKey] else { return nil }
+        return GTTwilightDisplayMode(rawValue: raw)
+    }
+}
+#endif
+
 struct GoldenTimePhoneRootView: View {
     private static let performanceLog = Logger(subsystem: GTPerformanceLog.subsystem, category: "PhoneLaunch")
 
@@ -27,7 +38,12 @@ struct GoldenTimePhoneRootView: View {
     }
 
     private var twilightUsesClockTimes: Bool {
-        twilightModeRaw != GTTwilightDisplayMode.countdown.rawValue
+        #if DEBUG
+        if let override = GTDebugTwilightMode.override {
+            return override != .countdown
+        }
+        #endif
+        return twilightModeRaw != GTTwilightDisplayMode.countdown.rawValue
     }
 
     private var compassShowsMapBase: Bool {
