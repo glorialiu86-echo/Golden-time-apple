@@ -24,7 +24,8 @@ final class WatchLocationReader: NSObject, ObservableObject, @unchecked Sendable
     override init() {
         super.init()
         manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+        // Match iPhone behavior: favor a fast first fix over meter-level precision we don't need for twilight UI.
+        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
         manager.headingFilter = 5
         authorizationStatus = manager.authorizationStatus
         syncHeadingUpdates()
