@@ -355,7 +355,6 @@ struct TwilightCompassCard: View {
     @State private var mapTilesReady = false
     #if os(iOS)
     @State private var isMapPresentationReady = false
-    @State private var frozenMapHeadingDegrees = 0.0
     #endif
 
     private var mapCameraDistanceValue: CLLocationDistance {
@@ -380,12 +379,6 @@ struct TwilightCompassCard: View {
     private var heading: Double {
         deviceHeadingDegrees ?? 0
     }
-
-    #if os(iOS)
-    private var effectiveMapHeading: Double {
-        mapTilesReady ? heading : frozenMapHeadingDegrees
-    }
-    #endif
 
     private var shadowOpacity: Double {
         #if os(watchOS)
@@ -427,8 +420,8 @@ struct TwilightCompassCard: View {
     var body: some View {
         GeometryReader { geo in
             #if os(iOS)
-            let railW: CGFloat = showMapBase && isMapPresentationReady ? 15 : 0
-            let railGap: CGFloat = showMapBase && isMapPresentationReady ? 6 : 0
+            let railW: CGFloat = showMapBase ? 15 : 0
+            let railGap: CGFloat = showMapBase ? 6 : 0
             let side = min(geo.size.width - railW - railGap, geo.size.height)
             #else
             let side = min(geo.size.width, geo.size.height)
@@ -443,7 +436,7 @@ struct TwilightCompassCard: View {
                             CompassMapUnderlay(
                                 mapTilesReady: $mapTilesReady,
                                 coordinate: coordinate,
-                                headingDegrees: effectiveMapHeading,
+                                headingDegrees: heading,
                                 cameraDistance: mapCameraDistanceValue,
                                 useDarkMapAppearance: !chromeIsLight
                             )
@@ -502,27 +495,12 @@ struct TwilightCompassCard: View {
         .aspectRatio(1, contentMode: .fit)
         #if os(iOS) || os(watchOS)
         .onChange(of: showMapBase) { _, isOn in
-            if isOn {
-                mapTilesReady = false
-                #if os(iOS)
-                frozenMapHeadingDegrees = heading
-                #endif
-            }
+            if isOn { mapTilesReady = false }
         }
         .onChange(of: chromeIsLight) { _, _ in
-            if showMapBase {
-                mapTilesReady = false
-                #if os(iOS)
-                frozenMapHeadingDegrees = heading
-                #endif
-            }
+            if showMapBase { mapTilesReady = false }
         }
         #if os(iOS)
-        .onChange(of: mapTilesReady) { _, isReady in
-            if isReady {
-                frozenMapHeadingDegrees = heading
-            }
-        }
         .task(id: showMapBase) {
             guard showMapBase else {
                 isMapPresentationReady = false
