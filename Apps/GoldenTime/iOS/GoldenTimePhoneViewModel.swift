@@ -505,6 +505,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         defaults.set(fix.longitude, forKey: lonKey)
         defaults.set(fix.timestamp.timeIntervalSince1970, forKey: tsKey)
         reloadTwilightWidgetTimelines()
+        GTWatchConnectivitySync.shared.pushPhoneStateFromStore()
     }
 
     /// Home-screen widgets do not observe `UserDefaults`; ask WidgetKit to re-run the timeline after cache or settings change.

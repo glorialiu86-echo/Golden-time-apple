@@ -1,25 +1,36 @@
 import Foundation
 #if os(iOS) || os(watchOS)
 @preconcurrency import WatchConnectivity
+import WidgetKit
 
 private enum GTWatchSyncPayload {
     static let languagePreferenceKey = GTAppLanguage.storageKey
     static let languageEffectiveKey = GTAppLanguage.effectiveMirrorKey
     static let twilightModeKey = GTTwilightDisplayMode.storageKey
     static let mapCameraDistanceKey = GTCompassMapSettings.storageKey
+    static let latitudeKey = GoldenTimeLocationCache.latitudeKey
+    static let longitudeKey = GoldenTimeLocationCache.longitudeKey
+    static let timestampKey = GoldenTimeLocationCache.timestampKey
 
     static func applicationContext(
         languagePreferenceRaw: String,
         effectiveLanguageRaw: String,
         twilightModeRaw: String,
-        mapCameraDistance: Double
+        mapCameraDistance: Double,
+        locationStore: UserDefaults
     ) -> [String: Any] {
-        [
+        var context: [String: Any] = [
             languagePreferenceKey: languagePreferenceRaw,
             languageEffectiveKey: effectiveLanguageRaw,
             twilightModeKey: twilightModeRaw,
             mapCameraDistanceKey: mapCameraDistance
         ]
+        if locationStore.object(forKey: latitudeKey) != nil {
+            context[latitudeKey] = locationStore.double(forKey: latitudeKey)
+            context[longitudeKey] = locationStore.double(forKey: longitudeKey)
+            context[timestampKey] = locationStore.double(forKey: timestampKey)
+        }
+        return context
     }
 
     static func apply(_ applicationContext: [String: Any], to store: UserDefaults) {
@@ -34,6 +45,15 @@ private enum GTWatchSyncPayload {
         }
         if let raw = applicationContext[mapCameraDistanceKey] as? Double, raw.isFinite, raw > 0 {
             store.set(raw, forKey: mapCameraDistanceKey)
+        }
+        if let raw = applicationContext[latitudeKey] as? Double, raw.isFinite {
+            store.set(raw, forKey: latitudeKey)
+        }
+        if let raw = applicationContext[longitudeKey] as? Double, raw.isFinite {
+            store.set(raw, forKey: longitudeKey)
+        }
+        if let raw = applicationContext[timestampKey] as? Double, raw.isFinite, raw > 0 {
+            store.set(raw, forKey: timestampKey)
         }
     }
 }
@@ -74,10 +94,26 @@ final class GTWatchConnectivitySync: NSObject, WCSessionDelegate, @unchecked Sen
             languagePreferenceRaw: languagePreferenceRaw,
             effectiveLanguageRaw: effectiveLanguageRaw,
             twilightModeRaw: twilightModeRaw,
-            mapCameraDistance: mapCameraDistance
+            mapCameraDistance: mapCameraDistance,
+            locationStore: store
         )
         setPendingPhoneContext(context)
         flushPendingPhoneContextIfPossible()
+    }
+
+    func pushPhoneStateFromStore() {
+        let languagePreferenceRaw = store.string(forKey: GTAppLanguage.storageKey) ?? GTAppLanguage.followSystemStorageValue
+        let effectiveLanguageRaw = store.string(forKey: GTAppLanguage.effectiveMirrorKey) ?? GTAppLanguage.english.rawValue
+        let twilightModeRaw = store.string(forKey: GTTwilightDisplayMode.storageKey) ?? GTTwilightDisplayMode.clockTimes.rawValue
+        let mapCameraDistance = store.double(forKey: GTCompassMapSettings.storageKey)
+        let resolvedMapDistance = mapCameraDistance > 0 ? mapCameraDistance : GTCompassMapSettings.defaultCameraDistanceMeters
+
+        pushPhoneState(
+            languagePreferenceRaw: languagePreferenceRaw,
+            effectiveLanguageRaw: effectiveLanguageRaw,
+            twilightModeRaw: twilightModeRaw,
+            mapCameraDistance: resolvedMapDistance
+        )
     }
     #endif
 
@@ -86,6 +122,7 @@ final class GTWatchConnectivitySync: NSObject, WCSessionDelegate, @unchecked Sen
         let context = session.receivedApplicationContext
         guard !context.isEmpty else { return }
         GTWatchSyncPayload.apply(context, to: store)
+        WidgetCenter.shared.reloadTimelines(ofKind: GTWatchWidgetKind.twilight)
     }
     #endif
 
@@ -100,6 +137,7 @@ final class GTWatchConnectivitySync: NSObject, WCSessionDelegate, @unchecked Sen
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
         #if os(watchOS)
         GTWatchSyncPayload.apply(applicationContext, to: store)
+        WidgetCenter.shared.reloadTimelines(ofKind: GTWatchWidgetKind.twilight)
         #endif
     }
 

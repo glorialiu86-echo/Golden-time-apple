@@ -2,6 +2,7 @@ import Combine
 import CoreLocation
 import Foundation
 import GoldenTimeCore
+import WidgetKit
 
 /// Watch UI state: GPS + heading + `GoldenTimeEngine`; mirrors iPhone twilight windows and compass inputs.
 @MainActor
@@ -284,5 +285,6 @@ final class GoldenTimeWatchViewModel: ObservableObject {
         defaults.set(fix.latitude, forKey: GoldenTimeLocationCache.latitudeKey)
         defaults.set(fix.longitude, forKey: GoldenTimeLocationCache.longitudeKey)
         defaults.set(fix.timestamp.timeIntervalSince1970, forKey: GoldenTimeLocationCache.timestampKey)
+        WidgetCenter.shared.reloadTimelines(ofKind: GTWatchWidgetKind.twilight)
     }
 }

@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 /// App Group for iPhone + Watch + widgets: language preference (`gt.uiLanguage`: `zh` / `en` / `system`) + iPhone-written effective mirror for Watch, twilight card mode, compass UI flags, cached GPS.
 public enum GTAppGroup {
@@ -105,4 +108,9 @@ public enum GoldenTimeLocationCache {
 /// `WidgetKit` `StaticConfiguration(kind:)` — must match `GoldenTwilightIOSWidget`.
 public enum GTIOWidgetKind {
     public static let twilight = "time.golden.GoldenHourCompass.ios.twilight"
+}
+
+/// `WidgetKit` `AppIntentConfiguration(kind:)` — must match `GoldenTwilightWidget` on watchOS.
+public enum GTWatchWidgetKind {
+    public static let twilight = "time.golden.GoldenHourCompass.twilight"
 }
