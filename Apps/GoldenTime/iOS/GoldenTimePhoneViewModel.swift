@@ -3,7 +3,9 @@ import CoreLocation
 import Foundation
 import GoldenTimeCore
 import UIKit
+#if canImport(WidgetKit)
 import WidgetKit
+#endif
 
 enum GTSettingsLocationFeedback: Equatable {
     case idle
@@ -350,7 +352,9 @@ final class GoldenTimePhoneViewModel: ObservableObject {
 
     func flushDeferredExternalOutputs() {
         if Self.defaults.bool(forKey: Self.pendingWidgetReloadKey) {
+            #if canImport(WidgetKit)
             WidgetCenter.shared.reloadTimelines(ofKind: GTIOWidgetKind.twilight)
+            #endif
             Self.defaults.removeObject(forKey: Self.pendingWidgetReloadKey)
         }
         if Self.defaults.bool(forKey: Self.pendingPhoneStatePushKey) {
