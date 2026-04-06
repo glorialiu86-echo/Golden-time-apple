@@ -146,11 +146,7 @@ struct GoldenTwilightWidgetView: View {
     var body: some View {
         switch family {
         case .accessoryCircular:
-            Image("WidgetComplicationMark")
-                .resizable()
-                .scaledToFit()
-                .padding(7)
-                .containerBackground(Color.clear, for: .widget)
+            circularComplicationMark
         case .accessoryRectangular:
             rectangularBody
         default:
@@ -187,6 +183,52 @@ struct GoldenTwilightWidgetView: View {
         .containerBackground(for: .widget) {
             GTTwilightWidgetChrome.singleContainerBackground(skin: skin, blue: blue)
         }
+    }
+
+    private var circularComplicationMark: some View {
+        GeometryReader { proxy in
+            let size = min(proxy.size.width, proxy.size.height)
+            let stroke = max(1.8, size * 0.07)
+            let outerRadius = size * 0.24
+            let innerRadius = size * 0.12
+            let center = CGPoint(x: proxy.size.width / 2, y: proxy.size.height * 0.58)
+            let foreground = GTWidgetSurface.accessoryPrimary
+
+            ZStack {
+                Circle()
+                    .stroke(foreground.opacity(0.92), lineWidth: stroke)
+
+                Path { path in
+                    path.addArc(
+                        center: center,
+                        radius: outerRadius,
+                        startAngle: .degrees(180),
+                        endAngle: .degrees(0),
+                        clockwise: false
+                    )
+                }
+                .stroke(foreground, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
+
+                Path { path in
+                    path.addArc(
+                        center: center,
+                        radius: innerRadius,
+                        startAngle: .degrees(180),
+                        endAngle: .degrees(0),
+                        clockwise: false
+                    )
+                }
+                .stroke(foreground.opacity(0.88), style: StrokeStyle(lineWidth: stroke, lineCap: .round))
+
+                Capsule()
+                    .fill(foreground)
+                    .frame(width: size * 0.76, height: stroke)
+                    .position(x: proxy.size.width / 2, y: center.y)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .padding(5)
+        .containerBackground(Color.clear, for: .widget)
     }
 }
 
