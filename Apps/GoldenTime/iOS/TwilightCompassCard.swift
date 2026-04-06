@@ -239,6 +239,7 @@ private struct WatchCompassMapUnderlay: View {
     var body: some View {
         Map(position: $cameraPosition, interactionModes: [])
             .mapStyle(.standard(elevation: .flat))
+            .mapControlVisibility(.hidden)
             .environment(\.colorScheme, useDarkMapAppearance ? .dark : .light)
             .onAppear {
                 applyCamera()
