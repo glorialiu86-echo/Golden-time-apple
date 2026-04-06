@@ -176,7 +176,6 @@ public struct GoldenTimeTwilightWindowCard: View {
                             .font(.system(size: m.timeFontSize * 0.58, weight: .bold, design: .rounded))
                             .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
                             .frame(width: max(18, m.timeFontSize * 0.75), alignment: .center)
-                            .offset(y: -1)
                         Text(clockEnd)
                             .font(.system(size: m.timeFontSize, weight: .bold, design: .rounded))
                             .monospacedDigit()
