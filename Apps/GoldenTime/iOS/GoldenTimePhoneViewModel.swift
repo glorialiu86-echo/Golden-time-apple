@@ -64,6 +64,8 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     private var lastDailyDerivedStateKey: DailyDerivedStateKey?
     /// Last `[0,30)` … `[330,360)` bucket for device heading; haptic when crossing a 30° tick (like Apple Compass).
     private var headingThirtyDegreeBucket: Int?
+    /// Suppress first-use compass haptics while Core Location / scene restoration are still settling.
+    private var headingHapticWarmupUntilUptime: TimeInterval?
     private let headingTickHaptic = UIImpactFeedbackGenerator(style: .light)
 
     /// Mirrors `GTAppLanguage.phoneDisplayLanguage` from App Group preference on iPhone.
@@ -134,6 +136,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     private static let tsKey = GoldenTimeLocationCache.timestampKey
     private static let pendingWidgetReloadKey = "gt.phone.pendingWidgetReload"
     private static let pendingPhoneStatePushKey = "gt.phone.pendingPhoneStatePush"
+    private static let headingHapticWarmupDuration: TimeInterval = 8
 
     private let coordFormatter: NumberFormatter = {
         let f = NumberFormatter()
@@ -159,7 +162,13 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         var h = headingDegrees.truncatingRemainder(dividingBy: 360)
         if h < 0 { h += 360 }
         let bucket = min(11, Int(h / 30))
-        if let prev = headingThirtyDegreeBucket, prev != bucket {
+        let isHapticWarmupActive: Bool
+        if let warmupUntil = headingHapticWarmupUntilUptime {
+            isHapticWarmupActive = ProcessInfo.processInfo.systemUptime < warmupUntil
+        } else {
+            isHapticWarmupActive = false
+        }
+        if let prev = headingThirtyDegreeBucket, prev != bucket, !isHapticWarmupActive {
             headingTickHaptic.prepare()
             headingTickHaptic.impactOccurred(intensity: 0.55)
         }
@@ -319,6 +328,9 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     /// Call when the scene becomes active; cancels when app leaves foreground.
     func beginForegroundLocationSession(requestImmediately: Bool) {
         prepareLocationPipeline()
+        if headingThirtyDegreeBucket == nil {
+            headingHapticWarmupUntilUptime = ProcessInfo.processInfo.systemUptime + Self.headingHapticWarmupDuration
+        }
         if requestImmediately {
             locationReader?.requestLocation()
         }
@@ -333,6 +345,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     func endForegroundLocationSession() {
         locationHeartbeat?.cancel()
         locationHeartbeat = nil
+        headingHapticWarmupUntilUptime = nil
     }
 
     func flushDeferredExternalOutputs() {
