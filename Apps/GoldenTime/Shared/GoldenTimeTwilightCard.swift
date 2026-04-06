@@ -24,14 +24,14 @@ public struct GoldenTimeTwilightCardMetrics: Sendable {
     )
 
     public static let watch = GoldenTimeTwilightCardMetrics(
-        timeFontSize: 22,
-        mainSlotHeight: 34,
+        timeFontSize: 24,
+        mainSlotHeight: 36,
         countdownLabelFontSize: 14,
         horizontalPadding: 8,
         verticalPadding: 5,
         cornerRadius: 10,
-        titleFont: .subheadline.weight(.bold),
-        symbolFont: .caption.weight(.semibold)
+        titleFont: .system(size: 13, weight: .bold, design: .rounded),
+        symbolFont: .system(size: 11, weight: .semibold, design: .rounded)
     )
 }
 
