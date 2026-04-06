@@ -16,6 +16,26 @@ enum GTSettingsLocationFeedback: Equatable {
     case failed
 }
 
+#if DEBUG
+private enum GTDebugNow {
+    static let environmentKey = "GOLDEN_TIME_DEBUG_NOW_ISO8601"
+
+    static func current() -> Date {
+        guard let raw = ProcessInfo.processInfo.environment[environmentKey], !raw.isEmpty else {
+            return Date()
+        }
+        let fractionalFormatter = ISO8601DateFormatter()
+        fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let plainFormatter = ISO8601DateFormatter()
+        plainFormatter.formatOptions = [.withInternetDateTime]
+        if let parsed = fractionalFormatter.date(from: raw) ?? plainFormatter.date(from: raw) {
+            return parsed
+        }
+        return Date()
+    }
+}
+#endif
+
 /// Drives `GoldenTimeEngine` on-device only: GPS + cached coordinates + local time. No URLSession or remote APIs.
 @MainActor
 final class GoldenTimePhoneViewModel: ObservableObject {
@@ -100,7 +120,13 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     @Published private(set) var compassMoonBodyAzimuthDegrees: Double?
 
     /// Wall-clock instant for UI labels; updated every second (replaces `TimelineView`, which mis-sized on some simulators).
-    @Published private(set) var clockNow = Date()
+    @Published private(set) var clockNow: Date = {
+        #if DEBUG
+        GTDebugNow.current()
+        #else
+        Date()
+        #endif
+    }()
 
     private static var defaults: UserDefaults { GTAppGroup.shared }
     /// Matches `GoldenTimeEngine` apparent sunrise/sunset (−50′).
@@ -117,6 +143,14 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         f.numberStyle = .decimal
         return f
     }()
+
+    private func currentNow() -> Date {
+        #if DEBUG
+        GTDebugNow.current()
+        #else
+        Date()
+        #endif
+    }
 
     private func formatTwilightInstant(_ instant: Date) -> String {
         GTDateFormatters.twilightInstantLabel(instant, lang: contentLanguage)
@@ -138,7 +172,8 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             activeFix = cached
             updateCoordLabels(lat: cached.latitude, lon: cached.longitude)
         }
-        let now = Date()
+        let now = currentNow()
+        clockNow = now
         if activeFix != nil {
             recomputeEngineIfNeeded(now: now, force: true)
             Self.reloadTwilightWidgetTimelines()
@@ -151,7 +186,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self else { return }
-                let now = Date()
+                let now = self.currentNow()
                 self.clockNow = now
                 self.refreshForTick(at: now)
             }
@@ -341,7 +376,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         Self.saveCachedFix(fix)
         updateCoordLabels(lat: fix.latitude, lon: fix.longitude)
         recomputeStatusLine()
-        let now = Date()
+        let now = currentNow()
         recomputeEngineIfNeeded(now: now, force: true)
         rebuildDailyDerivedStateIfNeeded(now: now, force: true)
         refreshLiveState(now: now)

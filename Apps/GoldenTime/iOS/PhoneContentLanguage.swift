@@ -11,6 +11,19 @@ public enum GTAppLanguage: String, Hashable {
     /// iPhone writes the **effective** `zh`/`en` here so Watch/widgets match when preference is `followSystemStorageValue` or empty.
     public static let effectiveMirrorKey = "gt.uiLanguage.effectiveForWatch"
 
+    #if DEBUG
+    private static let debugOverrideEnvironmentKey = "GOLDEN_TIME_DEBUG_UI_LANGUAGE"
+
+    private static var debugOverride: GTAppLanguage? {
+        guard let raw = ProcessInfo.processInfo.environment[debugOverrideEnvironmentKey]?.lowercased() else { return nil }
+        switch raw {
+        case chinese.rawValue: return .chinese
+        case english.rawValue: return .english
+        default: return nil
+        }
+    }
+    #endif
+
     /// 仅当 iPhone 系统为简体中文时使用中文界面；繁体与其它系统语言一律英文（用于「跟随系统」选项）。
     public static func inferredFromSystem() -> GTAppLanguage {
         guard let first = Locale.preferredLanguages.first?.lowercased() else { return .english }
@@ -26,6 +39,9 @@ public enum GTAppLanguage: String, Hashable {
 
     /// iPhone / iOS 主程序与 iOS 小组件：`zh` / `en` 固定；`system` 或空字符串表示跟随 `inferredFromSystem()`。
     public static func phoneDisplayLanguage(preferenceRaw: String) -> GTAppLanguage {
+        #if DEBUG
+        if let debugOverride { return debugOverride }
+        #endif
         switch preferenceRaw {
         case chinese.rawValue: return .chinese
         case english.rawValue: return .english
@@ -36,6 +52,9 @@ public enum GTAppLanguage: String, Hashable {
 
     /// Apple Watch：用户显式选 `zh`/`en` 时直接用；否则读 iPhone 写入的 `effectiveMirrorKey`（未同步前默认为英文）。
     public static func watchResolved(preferenceRaw: String, effectiveMirrorRaw: String) -> GTAppLanguage {
+        #if DEBUG
+        if let debugOverride { return debugOverride }
+        #endif
         switch preferenceRaw {
         case chinese.rawValue: return .chinese
         case english.rawValue: return .english
