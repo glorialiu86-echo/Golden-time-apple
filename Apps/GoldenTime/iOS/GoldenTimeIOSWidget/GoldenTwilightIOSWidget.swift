@@ -8,9 +8,13 @@ import WidgetKit
 struct GoldenTwilightIOSEntry: TimelineEntry {
     var date: Date
     var lang: GTAppLanguage
-    var blueLine: String
-    var goldenLine: String
-    /// Small widget only; medium ignores and shows both.
+    var useClockTimes: Bool
+    var phase: PhaseState?
+    var blueWindow: (start: Date, end: Date)?
+    var goldenWindow: (start: Date, end: Date)?
+    /// Same ordering as iPhone `mainColumn` (`stackBlueFirst`).
+    var blueTwilightFirst: Bool
+    /// Small widget only; medium shows both.
     var smallSlot: GTWidgetTwilightFocus
 }
 
@@ -31,7 +35,7 @@ struct GoldenTwilightIOSProvider: AppIntentTimelineProvider {
 
     func recommendations() -> [AppIntentRecommendation<GoldenTwilightIOSWidgetIntent>] {
         let blue = GoldenTwilightIOSWidgetIntent()
-        var golden = GoldenTwilightIOSWidgetIntent()
+        let golden = GoldenTwilightIOSWidgetIntent()
         golden.smallSlot = .goldenHour
         return [
             AppIntentRecommendation(intent: blue, description: "Blue hour on the small widget."),
@@ -43,8 +47,11 @@ struct GoldenTwilightIOSProvider: AppIntentTimelineProvider {
         GoldenTwilightIOSEntry(
             date: Date(),
             lang: .chinese,
-            blueLine: "—",
-            goldenLine: "—",
+            useClockTimes: true,
+            phase: nil,
+            blueWindow: nil,
+            goldenWindow: nil,
+            blueTwilightFirst: true,
             smallSlot: .blueHour
         )
     }
@@ -65,7 +72,16 @@ struct GoldenTwilightIOSProvider: AppIntentTimelineProvider {
         let lang = GTAppLanguage.widgetLanguageIOS(suite: suite)
         let now = Date()
         guard suite.object(forKey: GoldenTimeLocationCache.latitudeKey) != nil else {
-            return GoldenTwilightIOSEntry(date: now, lang: lang, blueLine: "—", goldenLine: "—", smallSlot: smallSlot)
+            return GoldenTwilightIOSEntry(
+                date: now,
+                lang: lang,
+                useClockTimes: true,
+                phase: nil,
+                blueWindow: nil,
+                goldenWindow: nil,
+                blueTwilightFirst: true,
+                smallSlot: smallSlot
+            )
         }
         let lat = suite.double(forKey: GoldenTimeLocationCache.latitudeKey)
         let lon = suite.double(forKey: GoldenTimeLocationCache.longitudeKey)
@@ -78,81 +94,78 @@ struct GoldenTwilightIOSProvider: AppIntentTimelineProvider {
             ?? UserDefaults.standard.string(forKey: GTTwilightDisplayMode.storageKey)
         let useClockTimes =
             (modeRaw ?? GTTwilightDisplayMode.clockTimes.rawValue) != GTTwilightDisplayMode.countdown.rawValue
-        func line(for window: (start: Date, end: Date)?) -> String {
-            guard let window else { return "—" }
-            if useClockTimes {
-                return GTDateFormatters.twilightInstantLabel(window.start, lang: lang)
-            }
-            return GTTwilightCountdownLine.text(from: now, to: window.start, lang: lang)
-                ?? GTCopy.countdownLessThanOneMinute(lang)
+        let phase = engine.currentState(at: now)
+        let bWin = engine.blueWindowRelevant(at: now)
+        let gWin = engine.goldenWindowRelevant(at: now)
+        let blueFirst = stackBlueFirst(phase: phase, blue: bWin, golden: gWin)
+        return GoldenTwilightIOSEntry(
+            date: now,
+            lang: lang,
+            useClockTimes: useClockTimes,
+            phase: phase,
+            blueWindow: bWin,
+            goldenWindow: gWin,
+            blueTwilightFirst: blueFirst,
+            smallSlot: smallSlot
+        )
+    }
+
+    /// Mirrors `GoldenTimePhoneViewModel.stackBlueFirst`.
+    private func stackBlueFirst(
+        phase: PhaseState?,
+        blue: (start: Date, end: Date)?,
+        golden: (start: Date, end: Date)?
+    ) -> Bool {
+        switch phase {
+        case .blue:
+            return true
+        case .golden:
+            return false
+        case .day, .night, nil:
+            guard let b = blue else { return false }
+            guard let g = golden else { return true }
+            return b.start < g.start
         }
-        let b = line(for: engine.nextBlueWindow(after: now))
-        let g = line(for: engine.nextGoldenWindow(after: now))
-        return GoldenTwilightIOSEntry(date: now, lang: lang, blueLine: b, goldenLine: g, smallSlot: smallSlot)
     }
 }
 
-// MARK: - Module-style cards (aligned with `GoldenTimeTwilightWindowCard` / `GTPhaseSkin.day`)
+// MARK: - Metrics (widget targets; same structure as in-app `GoldenTimeTwilightWindowCard`)
 
-private struct TwilightIOSHomeModuleCard: View {
-    var blue: Bool
-    var title: String
-    var systemImage: String
-    var valueLine: String
-    var cornerRadius: CGFloat
+private extension GoldenTimeTwilightCardMetrics {
+    /// Single small tile: gradient fills the widget via `ContainerRelativeShape`.
+    static let iosWidgetSmall = GoldenTimeTwilightCardMetrics(
+        timeFontSize: 27,
+        mainSlotHeight: 46,
+        countdownLabelFontSize: 17,
+        horizontalPadding: 12,
+        verticalPadding: 7,
+        cornerRadius: 0,
+        titleFont: .subheadline.weight(.bold),
+        symbolFont: .footnote.weight(.semibold)
+    )
 
-    var body: some View {
-        let skin = GTPhaseSkin.day
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: systemImage)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(skin.twilightCardSecondaryForeground(blueCard: blue))
-                Text(title)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-            Text(valueLine)
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(skin.twilightCardPrimaryForeground(blueCard: blue))
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: skin.twilightCardGradient(blue: blue),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .strokeBorder(skin.panelStroke, lineWidth: 1)
-                )
-        )
-    }
+    static let iosWidgetMediumHalf = GoldenTimeTwilightCardMetrics(
+        timeFontSize: 20,
+        mainSlotHeight: 34,
+        countdownLabelFontSize: 12,
+        horizontalPadding: 7,
+        verticalPadding: 5,
+        cornerRadius: 0,
+        titleFont: .caption.weight(.bold),
+        symbolFont: .caption2.weight(.semibold)
+    )
 }
 
 private extension GoldenTwilightIOSEntry {
-    func title(blue: Bool) -> String {
-        blue ? GTCopy.blueHourTitle(lang) : GTCopy.goldenHourTitle(lang)
-    }
-
-    func symbol(blue: Bool) -> String {
-        blue ? "moon.stars.fill" : "sun.horizon.fill"
-    }
-
-    func line(blue: Bool) -> String {
-        blue ? blueLine : goldenLine
+    func clockStartEnd(blue: Bool) -> (String, String) {
+        let window = blue ? blueWindow : goldenWindow
+        guard let w = window else { return ("—", "—") }
+        let isLive = (blue && phase == .blue) || (!blue && phase == .golden)
+        let startStr: String = isLive
+            ? GTCopy.liveSegment(lang)
+            : GTDateFormatters.twilightInstantLabel(w.start, lang: lang)
+        let endStr = GTDateFormatters.twilightInstantLabel(w.end, lang: lang)
+        return (startStr, endStr)
     }
 }
 
@@ -160,54 +173,75 @@ struct GoldenTwilightIOSWidgetView: View {
     @Environment(\.widgetFamily) private var family
     var entry: GoldenTwilightIOSEntry
 
+    private var skin: GTPhaseSkin {
+        GTPhaseSkin(phase: entry.phase)
+    }
+
     var body: some View {
         switch family {
         case .systemSmall:
             smallBody
-                .containerBackground(homeWidgetChromeBackground, for: .widget)
         case .systemMedium:
             mediumBody
-                .containerBackground(homeWidgetChromeBackground, for: .widget)
         default:
             mediumBody
-                .containerBackground(homeWidgetChromeBackground, for: .widget)
         }
     }
 
-    private var homeWidgetChromeBackground: Color {
-        Color(red: 14 / 255, green: 15 / 255, blue: 18 / 255)
-    }
-
+    @ViewBuilder
     private var smallBody: some View {
         let blue = entry.smallSlot == .blueHour
-        return TwilightIOSHomeModuleCard(
+        let (cs, ce) = entry.clockStartEnd(blue: blue)
+        GoldenTimeTwilightWindowCard(
+            skin: skin,
+            title: blue ? GTCopy.blueHourTitle(entry.lang) : GTCopy.goldenHourTitle(entry.lang),
+            systemImage: blue ? "moon.stars.fill" : "sun.horizon.fill",
             blue: blue,
-            title: entry.title(blue: blue),
-            systemImage: entry.symbol(blue: blue),
-            valueLine: entry.line(blue: blue),
-            cornerRadius: 18
+            useClockTimes: entry.useClockTimes,
+            window: blue ? entry.blueWindow : entry.goldenWindow,
+            clockStart: cs,
+            clockEnd: ce,
+            now: entry.date,
+            lang: entry.lang,
+            metrics: .iosWidgetSmall
         )
-        .padding(10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .clipShape(ContainerRelativeShape())
+        .containerBackground(for: .widget) { Color.clear }
     }
 
+    @ViewBuilder
     private var mediumBody: some View {
-        HStack(spacing: 8) {
-            TwilightIOSHomeModuleCard(
-                blue: true,
-                title: entry.title(blue: true),
-                systemImage: entry.symbol(blue: true),
-                valueLine: entry.line(blue: true),
-                cornerRadius: 16
-            )
-            TwilightIOSHomeModuleCard(
-                blue: false,
-                title: entry.title(blue: false),
-                systemImage: entry.symbol(blue: false),
-                valueLine: entry.line(blue: false),
-                cornerRadius: 16
-            )
+        HStack(spacing: 5) {
+            if entry.blueTwilightFirst {
+                mediumHalfCard(blue: true)
+                mediumHalfCard(blue: false)
+            } else {
+                mediumHalfCard(blue: false)
+                mediumHalfCard(blue: true)
+            }
         }
-        .padding(10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .clipShape(ContainerRelativeShape())
+        .containerBackground(for: .widget) { Color.clear }
+    }
+
+    private func mediumHalfCard(blue: Bool) -> some View {
+        let (cs, ce) = entry.clockStartEnd(blue: blue)
+        return GoldenTimeTwilightWindowCard(
+            skin: skin,
+            title: blue ? GTCopy.blueHourTitle(entry.lang) : GTCopy.goldenHourTitle(entry.lang),
+            systemImage: blue ? "moon.stars.fill" : "sun.horizon.fill",
+            blue: blue,
+            useClockTimes: entry.useClockTimes,
+            window: blue ? entry.blueWindow : entry.goldenWindow,
+            clockStart: cs,
+            clockEnd: ce,
+            now: entry.date,
+            lang: entry.lang,
+            metrics: .iosWidgetMediumHalf
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 }
 
@@ -218,7 +252,7 @@ struct GoldenTwilightIOSWidget: Widget {
             GoldenTwilightIOSWidgetView(entry: entry)
         }
         .configurationDisplayName(GTCopy.systemAppDisplayName())
-        .description("Small: pick blue or golden. Medium: both side by side. Uses cached location — open the app once to refresh GPS.")
+        .description("Same twilight cards as the app (clock or countdown). Small: pick blue or golden. Medium: both. Cached location — open the app once to refresh GPS.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
