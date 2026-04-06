@@ -169,6 +169,7 @@ private struct CompassMapZoomRail: View {
     var mapTilesReady: Bool
     /// Matches compass chrome; drives subtle track/knob contrast.
     var chromeIsLight: Bool
+    var loadingLabel: String
     var a11yZoomLabel: String
     var a11yMapNotReadyHint: String
 
@@ -191,6 +192,18 @@ private struct CompassMapZoomRail: View {
             return chromeIsLight ? Color.black.opacity(0.12) : Color.white.opacity(0.22)
         }
         return chromeIsLight ? Color.black.opacity(0.14) : Color.white.opacity(0.42)
+    }
+
+    private var loadingBadgeFill: Color {
+        chromeIsLight ? Color.white.opacity(0.96) : Color.black.opacity(0.56)
+    }
+
+    private var loadingBadgeStroke: Color {
+        chromeIsLight ? Color.black.opacity(0.08) : Color.white.opacity(0.12)
+    }
+
+    private var loadingBadgeText: Color {
+        chromeIsLight ? Color.black.opacity(0.72) : Color.white.opacity(0.82)
     }
 
     var body: some View {
@@ -216,6 +229,30 @@ private struct CompassMapZoomRail: View {
                     .offset(y: thumbY)
             }
             .frame(width: w, height: h)
+            .overlay(alignment: .top) {
+                if !mapTilesReady {
+                    HStack(spacing: 5) {
+                        ProgressView()
+                            .controlSize(.mini)
+                            .tint(loadingBadgeText)
+                        Text(loadingLabel)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(loadingBadgeText)
+                            .fixedSize(horizontal: true, vertical: false)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(
+                        Capsule()
+                            .fill(loadingBadgeFill)
+                            .overlay(
+                                Capsule()
+                                    .stroke(loadingBadgeStroke, lineWidth: 0.75)
+                            )
+                    )
+                    .offset(y: -20)
+                }
+            }
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
@@ -453,6 +490,7 @@ struct TwilightCompassCard: View {
                             cameraDistance: mapCameraDistanceBinding,
                             mapTilesReady: mapTilesReady,
                             chromeIsLight: chromeIsLight,
+                            loadingLabel: uiLanguage == .chinese ? "地图加载中" : "Loading map",
                             a11yZoomLabel: uiLanguage == .chinese ? "地图缩放" : "Map zoom",
                             a11yMapNotReadyHint: uiLanguage == .chinese ? "地图未加载" : "Map not loaded"
                         )
