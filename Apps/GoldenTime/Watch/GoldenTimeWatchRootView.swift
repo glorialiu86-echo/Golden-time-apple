@@ -210,7 +210,7 @@ struct GoldenTimeWatchRootView: View {
     @ViewBuilder
     private func watchCompassPage(skin: GTPhaseSkin) -> some View {
         Group {
-            if hasVisitedCompassPage, !isCompassPagePresentationReady {
+            if !hasCompletedCompassWarmup || !isCompassPagePresentationReady {
                 watchCompassLoadingShell(skin: skin)
             } else if let coord = model.mapCoordinate {
                 GeometryReader { geo in
