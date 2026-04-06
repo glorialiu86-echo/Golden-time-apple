@@ -134,26 +134,31 @@ struct GoldenTwilightIOSProvider: AppIntentTimelineProvider {
 private extension GoldenTimeTwilightCardMetrics {
     /// Single small tile: gradient fills the widget via `ContainerRelativeShape`.
     static let iosWidgetSmall = GoldenTimeTwilightCardMetrics(
-        timeFontSize: 34,
-        mainSlotHeight: 54,
-        countdownLabelFontSize: 21,
-        horizontalPadding: 12,
-        verticalPadding: 8,
+        timeFontSize: 32,
+        mainSlotHeight: 78,
+        countdownLabelFontSize: 18,
+        horizontalPadding: 5,
+        verticalPadding: 4,
         cornerRadius: 0,
         titleFont: .headline.weight(.bold),
         symbolFont: .body.weight(.semibold)
     )
 
     static let iosWidgetMediumHalf = GoldenTimeTwilightCardMetrics(
-        timeFontSize: 27,
-        mainSlotHeight: 44,
-        countdownLabelFontSize: 16,
-        horizontalPadding: 8,
-        verticalPadding: 6,
+        timeFontSize: 24,
+        mainSlotHeight: 58,
+        countdownLabelFontSize: 14,
+        horizontalPadding: 4,
+        verticalPadding: 3,
         cornerRadius: 0,
         titleFont: .subheadline.weight(.bold),
         symbolFont: .footnote.weight(.semibold)
     )
+}
+
+/// Shorter labels (“下一次金调” / “下一次蓝调”) — same copy as reminder settings; widget-only use.
+private func iosWidgetTwilightTitle(blue: Bool, lang: GTAppLanguage) -> String {
+    blue ? GTCopy.settingsReminderTargetBlue(lang) : GTCopy.settingsReminderTargetGolden(lang)
 }
 
 private extension GoldenTwilightIOSEntry {
@@ -194,7 +199,7 @@ struct GoldenTwilightIOSWidgetView: View {
         let (cs, ce) = entry.clockStartEnd(blue: blue)
         GoldenTimeTwilightWindowCard(
             skin: skin,
-            title: blue ? GTCopy.blueHourTitle(entry.lang) : GTCopy.goldenHourTitle(entry.lang),
+            title: iosWidgetTwilightTitle(blue: blue, lang: entry.lang),
             systemImage: blue ? "moon.stars.fill" : "sun.horizon.fill",
             blue: blue,
             useClockTimes: entry.useClockTimes,
@@ -204,7 +209,8 @@ struct GoldenTwilightIOSWidgetView: View {
             now: entry.date,
             lang: entry.lang,
             metrics: .iosWidgetSmall,
-            showsCardFill: false
+            showsCardFill: false,
+            timeStyle: .widgetStacked
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .containerBackground(for: .widget) {
@@ -233,7 +239,7 @@ struct GoldenTwilightIOSWidgetView: View {
         let (cs, ce) = entry.clockStartEnd(blue: blue)
         return GoldenTimeTwilightWindowCard(
             skin: skin,
-            title: blue ? GTCopy.blueHourTitle(entry.lang) : GTCopy.goldenHourTitle(entry.lang),
+            title: iosWidgetTwilightTitle(blue: blue, lang: entry.lang),
             systemImage: blue ? "moon.stars.fill" : "sun.horizon.fill",
             blue: blue,
             useClockTimes: entry.useClockTimes,
@@ -243,7 +249,8 @@ struct GoldenTwilightIOSWidgetView: View {
             now: entry.date,
             lang: entry.lang,
             metrics: .iosWidgetMediumHalf,
-            showsCardFill: false
+            showsCardFill: false,
+            timeStyle: .widgetStacked
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
@@ -300,5 +307,6 @@ struct GoldenTwilightIOSWidget: Widget {
         .configurationDisplayName(GTCopy.systemAppDisplayName())
         .description("Same twilight cards as the app (clock or countdown). Small: pick blue or golden. Medium: both. Cached location — open the app once to refresh GPS.")
         .supportedFamilies([.systemSmall, .systemMedium])
+        .contentMarginsDisabled()
     }
 }
