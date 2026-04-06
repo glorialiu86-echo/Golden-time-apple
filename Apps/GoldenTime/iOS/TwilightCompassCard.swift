@@ -169,7 +169,6 @@ private struct CompassMapZoomRail: View {
     var mapTilesReady: Bool
     /// Matches compass chrome; drives subtle track/knob contrast.
     var chromeIsLight: Bool
-    var loadingLabel: String
     var a11yZoomLabel: String
     var a11yMapNotReadyHint: String
 
@@ -192,18 +191,6 @@ private struct CompassMapZoomRail: View {
             return chromeIsLight ? Color.black.opacity(0.12) : Color.white.opacity(0.22)
         }
         return chromeIsLight ? Color.black.opacity(0.14) : Color.white.opacity(0.42)
-    }
-
-    private var loadingBadgeFill: Color {
-        chromeIsLight ? Color.white.opacity(0.96) : Color.black.opacity(0.56)
-    }
-
-    private var loadingBadgeStroke: Color {
-        chromeIsLight ? Color.black.opacity(0.08) : Color.white.opacity(0.12)
-    }
-
-    private var loadingBadgeText: Color {
-        chromeIsLight ? Color.black.opacity(0.72) : Color.white.opacity(0.82)
     }
 
     var body: some View {
@@ -229,30 +216,6 @@ private struct CompassMapZoomRail: View {
                     .offset(y: thumbY)
             }
             .frame(width: w, height: h)
-            .overlay(alignment: .top) {
-                if !mapTilesReady {
-                    HStack(spacing: 5) {
-                        ProgressView()
-                            .controlSize(.mini)
-                            .tint(loadingBadgeText)
-                        Text(loadingLabel)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(loadingBadgeText)
-                            .fixedSize(horizontal: true, vertical: false)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(
-                        Capsule()
-                            .fill(loadingBadgeFill)
-                            .overlay(
-                                Capsule()
-                                    .stroke(loadingBadgeStroke, lineWidth: 0.75)
-                            )
-                    )
-                    .offset(y: -20)
-                }
-            }
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
@@ -359,10 +322,6 @@ private struct WatchCompassMapUnderlay: View {
 /// Circular **heading-up** compass: top of the disk = phone forward; optional `MapKit` basemap when `showMapBase`.
 /// True-north **red glyph** pivots at center; optional degree ring + cardinals (localized). No system-style thick top heading bar.
 struct TwilightCompassCard: View {
-    #if os(iOS)
-    private static let mapLoadingFallbackDelay: Duration = .seconds(2)
-    #endif
-
     var showMapBase: Bool
     var chromeGradient: [Color]
     /// Primary ink for NSEW labels and heading arrow (matches twilight cards).
@@ -396,7 +355,6 @@ struct TwilightCompassCard: View {
     @State private var mapTilesReady = false
     #if os(iOS)
     @State private var isMapPresentationReady = false
-    @State private var mapLoadingTimedOut = false
     @State private var frozenMapHeadingDegrees = 0.0
     #endif
 
@@ -426,18 +384,6 @@ struct TwilightCompassCard: View {
     #if os(iOS)
     private var effectiveMapHeading: Double {
         mapTilesReady ? heading : frozenMapHeadingDegrees
-    }
-
-    private var shouldKeepMapLoaderAlive: Bool {
-        showMapBase && isMapPresentationReady
-    }
-
-    private var shouldShowInteractiveMap: Bool {
-        shouldKeepMapLoaderAlive && (!mapLoadingTimedOut || mapTilesReady)
-    }
-
-    private var shouldShowLoadingFallback: Bool {
-        shouldShowInteractiveMap && !mapTilesReady
     }
     #endif
 
@@ -481,15 +427,15 @@ struct TwilightCompassCard: View {
     var body: some View {
         GeometryReader { geo in
             #if os(iOS)
-            let railW: CGFloat = shouldShowInteractiveMap ? 15 : 0
-            let railGap: CGFloat = shouldShowInteractiveMap ? 6 : 0
+            let railW: CGFloat = showMapBase && isMapPresentationReady ? 15 : 0
+            let railGap: CGFloat = showMapBase && isMapPresentationReady ? 6 : 0
             let side = min(geo.size.width - railW - railGap, geo.size.height)
             #else
             let side = min(geo.size.width, geo.size.height)
             #endif
             Group {
                 #if os(iOS)
-                if shouldShowInteractiveMap {
+                if showMapBase, isMapPresentationReady {
                     let mapDiameter = CompassMapFrame.mapDiskDiameter(side: side)
                     let railH = min(side * 0.58, 172)
                     HStack(alignment: .center, spacing: railGap) {
@@ -514,32 +460,12 @@ struct TwilightCompassCard: View {
                             cameraDistance: mapCameraDistanceBinding,
                             mapTilesReady: mapTilesReady,
                             chromeIsLight: chromeIsLight,
-                            loadingLabel: uiLanguage == .chinese ? "地图加载中" : "Loading map",
                             a11yZoomLabel: uiLanguage == .chinese ? "地图缩放" : "Map zoom",
                             a11yMapNotReadyHint: uiLanguage == .chinese ? "地图未加载" : "Map not loaded"
                         )
                         .frame(width: railW, height: railH)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if shouldKeepMapLoaderAlive {
-                    let mapDiameter = CompassMapFrame.mapDiskDiameter(side: side)
-                    ZStack {
-                        CompassMapUnderlay(
-                            mapTilesReady: $mapTilesReady,
-                            coordinate: coordinate,
-                            headingDegrees: effectiveMapHeading,
-                            cameraDistance: mapCameraDistanceValue,
-                            useDarkMapAppearance: !chromeIsLight
-                        )
-                        .frame(width: mapDiameter, height: mapDiameter)
-                        .clipShape(Circle())
-                        .opacity(0.001)
-                        gradientCompassDisk(side: side)
-                    }
-                    .frame(width: side, height: side)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    .clipShape(Circle())
-                    .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, x: 0, y: shadowY)
                 } else {
                     mapOffCompassBlock(side: side)
                 }
@@ -579,7 +505,6 @@ struct TwilightCompassCard: View {
             if isOn {
                 mapTilesReady = false
                 #if os(iOS)
-                mapLoadingTimedOut = false
                 frozenMapHeadingDegrees = heading
                 #endif
             }
@@ -588,7 +513,6 @@ struct TwilightCompassCard: View {
             if showMapBase {
                 mapTilesReady = false
                 #if os(iOS)
-                mapLoadingTimedOut = false
                 frozenMapHeadingDegrees = heading
                 #endif
             }
@@ -596,26 +520,17 @@ struct TwilightCompassCard: View {
         #if os(iOS)
         .onChange(of: mapTilesReady) { _, isReady in
             if isReady {
-                mapLoadingTimedOut = false
                 frozenMapHeadingDegrees = heading
             }
         }
         .task(id: showMapBase) {
             guard showMapBase else {
                 isMapPresentationReady = false
-                mapLoadingTimedOut = false
                 return
             }
             await Task.yield()
             guard !Task.isCancelled else { return }
             isMapPresentationReady = true
-        }
-        .task(id: shouldShowLoadingFallback) {
-            guard shouldShowLoadingFallback else { return }
-            try? await Task.sleep(for: Self.mapLoadingFallbackDelay)
-            guard !Task.isCancelled else { return }
-            guard showMapBase, isMapPresentationReady, !mapTilesReady else { return }
-            mapLoadingTimedOut = true
         }
         #endif
         #endif
