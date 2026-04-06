@@ -1,7 +1,6 @@
 import Foundation
 import GoldenTimeCore
 import SwiftUI
-import WidgetKit
 
 struct GoldenTimePhoneRootView: View {
     @Environment(\.scenePhase) private var scenePhase
@@ -13,6 +12,7 @@ struct GoldenTimePhoneRootView: View {
     @AppStorage(GTCompassMapSettings.storageKey, store: GTAppGroup.shared) private var mapCameraDistanceStorage: Double =
         GTCompassMapSettings.defaultCameraDistanceMeters
     @State private var showSettings = false
+    @State private var allowCompassMapBase = false
     /// Bumps when `NSLocale.currentLocaleDidChangeNotification` fires so `uiLang` re-evaluates while preference is「跟随系统」.
     @State private var systemLocaleBump = UUID()
 
@@ -27,6 +27,7 @@ struct GoldenTimePhoneRootView: View {
 
     /// `GOLDEN_TIME_NO_MAP_BASE=1` forces gradient-only compass. Otherwise show `MapKit` when the device has a network route.
     private var compassShowsMapBase: Bool {
+        guard allowCompassMapBase else { return false }
         if ProcessInfo.processInfo.environment["GOLDEN_TIME_NO_MAP_BASE"] == "1" {
             return false
         }
@@ -69,6 +70,9 @@ struct GoldenTimePhoneRootView: View {
                 publishCompanionSyncAndReloadWidgets()
                 model.startLocationPipeline()
                 model.beginForegroundLocationSession()
+                DispatchQueue.main.async {
+                    allowCompassMapBase = true
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)) { _ in
                 systemLocaleBump = UUID()
@@ -81,7 +85,6 @@ struct GoldenTimePhoneRootView: View {
             }
             .onChange(of: twilightModeRaw) { _, _ in
                 publishCompanionSyncAndReloadWidgets()
-                WidgetCenter.shared.reloadTimelines(ofKind: GTIOWidgetKind.twilight)
             }
             .onChange(of: mapCameraDistanceStorage) { _, _ in
                 publishCompanionSyncAndReloadWidgets()
@@ -335,6 +338,5 @@ struct GoldenTimePhoneRootView: View {
             mapCameraDistance: mapCameraDistanceStorage
         )
         model.syncContentLanguageWithAppPreference()
-        WidgetCenter.shared.reloadTimelines(ofKind: GTIOWidgetKind.twilight)
     }
 }
