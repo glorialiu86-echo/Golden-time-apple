@@ -1,8 +1,16 @@
 import Combine
 import GoldenTimeCore
+import OSLog
 import SwiftUI
 
 struct GoldenTimeWatchRootView: View {
+    private enum WatchPage: Hashable {
+        case twilight
+        case compass
+    }
+
+    private static let performanceLog = Logger(subsystem: GTPerformanceLog.subsystem, category: "WatchLaunch")
+
     @StateObject private var model = GoldenTimeWatchViewModel()
     /// Drive clock / engine ticks without `TimelineView` (watchOS Simulator has been observed stuck on the launch screen with periodic Timeline + TabView).
     @State private var tickNow = Date()
@@ -12,6 +20,9 @@ struct GoldenTimeWatchRootView: View {
     @AppStorage(GTTwilightDisplayMode.storageKey, store: GTAppGroup.shared) private var twilightModeRaw: String = GTTwilightDisplayMode.clockTimes.rawValue
     /// Written on iPhone; avoids a separate reachability check on Watch.
     @AppStorage(GTCompanionUISync.showCompassMapBaseKey, store: GTAppGroup.shared) private var companionShowCompassMapBase = true
+    @State private var selectedPage: WatchPage = .twilight
+    @State private var hasVisitedCompassPage = false
+    @State private var hasBootstrapped = false
 
     private var lang: GTAppLanguage {
         GTAppLanguage.watchResolved(
@@ -38,9 +49,11 @@ struct GoldenTimeWatchRootView: View {
         ZStack {
             pageGradient
                 .ignoresSafeArea()
-            TabView {
+            TabView(selection: $selectedPage) {
                 watchTwilightPage(skin: skin, now: tickNow)
+                    .tag(WatchPage.twilight)
                 watchCompassPage(skin: skin)
+                    .tag(WatchPage.compass)
             }
             .tabViewStyle(.verticalPage)
         }
@@ -49,13 +62,20 @@ struct GoldenTimeWatchRootView: View {
             model.refreshForTimeline(now: date)
         }
         .onAppear {
-            GTAppGroup.migrateStandardToSharedIfNeeded()
-            GTWatchConnectivitySync.shared.activate()
             model.syncContentLanguageWithStorage()
             model.refreshForTimeline(now: tickNow)
         }
         .task {
+            guard !hasBootstrapped else { return }
+            hasBootstrapped = true
+            Self.performanceLog.notice("watch bootstrap scheduled")
+            await Task.yield()
+            GTAppGroup.migrateStandardToSharedIfNeeded()
+            GTWatchConnectivitySync.shared.activate()
+            model.syncContentLanguageWithStorage()
+            model.refreshForTimeline(now: tickNow)
             model.startLocationPipeline()
+            Self.performanceLog.notice("watch bootstrap finished")
         }
         .onChange(of: langPreferenceRaw) { _, _ in
             model.syncContentLanguageWithStorage()
@@ -65,6 +85,14 @@ struct GoldenTimeWatchRootView: View {
         }
         .onChange(of: twilightModeRaw) { _, _ in
             model.objectWillChange.send()
+        }
+        .onChange(of: selectedPage) { _, page in
+            let isCompassPage = page == .compass
+            if isCompassPage, !hasVisitedCompassPage {
+                hasVisitedCompassPage = true
+                Self.performanceLog.notice("watch compass page first mounted")
+            }
+            model.setCompassPageActive(isCompassPage)
         }
     }
 
@@ -127,7 +155,7 @@ struct GoldenTimeWatchRootView: View {
     @ViewBuilder
     private func watchCompassPage(skin: GTPhaseSkin) -> some View {
         Group {
-            if let coord = model.mapCoordinate {
+            if hasVisitedCompassPage, let coord = model.mapCoordinate {
                 GeometryReader { geo in
                     let span = min(geo.size.width, geo.size.height)
                     let side = max(span * 0.9, 1)

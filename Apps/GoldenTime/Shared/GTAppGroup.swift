@@ -65,6 +65,10 @@ public enum GTAppGroup {
     }
 }
 
+enum GTPerformanceLog {
+    static let subsystem = Bundle.main.bundleIdentifier ?? "time.golden.GoldenHourCompass"
+}
+
 /// Raw values stored in App Group (mirrors phone toggle).
 public enum GTTwilightDisplayMode: String {
     case clockTimes

@@ -2,6 +2,7 @@ import Combine
 import CoreLocation
 import Foundation
 import GoldenTimeCore
+import OSLog
 import UIKit
 import WidgetKit
 
@@ -18,10 +19,19 @@ enum GTSettingsLocationFeedback: Equatable {
 /// Drives `GoldenTimeEngine` on-device only: GPS + cached coordinates + local time. No URLSession or remote APIs.
 @MainActor
 final class GoldenTimePhoneViewModel: ObservableObject {
+    private struct DailyDerivedStateKey: Equatable {
+        let latitude: Double
+        let longitude: Double
+        let dayStart: Date
+        let language: GTAppLanguage
+    }
+
     private enum SettingsLocationAction: Equatable {
         case requestingAuthorization
         case refreshing
     }
+
+    private static let performanceLog = Logger(subsystem: GTPerformanceLog.subsystem, category: "PhoneViewModel")
 
     private let engine = GoldenTimeEngine()
     /// Created after the first frame so `CLLocationManager` setup never blocks the launch screen.
@@ -34,6 +44,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
 
     private var activeFix: LocationFix?
     private var lastEngineDayStart: Date?
+    private var lastDailyDerivedStateKey: DailyDerivedStateKey?
     /// Last `[0,30)` … `[330,360)` bucket for device heading; haptic when crossing a 30° tick (like Apple Compass).
     private var headingThirtyDegreeBucket: Int?
     private let headingTickHaptic = UIImpactFeedbackGenerator(style: .light)
@@ -132,7 +143,8 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             recomputeEngineIfNeeded(now: now, force: true)
             Self.reloadTwilightWidgetTimelines()
         }
-        refreshWindows(at: now)
+        rebuildDailyDerivedStateIfNeeded(now: now, force: true)
+        refreshLiveState(now: now)
         recomputeStatusLine()
 
         Timer.publish(every: 1, tolerance: 0.15, on: .main, in: .common)
@@ -147,8 +159,9 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     }
 
     /// Wire Core Location after SwiftUI has presented the root view to avoid launch-screen stalls.
-    func startLocationPipeline() {
+    func prepareLocationPipeline() {
         guard locationReader == nil else { return }
+        Self.performanceLog.notice("phone location pipeline start")
         let reader = PhoneLocationReader()
         locationReader = reader
 
@@ -191,7 +204,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        reader.requestLocation()
+        reader.setHeadingUpdatesEnabled(true)
     }
 
     /// Call when the persisted language preference or system locale may have changed.
@@ -199,19 +212,16 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         let next = GTAppLanguage.widgetLanguageIOS(suite: Self.defaults)
         guard next != contentLanguage else { return }
         contentLanguage = next
-        refreshWindows(at: clockNow)
+        rebuildDailyDerivedStateIfNeeded(now: clockNow, force: true)
+        refreshLiveState(now: clockNow)
         recomputeStatusLine()
         objectWillChange.send()
     }
 
     func refreshForTick(at now: Date) {
         recomputeEngineIfNeeded(now: now)
-        refreshWindows(at: now)
-    }
-
-    func refreshGPS() {
-        startLocationPipeline()
-        locationReader?.requestLocation()
+        rebuildDailyDerivedStateIfNeeded(now: now)
+        refreshLiveState(now: now)
     }
 
     var isPerformingSettingsLocationAction: Bool {
@@ -219,7 +229,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     }
 
     func requestLocationAccessFromSettings() {
-        startLocationPipeline()
+        prepareLocationPipeline()
         switch locationReader?.authorizationStatus ?? .notDetermined {
         case .notDetermined:
             settingsLocationFeedbackResetTask?.cancel()
@@ -241,7 +251,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     }
 
     func refreshLocationFromSettings() {
-        startLocationPipeline()
+        prepareLocationPipeline()
         switch locationReader?.authorizationStatus ?? .notDetermined {
         case .authorizedAlways, .authorizedWhenInUse:
             settingsLocationFeedbackResetTask?.cancel()
@@ -272,13 +282,16 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     }
 
     /// Call when the scene becomes active; cancels when app leaves foreground.
-    func beginForegroundLocationSession() {
-        refreshGPS()
+    func beginForegroundLocationSession(requestImmediately: Bool) {
+        prepareLocationPipeline()
+        if requestImmediately {
+            locationReader?.requestLocation()
+        }
         locationHeartbeat?.cancel()
         locationHeartbeat = Timer.publish(every: 600, tolerance: 20, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
-                self?.refreshGPS()
+                self?.locationReader?.requestLocation()
             }
     }
 
@@ -330,7 +343,9 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         recomputeStatusLine()
         let now = Date()
         recomputeEngineIfNeeded(now: now, force: true)
-        refreshWindows(at: now)
+        rebuildDailyDerivedStateIfNeeded(now: now, force: true)
+        refreshLiveState(now: now)
+        Self.performanceLog.notice("phone first fix applied")
     }
 
     private func startSettingsLocationRefreshTimeout() {
@@ -374,11 +389,54 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         }
     }
 
-    private func refreshWindows(at now: Date) {
+    private func rebuildDailyDerivedStateIfNeeded(now: Date, force: Bool = false) {
+        guard let fix = activeFix else {
+            lastDailyDerivedStateKey = nil
+            mapCoordinate = nil
+            sunHorizon = nil
+            compassDayNight = nil
+            blueSectorArcAzimuths = []
+            goldenSectorArcAzimuths = []
+            return
+        }
+        let key = DailyDerivedStateKey(
+            latitude: fix.latitude,
+            longitude: fix.longitude,
+            dayStart: Calendar.autoupdatingCurrent.startOfDay(for: now),
+            language: contentLanguage
+        )
+        guard force || key != lastDailyDerivedStateKey else { return }
+        lastDailyDerivedStateKey = key
+        mapCoordinate = CLLocationCoordinate2D(latitude: fix.latitude, longitude: fix.longitude)
+        updateCoordLabels(lat: fix.latitude, lon: fix.longitude)
+
+        if let h = engine.sunHorizonGeometry(for: now) {
+            sunHorizon = h
+            let midTs = (h.sunrise.timeIntervalSince1970 + h.sunset.timeIntervalSince1970) / 2
+            compassDayNight = engine.sunAzimuthDegrees(at: Date(timeIntervalSince1970: midTs)).map {
+                CompassDayNightInput(horizon: h, midDaySunAzimuthDegrees: $0)
+            }
+        } else {
+            sunHorizon = nil
+            compassDayNight = nil
+        }
+
+        blueSectorArcAzimuths = engine.blueWindowsInLocalDay(containing: now).compactMap { win in
+            guard let a0 = engine.sunAzimuthDegrees(at: win.start), let a1 = engine.sunAzimuthDegrees(at: win.end) else { return nil }
+            return (a0, a1)
+        }
+        goldenSectorArcAzimuths = engine.goldenWindowsInLocalDay(containing: now).compactMap { win in
+            guard let a0 = engine.sunAzimuthDegrees(at: win.start), let a1 = engine.sunAzimuthDegrees(at: win.end) else { return nil }
+            return (a0, a1)
+        }
+        Self.performanceLog.debug("phone daily derived state rebuilt")
+    }
+
+    private func refreshLiveState(now: Date) {
         defer {
             TwilightReminderScheduler.shared.reschedule(engine: engine, now: now)
         }
-        guard let fix = activeFix else {
+        guard activeFix != nil else {
             blueStartText = "—"
             blueEndText = "—"
             goldenStartText = "—"
@@ -387,11 +445,6 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             blueWindowRange = nil
             goldenWindowRange = nil
             phase = nil
-            mapCoordinate = nil
-            sunHorizon = nil
-            compassDayNight = nil
-            blueSectorArcAzimuths = []
-            goldenSectorArcAzimuths = []
             compassSunBodyAzimuthDegrees = nil
             compassMoonBodyAzimuthDegrees = nil
             return
@@ -426,27 +479,6 @@ final class GoldenTimePhoneViewModel: ObservableObject {
         }
 
         blueTwilightFirst = stackBlueFirst(phase: phase, blue: bWin, golden: gWin)
-
-        mapCoordinate = CLLocationCoordinate2D(latitude: fix.latitude, longitude: fix.longitude)
-        if let h = engine.sunHorizonGeometry(for: now) {
-            sunHorizon = h
-            let midTs = (h.sunrise.timeIntervalSince1970 + h.sunset.timeIntervalSince1970) / 2
-            compassDayNight = engine.sunAzimuthDegrees(at: Date(timeIntervalSince1970: midTs)).map {
-                CompassDayNightInput(horizon: h, midDaySunAzimuthDegrees: $0)
-            }
-        } else {
-            sunHorizon = nil
-            compassDayNight = nil
-        }
-
-        blueSectorArcAzimuths = engine.blueWindowsInLocalDay(containing: now).compactMap { win in
-            guard let a0 = engine.sunAzimuthDegrees(at: win.start), let a1 = engine.sunAzimuthDegrees(at: win.end) else { return nil }
-            return (a0, a1)
-        }
-        goldenSectorArcAzimuths = engine.goldenWindowsInLocalDay(containing: now).compactMap { win in
-            guard let a0 = engine.sunAzimuthDegrees(at: win.start), let a1 = engine.sunAzimuthDegrees(at: win.end) else { return nil }
-            return (a0, a1)
-        }
 
         if let sun = engine.sunHorizontalPosition(at: now), sun.altitudeDegrees > Self.sunIconMinAltitudeDegrees {
             compassSunBodyAzimuthDegrees = sun.azimuthDegrees
@@ -501,6 +533,8 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     }
 
     private static func saveCachedFix(_ fix: LocationFix) {
+        let existing = loadCachedFix()
+        guard existing != fix else { return }
         defaults.set(fix.latitude, forKey: latKey)
         defaults.set(fix.longitude, forKey: lonKey)
         defaults.set(fix.timestamp.timeIntervalSince1970, forKey: tsKey)

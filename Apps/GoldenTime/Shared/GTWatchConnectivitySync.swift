@@ -56,6 +56,28 @@ private enum GTWatchSyncPayload {
             store.set(raw, forKey: timestampKey)
         }
     }
+
+    static func signature(for applicationContext: [String: Any]) -> String {
+        [
+            signatureComponent(for: languagePreferenceKey, from: applicationContext),
+            signatureComponent(for: languageEffectiveKey, from: applicationContext),
+            signatureComponent(for: twilightModeKey, from: applicationContext),
+            signatureComponent(for: mapCameraDistanceKey, from: applicationContext),
+            signatureComponent(for: latitudeKey, from: applicationContext),
+            signatureComponent(for: longitudeKey, from: applicationContext),
+            signatureComponent(for: timestampKey, from: applicationContext),
+        ].joined(separator: "|")
+    }
+
+    private static func signatureComponent(for key: String, from applicationContext: [String: Any]) -> String {
+        if let value = applicationContext[key] as? String {
+            return "\(key)=\(value)"
+        }
+        if let value = applicationContext[key] as? Double {
+            return "\(key)=\(String(format: "%.6f", value))"
+        }
+        return "\(key)="
+    }
 }
 
 final class GTWatchConnectivitySync: NSObject, WCSessionDelegate, @unchecked Sendable {
@@ -65,6 +87,11 @@ final class GTWatchConnectivitySync: NSObject, WCSessionDelegate, @unchecked Sen
     #if os(iOS)
     private let pendingPhoneContextLock = NSLock()
     private var pendingPhoneContext: [String: Any]?
+    private var pendingPhoneContextSignature: String?
+    private var lastSentPhoneContextSignature: String?
+    #endif
+    #if os(watchOS)
+    private var lastAppliedWatchContextSignature: String?
     #endif
 
     private override init() {
@@ -97,7 +124,8 @@ final class GTWatchConnectivitySync: NSObject, WCSessionDelegate, @unchecked Sen
             mapCameraDistance: mapCameraDistance,
             locationStore: store
         )
-        setPendingPhoneContext(context)
+        let signature = GTWatchSyncPayload.signature(for: context)
+        setPendingPhoneContext(context, signature: signature)
         flushPendingPhoneContextIfPossible()
     }
 
@@ -120,9 +148,7 @@ final class GTWatchConnectivitySync: NSObject, WCSessionDelegate, @unchecked Sen
     #if os(watchOS)
     private func applyFromSessionIfAvailable(_ session: WCSession) {
         let context = session.receivedApplicationContext
-        guard !context.isEmpty else { return }
-        GTWatchSyncPayload.apply(context, to: store)
-        WidgetCenter.shared.reloadTimelines(ofKind: GTWatchWidgetKind.twilight)
+        applyWatchContextIfNeeded(context)
     }
     #endif
 
@@ -136,8 +162,7 @@ final class GTWatchConnectivitySync: NSObject, WCSessionDelegate, @unchecked Sen
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
         #if os(watchOS)
-        GTWatchSyncPayload.apply(applicationContext, to: store)
-        WidgetCenter.shared.reloadTimelines(ofKind: GTWatchWidgetKind.twilight)
+        applyWatchContextIfNeeded(applicationContext)
         #endif
     }
 
@@ -152,21 +177,40 @@ final class GTWatchConnectivitySync: NSObject, WCSessionDelegate, @unchecked Sen
         pendingPhoneContextLock.lock()
         defer { pendingPhoneContextLock.unlock() }
         guard let context = pendingPhoneContext else { return }
+        guard let signature = pendingPhoneContextSignature else { return }
         let session = WCSession.default
         guard session.activationState == .activated else { return }
         guard session.isPaired, session.isWatchAppInstalled else { return }
         do {
             try session.updateApplicationContext(context)
+            lastSentPhoneContextSignature = signature
             pendingPhoneContext = nil
+            pendingPhoneContextSignature = nil
         } catch {
             pendingPhoneContext = context
         }
     }
 
-    private func setPendingPhoneContext(_ context: [String: Any]) {
+    private func setPendingPhoneContext(_ context: [String: Any], signature: String) {
         pendingPhoneContextLock.lock()
+        if pendingPhoneContextSignature == signature || lastSentPhoneContextSignature == signature {
+            pendingPhoneContextLock.unlock()
+            return
+        }
         pendingPhoneContext = context
+        pendingPhoneContextSignature = signature
         pendingPhoneContextLock.unlock()
+    }
+    #endif
+
+    #if os(watchOS)
+    private func applyWatchContextIfNeeded(_ context: [String: Any]) {
+        guard !context.isEmpty else { return }
+        let signature = GTWatchSyncPayload.signature(for: context)
+        guard signature != lastAppliedWatchContextSignature else { return }
+        GTWatchSyncPayload.apply(context, to: store)
+        lastAppliedWatchContextSignature = signature
+        WidgetCenter.shared.reloadTimelines(ofKind: GTWatchWidgetKind.twilight)
     }
     #endif
 }

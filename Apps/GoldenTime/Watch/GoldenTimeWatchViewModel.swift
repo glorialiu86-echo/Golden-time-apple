@@ -2,11 +2,22 @@ import Combine
 import CoreLocation
 import Foundation
 import GoldenTimeCore
+import OSLog
 import WidgetKit
 
 /// Watch UI state: GPS + heading + `GoldenTimeEngine`; mirrors iPhone twilight windows and compass inputs.
 @MainActor
 final class GoldenTimeWatchViewModel: ObservableObject {
+    private struct DailyDerivedStateKey: Equatable {
+        let latitude: Double
+        let longitude: Double
+        let dayStart: Date
+        let language: GTAppLanguage
+        let compassPageActive: Bool
+    }
+
+    private static let performanceLog = Logger(subsystem: GTPerformanceLog.subsystem, category: "WatchViewModel")
+
     private let engine = GoldenTimeEngine()
     /// Created after the first frame (`startLocationPipeline`) so `CLLocationManager` init never blocks app launch on watchOS Simulator.
     private var locationReader: WatchLocationReader?
@@ -14,6 +25,8 @@ final class GoldenTimeWatchViewModel: ObservableObject {
 
     private var activeFix: LocationFix?
     private var lastEngineDayStart: Date?
+    private var lastDailyDerivedStateKey: DailyDerivedStateKey?
+    private var isCompassPageActive = false
 
     @Published private(set) var blueStartText = "—"
     @Published private(set) var blueEndText = "—"
@@ -68,12 +81,15 @@ final class GoldenTimeWatchViewModel: ObservableObject {
         if activeFix != nil {
             recomputeEngineIfNeeded(now: now, force: true)
         }
-        refreshWindows(at: now)
+        rebuildDailyDerivedStateIfNeeded(now: now, force: true)
+        refreshTwilightPageState(now: now)
+        refreshCompassStateIfNeeded(now: now, force: true)
     }
 
     /// Wire Core Location after SwiftUI has presented the root view (avoids hanging on the system launch screen).
     func startLocationPipeline() {
         guard locationReader == nil else { return }
+        Self.performanceLog.notice("watch location pipeline start")
         let reader = WatchLocationReader()
         locationReader = reader
 
@@ -99,23 +115,36 @@ final class GoldenTimeWatchViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
+        reader.setHeadingUpdatesEnabled(isCompassPageActive)
         reader.refreshAuthorization()
         updateHint(for: reader.authorizationStatus)
         reader.requestLocation()
+    }
+
+    func setCompassPageActive(_ isActive: Bool) {
+        guard isCompassPageActive != isActive else { return }
+        isCompassPageActive = isActive
+        locationReader?.setHeadingUpdatesEnabled(isActive)
+        rebuildDailyDerivedStateIfNeeded(now: clockNow, force: true)
+        refreshCompassStateIfNeeded(now: clockNow, force: true)
     }
 
     func syncContentLanguageWithStorage() {
         let next = GTAppLanguage.resolved()
         guard next != contentLanguage else { return }
         contentLanguage = next
-        refreshWindows(at: clockNow)
+        rebuildDailyDerivedStateIfNeeded(now: clockNow, force: true)
+        refreshTwilightPageState(now: clockNow)
+        refreshCompassStateIfNeeded(now: clockNow, force: true)
         objectWillChange.send()
     }
 
     func refreshForTimeline(now: Date) {
         clockNow = now
         recomputeEngineIfNeeded(now: now)
-        refreshWindows(at: now)
+        rebuildDailyDerivedStateIfNeeded(now: now)
+        refreshTwilightPageState(now: now)
+        refreshCompassStateIfNeeded(now: now)
         updateHint(for: locationReader?.authorizationStatus ?? .notDetermined)
     }
 
@@ -125,7 +154,9 @@ final class GoldenTimeWatchViewModel: ObservableObject {
         locationHint = contentLanguage == .chinese ? "GPS 已更新" : "GPS updated"
         let now = Date()
         recomputeEngineIfNeeded(now: now, force: true)
-        refreshWindows(at: now)
+        rebuildDailyDerivedStateIfNeeded(now: now, force: true)
+        refreshTwilightPageState(now: now)
+        refreshCompassStateIfNeeded(now: now, force: true)
     }
 
     private func recomputeEngineIfNeeded(now: Date, force: Bool = false) {
@@ -142,8 +173,58 @@ final class GoldenTimeWatchViewModel: ObservableObject {
         }
     }
 
-    private func refreshWindows(at now: Date) {
+    private func rebuildDailyDerivedStateIfNeeded(now: Date, force: Bool = false) {
         guard let fix = activeFix else {
+            lastDailyDerivedStateKey = nil
+            mapCoordinate = nil
+            blueSectorArcAzimuths = []
+            goldenSectorArcAzimuths = []
+            compassDayNight = nil
+            latitudeText = "—"
+            longitudeText = "—"
+            return
+        }
+        let key = DailyDerivedStateKey(
+            latitude: fix.latitude,
+            longitude: fix.longitude,
+            dayStart: Calendar.autoupdatingCurrent.startOfDay(for: now),
+            language: contentLanguage,
+            compassPageActive: isCompassPageActive
+        )
+        guard force || key != lastDailyDerivedStateKey else { return }
+        lastDailyDerivedStateKey = key
+        mapCoordinate = CLLocationCoordinate2D(latitude: fix.latitude, longitude: fix.longitude)
+        updateCoordLabels(lat: fix.latitude, lon: fix.longitude)
+
+        guard isCompassPageActive else {
+            blueSectorArcAzimuths = []
+            goldenSectorArcAzimuths = []
+            compassDayNight = nil
+            return
+        }
+
+        if let h = engine.sunHorizonGeometry(for: now) {
+            let midTs = (h.sunrise.timeIntervalSince1970 + h.sunset.timeIntervalSince1970) / 2
+            compassDayNight = engine.sunAzimuthDegrees(at: Date(timeIntervalSince1970: midTs)).map {
+                CompassDayNightInput(horizon: h, midDaySunAzimuthDegrees: $0)
+            }
+        } else {
+            compassDayNight = nil
+        }
+
+        blueSectorArcAzimuths = engine.blueWindowsInLocalDay(containing: now).compactMap { win in
+            guard let a0 = engine.sunAzimuthDegrees(at: win.start), let a1 = engine.sunAzimuthDegrees(at: win.end) else { return nil }
+            return (a0, a1)
+        }
+        goldenSectorArcAzimuths = engine.goldenWindowsInLocalDay(containing: now).compactMap { win in
+            guard let a0 = engine.sunAzimuthDegrees(at: win.start), let a1 = engine.sunAzimuthDegrees(at: win.end) else { return nil }
+            return (a0, a1)
+        }
+        Self.performanceLog.debug("watch daily derived state rebuilt")
+    }
+
+    private func refreshTwilightPageState(now: Date) {
+        guard activeFix != nil else {
             blueStartText = "—"
             blueEndText = "—"
             goldenStartText = "—"
@@ -152,14 +233,8 @@ final class GoldenTimeWatchViewModel: ObservableObject {
             blueWindowRange = nil
             goldenWindowRange = nil
             phase = nil
-            mapCoordinate = nil
-            blueSectorArcAzimuths = []
-            goldenSectorArcAzimuths = []
-            compassDayNight = nil
             compassSunBodyAzimuthDegrees = nil
             compassMoonBodyAzimuthDegrees = nil
-            latitudeText = "—"
-            longitudeText = "—"
             snapshot = engine.snapshot(at: now)
             return
         }
@@ -193,26 +268,20 @@ final class GoldenTimeWatchViewModel: ObservableObject {
         }
 
         blueTwilightFirst = stackBlueFirst(phase: phase, blue: bWin, golden: gWin)
+        snapshot = engine.snapshot(at: now)
+    }
 
-        mapCoordinate = CLLocationCoordinate2D(latitude: fix.latitude, longitude: fix.longitude)
-        updateCoordLabels(lat: fix.latitude, lon: fix.longitude)
-
-        if let h = engine.sunHorizonGeometry(for: now) {
-            let midTs = (h.sunrise.timeIntervalSince1970 + h.sunset.timeIntervalSince1970) / 2
-            compassDayNight = engine.sunAzimuthDegrees(at: Date(timeIntervalSince1970: midTs)).map {
-                CompassDayNightInput(horizon: h, midDaySunAzimuthDegrees: $0)
-            }
-        } else {
-            compassDayNight = nil
+    private func refreshCompassStateIfNeeded(now: Date, force: Bool = false) {
+        guard isCompassPageActive || force else { return }
+        guard activeFix != nil else {
+            compassSunBodyAzimuthDegrees = nil
+            compassMoonBodyAzimuthDegrees = nil
+            return
         }
-
-        blueSectorArcAzimuths = engine.blueWindowsInLocalDay(containing: now).compactMap { win in
-            guard let a0 = engine.sunAzimuthDegrees(at: win.start), let a1 = engine.sunAzimuthDegrees(at: win.end) else { return nil }
-            return (a0, a1)
-        }
-        goldenSectorArcAzimuths = engine.goldenWindowsInLocalDay(containing: now).compactMap { win in
-            guard let a0 = engine.sunAzimuthDegrees(at: win.start), let a1 = engine.sunAzimuthDegrees(at: win.end) else { return nil }
-            return (a0, a1)
+        guard isCompassPageActive else {
+            compassSunBodyAzimuthDegrees = nil
+            compassMoonBodyAzimuthDegrees = nil
+            return
         }
 
         if let sun = engine.sunHorizontalPosition(at: now), sun.altitudeDegrees > Self.sunIconMinAltitudeDegrees {
@@ -225,8 +294,6 @@ final class GoldenTimeWatchViewModel: ObservableObject {
         } else {
             compassMoonBodyAzimuthDegrees = nil
         }
-
-        snapshot = engine.snapshot(at: now)
     }
 
     private func stackBlueFirst(phase: PhaseState?, blue: (start: Date, end: Date)?, golden: (start: Date, end: Date)?) -> Bool {
@@ -282,6 +349,8 @@ final class GoldenTimeWatchViewModel: ObservableObject {
     }
 
     private static func saveCachedFix(_ fix: LocationFix) {
+        let existing = loadCachedFix()
+        guard existing != fix else { return }
         defaults.set(fix.latitude, forKey: GoldenTimeLocationCache.latitudeKey)
         defaults.set(fix.longitude, forKey: GoldenTimeLocationCache.longitudeKey)
         defaults.set(fix.timestamp.timeIntervalSince1970, forKey: GoldenTimeLocationCache.timestampKey)

@@ -1,8 +1,11 @@
 import Foundation
 import GoldenTimeCore
+import OSLog
 import SwiftUI
 
 struct GoldenTimePhoneRootView: View {
+    private static let performanceLog = Logger(subsystem: GTPerformanceLog.subsystem, category: "PhoneLaunch")
+
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var model = GoldenTimePhoneViewModel()
     @StateObject private var networkReachability = NetworkReachability()
@@ -13,6 +16,8 @@ struct GoldenTimePhoneRootView: View {
         GTCompassMapSettings.defaultCameraDistanceMeters
     @State private var showSettings = false
     @State private var allowCompassMapBase = false
+    @State private var hasBootstrapped = false
+    @State private var companionSyncTask: Task<Void, Never>?
     /// Bumps when `NSLocale.currentLocaleDidChangeNotification` fires so `uiLang` re-evaluates while preference is「跟随系统」.
     @State private var systemLocaleBump = UUID()
 
@@ -60,39 +65,46 @@ struct GoldenTimePhoneRootView: View {
                 .contentMargins(0, for: .scrollContent)
             }
             .onAppear {
+                model.syncContentLanguageWithAppPreference()
+                scheduleCompanionSync()
+            }
+            .task {
+                guard !hasBootstrapped else { return }
+                hasBootstrapped = true
+                Self.performanceLog.notice("phone bootstrap scheduled")
+                await Task.yield()
                 GTAppGroup.migrateStandardToSharedIfNeeded()
                 GTWatchConnectivitySync.shared.activate()
                 model.syncContentLanguageWithAppPreference()
-                publishCompanionSyncAndReloadWidgets()
-                model.startLocationPipeline()
-                model.beginForegroundLocationSession()
-                DispatchQueue.main.async {
-                    allowCompassMapBase = true
-                }
+                scheduleCompanionSync()
+                model.beginForegroundLocationSession(requestImmediately: true)
+                allowCompassMapBase = true
+                Self.performanceLog.notice("phone bootstrap finished")
             }
             .onReceive(NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)) { _ in
                 systemLocaleBump = UUID()
                 model.syncContentLanguageWithAppPreference()
-                publishCompanionSyncAndReloadWidgets()
+                scheduleCompanionSync()
             }
             .onChange(of: langPreferenceRaw) { _, _ in
                 model.syncContentLanguageWithAppPreference()
-                publishCompanionSyncAndReloadWidgets()
+                scheduleCompanionSync()
             }
             .onChange(of: twilightModeRaw) { _, _ in
-                publishCompanionSyncAndReloadWidgets()
+                scheduleCompanionSync()
             }
             .onChange(of: mapCameraDistanceStorage) { _, _ in
-                publishCompanionSyncAndReloadWidgets()
+                scheduleCompanionSync()
             }
             .onChange(of: networkReachability.hasNetworkRoute) { _, _ in
-                publishCompanionSyncAndReloadWidgets()
+                scheduleCompanionSync()
             }
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .active:
-                    publishCompanionSyncAndReloadWidgets()
-                    model.beginForegroundLocationSession()
+                    guard hasBootstrapped else { return }
+                    scheduleCompanionSync()
+                    model.beginForegroundLocationSession(requestImmediately: true)
                 default:
                     model.endForegroundLocationSession()
                 }
@@ -334,5 +346,14 @@ struct GoldenTimePhoneRootView: View {
             mapCameraDistance: mapCameraDistanceStorage
         )
         model.syncContentLanguageWithAppPreference()
+    }
+
+    private func scheduleCompanionSync() {
+        companionSyncTask?.cancel()
+        companionSyncTask = Task { @MainActor in
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            publishCompanionSyncAndReloadWidgets()
+        }
     }
 }
