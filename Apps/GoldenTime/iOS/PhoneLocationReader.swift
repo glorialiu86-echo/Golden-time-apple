@@ -83,13 +83,36 @@ final class PhoneLocationReader: NSObject, ObservableObject, @unchecked Sendable
     }
 
     private func syncHeadingUpdates() {
-        switch (manager.authorizationStatus, wantsHeadingUpdates) {
-        case (.authorizedAlways, true), (.authorizedWhenInUse, true):
-            manager.startUpdatingHeading()
-        default:
+        guard wantsHeadingUpdates, CLLocationManager.headingAvailable() else {
             manager.stopUpdatingHeading()
             headingDegrees = nil
+            return
         }
+        switch manager.authorizationStatus {
+        case .denied, .restricted:
+            manager.stopUpdatingHeading()
+            headingDegrees = nil
+        default:
+            manager.startUpdatingHeading()
+        }
+    }
+
+    private func applyHeadingUpdate(trueHeading: CLLocationDirection, magneticHeading: CLLocationDirection) {
+        let updateUptime = GTPerfTrace.uptime()
+        if trueHeading >= 0 {
+            headingDegrees = trueHeading
+            GTPerfTrace.mark(
+                Self.performanceLog,
+                "phone didUpdateHeading source=true heading=\(String(format: "%.1f", trueHeading)) afterPrev=\(GTPerfTrace.milliseconds(since: lastHeadingUpdateUptime))"
+            )
+        } else if magneticHeading >= 0 {
+            headingDegrees = magneticHeading
+            GTPerfTrace.mark(
+                Self.performanceLog,
+                "phone didUpdateHeading source=mag heading=\(String(format: "%.1f", magneticHeading)) afterPrev=\(GTPerfTrace.milliseconds(since: lastHeadingUpdateUptime))"
+            )
+        }
+        lastHeadingUpdateUptime = updateUptime
     }
 }
 
@@ -121,23 +144,12 @@ extension PhoneLocationReader: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
         let trueH = newHeading.trueHeading
         let magH = newHeading.magneticHeading
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            let updateUptime = GTPerfTrace.uptime()
-            if trueH >= 0 {
-                self.headingDegrees = trueH
-                GTPerfTrace.mark(
-                    Self.performanceLog,
-                    "phone didUpdateHeading source=true heading=\(String(format: "%.1f", trueH)) afterPrev=\(GTPerfTrace.milliseconds(since: self.lastHeadingUpdateUptime))"
-                )
-            } else if magH >= 0 {
-                self.headingDegrees = magH
-                GTPerfTrace.mark(
-                    Self.performanceLog,
-                    "phone didUpdateHeading source=mag heading=\(String(format: "%.1f", magH)) afterPrev=\(GTPerfTrace.milliseconds(since: self.lastHeadingUpdateUptime))"
-                )
+        if Thread.isMainThread {
+            applyHeadingUpdate(trueHeading: trueH, magneticHeading: magH)
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.applyHeadingUpdate(trueHeading: trueH, magneticHeading: magH)
             }
-            self.lastHeadingUpdateUptime = updateUptime
         }
     }
 

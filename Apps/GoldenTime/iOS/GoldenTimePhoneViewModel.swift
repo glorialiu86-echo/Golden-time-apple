@@ -229,7 +229,6 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             .store(in: &cancellables)
 
         reader.$headingDegrees
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] v in
                 guard let self else { return }
                 self.deviceHeadingDegrees = v
