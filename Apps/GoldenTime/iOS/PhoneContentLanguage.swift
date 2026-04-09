@@ -161,6 +161,20 @@ enum GTCopy {
         }
     }
 
+    static func widgetBlueHourTitle(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "下一次蓝调"
+        case .english: return "Next Blue"
+        }
+    }
+
+    static func widgetGoldenHourTitle(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "下一次金调"
+        case .english: return "Next Golden"
+        }
+    }
+
     /// watchOS Smart Stack（systemSmall / systemMedium）顶部标题。
     static func widgetStackTitle(_ lang: GTAppLanguage) -> String {
         switch lang {

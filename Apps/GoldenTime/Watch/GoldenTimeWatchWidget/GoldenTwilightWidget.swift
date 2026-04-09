@@ -163,7 +163,7 @@ struct GoldenTwilightWidgetView: View {
         let (cs, ce) = entry.clockStartEnd(blue: blue)
         GoldenTimeTwilightWindowCard(
             skin: skin,
-            title: blue ? GTCopy.blueHourTitle(entry.lang) : GTCopy.goldenHourTitle(entry.lang),
+            title: blue ? GTCopy.widgetBlueHourTitle(entry.lang) : GTCopy.widgetGoldenHourTitle(entry.lang),
             systemImage: blue ? "moon.stars.fill" : "sun.horizon.fill",
             blue: blue,
             useClockTimes: entry.useClockTimes,
