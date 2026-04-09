@@ -135,6 +135,7 @@ public enum GTTwilightReminderSettings {
     public static let targetKey = "gt.reminder.target"
     public static let minutesBeforeKey = "gt.reminder.minutesBefore"
     public static let pendingRequestId = "time.golden.twilightReminder.pending"
+    public static let scheduledSignatureKey = "gt.reminder.pendingSignature"
     public static let defaultMinutesBefore = 15
 
     public enum Target: String, CaseIterable {
