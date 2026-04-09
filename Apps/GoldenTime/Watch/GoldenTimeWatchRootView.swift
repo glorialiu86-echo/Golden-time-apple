@@ -76,7 +76,8 @@ struct GoldenTimeWatchRootView: View {
                 if showCompassCalibration {
                     GTWatchCompassCalibrationView(
                         model: model,
-                        lang: lang
+                        lang: lang,
+                        dismiss: { showCompassCalibration = false }
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .ignoresSafeArea()
@@ -344,13 +345,15 @@ struct GoldenTimeWatchRootView: View {
 private struct GTWatchCompassCalibrationView: View {
     @ObservedObject var model: GoldenTimeWatchViewModel
     let lang: GTAppLanguage
+    let dismiss: () -> Void
 
     var body: some View {
         let skin = GTPhaseSkin(phase: model.phase)
         GeometryReader { geo in
-            let buttonAreaHeight: CGFloat = 78
-            let topInset: CGFloat = 22
-            let bottomInset: CGFloat = 18
+            let isLargeWatch = geo.size.width >= 300
+            let buttonAreaHeight: CGFloat = isLargeWatch ? 68 : 64
+            let topInset: CGFloat = isLargeWatch ? 34 : 28
+            let bottomInset: CGFloat = isLargeWatch ? 14 : 12
             let dialHeight = max(geo.size.height - topInset - buttonAreaHeight, 1)
 
             ZStack {
@@ -373,7 +376,8 @@ private struct GTWatchCompassCalibrationView: View {
                             compassDayNight: model.compassDayNight,
                             sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
                             moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees,
-                            showMapBase: false
+                            showMapBase: false,
+                            sideScale: isLargeWatch ? 0.98 : 0.94
                         )
                         .padding(.horizontal, -12)
                         .frame(width: geo.size.width, height: dialHeight)
@@ -404,11 +408,32 @@ private struct GTWatchCompassCalibrationView: View {
                             model.clearCompassCalibration()
                         }
                     }
-                    .padding(.horizontal, 8)
+                    .padding(.horizontal, isLargeWatch ? 20 : 18)
                     .padding(.bottom, bottomInset)
                     .frame(height: buttonAreaHeight, alignment: .bottom)
                 }
                 .padding(.top, topInset)
+
+                VStack {
+                    HStack {
+                        Button(action: dismiss) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundStyle(skin.ink)
+                                .frame(width: 28, height: 28)
+                                .background(
+                                    Circle()
+                                        .fill(Color.black.opacity(skin.isLightChrome ? 0.12 : 0.18))
+                                )
+                        }
+                        .buttonStyle(.plain)
+
+                        Spacer()
+                    }
+                    Spacer()
+                }
+                .padding(.top, 18)
+                .padding(.leading, 18)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -428,7 +453,7 @@ private struct GTWatchCompassCalibrationView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
+                .padding(.vertical, 8)
                 .foregroundStyle(foreground.opacity(isEnabled ? 1 : 0.6))
                 .background(
                     Capsule(style: .continuous)
@@ -454,11 +479,12 @@ private func watchCompassDial(
     compassDayNight: CompassDayNightInput?,
     sunBodyAzimuthDegrees: Double?,
     moonBodyAzimuthDegrees: Double?,
-    showMapBase: Bool
+    showMapBase: Bool,
+    sideScale: CGFloat = 0.9
 ) -> some View {
     GeometryReader { geo in
         let span = min(geo.size.width, geo.size.height)
-        let side = max(span * 0.9, 1)
+        let side = max(span * sideScale, 1)
         TwilightCompassCard(
             showMapBase: showMapBase,
             chromeGradient: skin.chromeGradient,
