@@ -765,7 +765,7 @@
 				CODE_SIGN_ENTITLEMENTS = Apps/GoldenTime/iOS/GoldenTime.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2.0;
+				CURRENT_PROJECT_VERSION = 2.1;
 				DEVELOPMENT_TEAM = 6M6358UBB2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -779,7 +779,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = time.golden.GoldenHourCompass;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -798,7 +798,7 @@
 				CODE_SIGN_ENTITLEMENTS = Apps/GoldenTime/iOS/GoldenTime.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2.0;
+				CURRENT_PROJECT_VERSION = 2.1;
 				DEVELOPMENT_TEAM = 6M6358UBB2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -812,7 +812,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = time.golden.GoldenHourCompass;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -831,7 +831,7 @@
 				CODE_SIGN_ENTITLEMENTS = Apps/GoldenTime/Watch/GoldenTimeWatch.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2.0;
+				CURRENT_PROJECT_VERSION = 2.1;
 				DEVELOPMENT_TEAM = 6M6358UBB2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -843,7 +843,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = time.golden.GoldenHourCompass.watchkitapp;
 				PRODUCT_NAME = GoldenTimeWatch;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -863,7 +863,7 @@
 				CODE_SIGN_ENTITLEMENTS = Apps/GoldenTime/Watch/GoldenTimeWatch.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2.0;
+				CURRENT_PROJECT_VERSION = 2.1;
 				DEVELOPMENT_TEAM = 6M6358UBB2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -875,7 +875,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = time.golden.GoldenHourCompass.watchkitapp;
 				PRODUCT_NAME = GoldenTimeWatch;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -935,7 +935,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Apps/GoldenTime/Watch/GoldenTimeWatchWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2.0;
+				CURRENT_PROJECT_VERSION = 2.1;
 				DEVELOPMENT_TEAM = 6M6358UBB2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Apps/GoldenTime/Watch/GoldenTimeWatchWidget/GoldenTimeWatchWidgetInfo.plist;
@@ -945,7 +945,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = time.golden.GoldenHourCompass.watchkitapp.widget;
 				PRODUCT_NAME = GoldenTimeWatchWidgetExtension;
 				SDKROOT = watchos;
@@ -963,7 +963,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Apps/GoldenTime/Watch/GoldenTimeWatchWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2.0;
+				CURRENT_PROJECT_VERSION = 2.1;
 				DEVELOPMENT_TEAM = 6M6358UBB2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Apps/GoldenTime/Watch/GoldenTimeWatchWidget/GoldenTimeWatchWidgetInfo.plist;
@@ -973,7 +973,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = time.golden.GoldenHourCompass.watchkitapp.widget;
 				PRODUCT_NAME = GoldenTimeWatchWidgetExtension;
 				SDKROOT = watchos;
@@ -990,10 +990,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2.0;
+				CURRENT_PROJECT_VERSION = 2.1;
 				DEVELOPMENT_TEAM = 6M6358UBB2;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = time.golden.GoldenHourCompass.watchkitapp.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -1010,10 +1010,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2.0;
+				CURRENT_PROJECT_VERSION = 2.1;
 				DEVELOPMENT_TEAM = 6M6358UBB2;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = time.golden.GoldenHourCompass.watchkitapp.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -1031,7 +1031,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Apps/GoldenTime/iOS/GoldenTimeIOSWidget/GoldenTimeIOSWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2.0;
+				CURRENT_PROJECT_VERSION = 2.1;
 				DEVELOPMENT_TEAM = 6M6358UBB2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Apps/GoldenTime/iOS/GoldenTimeIOSWidget/GoldenTimeIOSWidgetInfo.plist;
@@ -1042,7 +1042,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = time.golden.GoldenHourCompass.widget;
 				PRODUCT_NAME = GoldenTimeWidgetExtension;
 				SDKROOT = iphoneos;
@@ -1059,7 +1059,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Apps/GoldenTime/iOS/GoldenTimeIOSWidget/GoldenTimeIOSWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2.0;
+				CURRENT_PROJECT_VERSION = 2.1;
 				DEVELOPMENT_TEAM = 6M6358UBB2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Apps/GoldenTime/iOS/GoldenTimeIOSWidget/GoldenTimeIOSWidgetInfo.plist;
@@ -1070,7 +1070,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = time.golden.GoldenHourCompass.widget;
 				PRODUCT_NAME = GoldenTimeWidgetExtension;
 				SDKROOT = iphoneos;
@@ -1086,11 +1086,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2.0;
+				CURRENT_PROJECT_VERSION = 2.1;
 				DEVELOPMENT_TEAM = 6M6358UBB2;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = time.golden.GoldenHourCompass.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1106,11 +1106,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2.0;
+				CURRENT_PROJECT_VERSION = 2.1;
 				DEVELOPMENT_TEAM = 6M6358UBB2;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = time.golden.GoldenHourCompass.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
