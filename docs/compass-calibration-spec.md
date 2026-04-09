@@ -327,6 +327,24 @@
 
 `清除校对` 需要二次确认，避免误触。
 
+### 设置页文案建议
+
+#### 中文
+
+- Section 标题：`指南`
+- 入口标题：`指南校对`
+- 未校对状态：`未校对`
+- 已校对状态：`已于 YYYY-MM-DD 校对`
+- 清除入口：`清除校对`
+
+#### 英文
+
+- Section title: `Compass`
+- Entry title: `Compass Calibration`
+- Not calibrated: `Not calibrated`
+- Calibrated: `Calibrated on YYYY-MM-DD`
+- Clear action: `Clear Calibration`
+
 ---
 
 ## 11. 校对页文案建议
@@ -335,8 +353,10 @@
 
 - 标题：`指南校对`
 - 说明：
-  `将手机顶部对准当前太阳方向，然后点“保存校对”。`
-- 辅助说明：
+  `请保持手机基本水平，并将手机顶部对准当前太阳方向。`
+- 操作说明：
+  `确认对准后，点“保存校对”。`
+- 持久化说明：
   `校对结果会保存在这台 iPhone 上，之后罗盘会一直使用这次校对值，直到你再次手动校对或清除。`
 - 按钮：
   `保存校对`
@@ -347,13 +367,31 @@
 
 - Title: `Compass Calibration`
 - Body:
-  `Point the top of your phone toward the sun, then tap Save Calibration.`
-- Secondary:
+  `Keep your phone roughly level, and point the top of the phone toward the sun.`
+- Action:
+  `When you're aligned, tap Save Calibration.`
+- Persistence:
   `This calibration is saved on this iPhone and stays active until you recalibrate or clear it.`
 - Buttons:
   `Save Calibration`
   `Cancel`
   `Clear Calibration`
+
+### 清除确认文案
+
+#### 中文
+
+- 标题：`清除指南校对？`
+- 说明：`清除后，罗盘将恢复使用设备当前原始方向。`
+- 确认按钮：`清除校对`
+- 取消按钮：`取消`
+
+#### 英文
+
+- Title: `Clear Compass Calibration?`
+- Body: `After clearing, the compass will return to the device's current raw heading.`
+- Confirm: `Clear Calibration`
+- Cancel: `Cancel`
 
 ---
 
@@ -366,17 +404,44 @@
 - 无可用方向：`暂时无法获取设备方向`
 - 太阳不可用：`当前太阳不可见，暂时无法进行太阳校对`
 
+### 未满足条件时英文
+
+- No location permission: `Location access is required before calibration.`
+- No location fix: `Current location is temporarily unavailable.`
+- No device heading: `Device direction is temporarily unavailable.`
+- Sun unavailable: `The sun is not visible right now, so sun calibration is unavailable.`
+
 ### 保存成功
 
 - `已保存指南校对`
+
+### 保存成功英文
+
+- `Compass calibration saved`
 
 ### 已存在校对值
 
 - `当前设备已保存校对值`
 
+### 已存在校对值英文
+
+- `A calibration is already saved on this device`
+
+### 清除成功
+
+- `已清除指南校对`
+
+### 清除成功英文
+
+- `Compass calibration cleared`
+
 ### 主罗盘页常驻说明
 
 - `如果你觉得手机指南针受环境影响，可前往设置页手动校对并保存。`
+
+### 主罗盘页常驻说明英文
+
+- `If your phone's compass seems affected by the environment, you can calibrate and save an adjustment in Settings.`
 
 ---
 
