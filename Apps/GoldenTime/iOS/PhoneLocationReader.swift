@@ -10,6 +10,8 @@ final class PhoneLocationReader: NSObject, ObservableObject, @unchecked Sendable
     @Published private(set) var lastLocationRequestFailed = false
     /// Degrees clockwise from true north when available; else magnetic; `nil` until first heading update.
     @Published private(set) var headingDegrees: Double?
+    /// `true` when `headingDegrees` currently comes from `CLHeading.trueHeading`; `false` when using magnetic fallback or no heading.
+    @Published private(set) var headingUsesTrueNorth = false
 
     private let manager = CLLocationManager()
     private var isAwaitingAuthorizationPrompt = false
@@ -71,6 +73,7 @@ final class PhoneLocationReader: NSObject, ObservableObject, @unchecked Sendable
         guard wantsHeadingUpdates, CLLocationManager.headingAvailable() else {
             manager.stopUpdatingHeading()
             headingDegrees = nil
+            headingUsesTrueNorth = false
             return
         }
         switch manager.authorizationStatus {
@@ -79,14 +82,20 @@ final class PhoneLocationReader: NSObject, ObservableObject, @unchecked Sendable
         default:
             manager.stopUpdatingHeading()
             headingDegrees = nil
+            headingUsesTrueNorth = false
         }
     }
 
     private func applyHeadingUpdate(trueHeading: CLLocationDirection, magneticHeading: CLLocationDirection) {
         if trueHeading >= 0 {
             headingDegrees = trueHeading
+            headingUsesTrueNorth = true
         } else if magneticHeading >= 0 {
             headingDegrees = magneticHeading
+            headingUsesTrueNorth = false
+        } else {
+            headingDegrees = nil
+            headingUsesTrueNorth = false
         }
     }
 }

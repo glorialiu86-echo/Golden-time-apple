@@ -284,6 +284,23 @@ struct GoldenTimePhoneSettingsView: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        GTPhoneCompassCalibrationView(model: model)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(GTCopy.settingsCompassCalibrationTitle(lang))
+                                .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
+                            Text(model.compassCalibrationStatusText)
+                                .font(.footnote)
+                                .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
+                        }
+                    }
+                    .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+                } header: {
+                    settingsSectionHeader(GTCopy.settingsCompassSectionTitle(lang))
+                }
+
+                Section {
                     Picker(selection: languagePreferencePickerSelection) {
                         Text(GTCopy.settingsLanguageOptionFollowSystem(lang)).tag(GTAppLanguage.followSystemStorageValue)
                         Text(GTCopy.settingsLanguageOptionChinese(lang)).tag(GTAppLanguage.chinese.rawValue)
@@ -534,5 +551,114 @@ struct GoldenTimePhoneSettingsView: View {
         reminderDebugPlanCount = String(
             GTAppGroup.shared.stringArray(forKey: GTTwilightReminderSettings.scheduledIdentifiersKey)?.count ?? 0
         )
+    }
+}
+
+private struct GTPhoneCompassCalibrationView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
+    @ObservedObject var model: GoldenTimePhoneViewModel
+    @AppStorage(GTAppLanguage.storageKey, store: GTAppGroup.shared) private var langPreferenceRaw: String =
+        GTAppLanguage.followSystemStorageValue
+    @State private var showClearConfirmation = false
+    @State private var feedbackText: String?
+
+    private var lang: GTAppLanguage {
+        let _ = locale.identifier
+        return GTAppLanguage.phoneDisplayLanguage(preferenceRaw: langPreferenceRaw)
+    }
+
+    private var skin: GTPhaseSkin {
+        GTPhaseSkin(phase: model.phase)
+    }
+
+    var body: some View {
+        List {
+            Section {
+                Text(model.compassCalibrationStatusText)
+                    .font(.body)
+                    .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
+                    .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+
+                if let feedbackText {
+                    Text(feedbackText)
+                        .font(.footnote)
+                        .foregroundStyle(GTPhoneSettingsListColors.successText)
+                        .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+                }
+            }
+
+            Section {
+                Text(GTCopy.compassCalibrationPageInstruction(lang))
+                    .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+
+                Text(GTCopy.compassCalibrationPageAction(lang))
+                    .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+
+                Text(GTCopy.compassCalibrationPagePersistence(lang))
+                    .font(.footnote)
+                    .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+            }
+
+            Section {
+                Text(model.compassCalibrationAvailabilityText)
+                    .font(.footnote)
+                    .foregroundStyle(model.canSaveCompassCalibration ? GTPhoneSettingsListColors.successText : GTPhoneSettingsListColors.rowSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+            }
+
+            Section {
+                Button(GTCopy.compassCalibrationSave(lang)) {
+                    guard model.saveCompassCalibrationFromCurrentSunAlignment() else { return }
+                    feedbackText = GTCopy.compassCalibrationSaved(lang)
+                }
+                .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
+                .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+                .disabled(!model.canSaveCompassCalibration)
+
+                Button(GTCopy.compassCalibrationCancel(lang)) {
+                    dismiss()
+                }
+                .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
+                .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+
+                if model.hasCompassCalibration {
+                    Button(role: .destructive) {
+                        showClearConfirmation = true
+                    } label: {
+                        Text(GTCopy.settingsCompassCalibrationClear(lang))
+                    }
+                    .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+                }
+            }
+        }
+        .environment(\.colorScheme, .light)
+        .navigationTitle(GTCopy.settingsCompassCalibrationTitle(lang))
+        .navigationBarTitleDisplayMode(.inline)
+        .scrollContentBackground(.hidden)
+        .background(
+            LinearGradient(
+                colors: [skin.upper, skin.lower],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+        )
+        .alert(GTCopy.compassCalibrationClearTitle(lang), isPresented: $showClearConfirmation) {
+            Button(GTCopy.settingsCompassCalibrationClear(lang), role: .destructive) {
+                model.clearCompassCalibration()
+                feedbackText = GTCopy.compassCalibrationCleared(lang)
+            }
+            Button(GTCopy.compassCalibrationCancel(lang), role: .cancel) {}
+        } message: {
+            Text(GTCopy.compassCalibrationClearBody(lang))
+        }
     }
 }

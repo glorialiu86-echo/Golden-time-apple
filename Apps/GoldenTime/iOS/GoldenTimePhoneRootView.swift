@@ -282,7 +282,7 @@ struct GoldenTimePhoneRootView: View {
                     chromeIsLight: skin.isLightChrome,
                     uiLanguage: lang,
                     coordinate: coord,
-                    deviceHeadingDegrees: model.deviceHeadingDegrees,
+                    deviceHeadingDegrees: model.correctedHeadingDegrees,
                     blueSectorArcAzimuths: model.blueSectorArcAzimuths,
                     goldenSectorArcAzimuths: model.goldenSectorArcAzimuths,
                     blueSectorColors: skin.twilightCardGradient(blue: true),
@@ -350,13 +350,22 @@ struct GoldenTimePhoneRootView: View {
     @ViewBuilder
     private func compassFooterCopy(skin: GTPhaseSkin, lang: GTAppLanguage) -> some View {
         if model.mapCoordinate != nil {
-            Text(GTCopy.compassCardGuide(lang))
-                .font(.caption)
-                .foregroundStyle(skin.chromeSecondaryForeground)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 6)
+            VStack(spacing: 8) {
+                Text(GTCopy.compassCardGuide(lang))
+                    .font(.caption)
+                    .foregroundStyle(skin.chromeSecondaryForeground)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity)
+
+                Text(GTCopy.compassCalibrationPersistentNote(lang))
+                    .font(.caption2)
+                    .foregroundStyle(skin.chromeSecondaryForeground.opacity(0.92))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(.top, 6)
         }
     }
 

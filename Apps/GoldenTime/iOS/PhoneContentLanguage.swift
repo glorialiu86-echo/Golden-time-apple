@@ -195,6 +195,15 @@ enum GTCopy {
         }
     }
 
+    static func compassCalibrationPersistentNote(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese:
+            return "如果你觉得手机指南针受环境影响，可前往设置页手动校对并保存。"
+        case .english:
+            return "If your phone's compass seems affected by the environment, you can calibrate and save an adjustment in Settings."
+        }
+    }
+
     static func compassCardNeedLocation(_ lang: GTAppLanguage) -> String {
         switch lang {
         case .chinese: return "需要定位后显示罗盘与方位。"
@@ -360,6 +369,27 @@ enum GTCopy {
         switch lang {
         case .chinese: return "定位"
         case .english: return "Location"
+        }
+    }
+
+    static func settingsCompassSectionTitle(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "指南"
+        case .english: return "Compass"
+        }
+    }
+
+    static func settingsCompassCalibrationTitle(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "指南校对"
+        case .english: return "Compass Calibration"
+        }
+    }
+
+    static func settingsCompassCalibrationClear(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "清除校对"
+        case .english: return "Clear Calibration"
         }
     }
 
@@ -608,6 +638,126 @@ enum GTCopy {
         }
     }
 
+    static func compassCalibrationStatusNotCalibrated(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "未校对"
+        case .english: return "Not calibrated"
+        }
+    }
+
+    static func compassCalibrationStatusCalibrated(date: Date, lang: GTAppLanguage) -> String {
+        let formatted = GTDateFormatters.calibrationStatusDate(date, lang: lang)
+        switch lang {
+        case .chinese: return "已于 \(formatted) 校对"
+        case .english: return "Calibrated on \(formatted)"
+        }
+    }
+
+    static func compassCalibrationPageInstruction(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "请保持手机基本水平，并将手机顶部对准当前太阳方向。"
+        case .english: return "Keep your phone roughly level, and point the top of the phone toward the sun."
+        }
+    }
+
+    static func compassCalibrationPageAction(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "确认对准后，点“保存校对”。"
+        case .english: return "When you're aligned, tap Save Calibration."
+        }
+    }
+
+    static func compassCalibrationPagePersistence(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "校对结果会保存在这台 iPhone 上，之后罗盘会一直使用这次校对值，直到你再次手动校对或清除。"
+        case .english: return "This calibration is saved on this iPhone and stays active until you recalibrate or clear it."
+        }
+    }
+
+    static func compassCalibrationSave(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "保存校对"
+        case .english: return "Save Calibration"
+        }
+    }
+
+    static func compassCalibrationCancel(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "取消"
+        case .english: return "Cancel"
+        }
+    }
+
+    static func compassCalibrationClearTitle(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "清除指南校对？"
+        case .english: return "Clear Compass Calibration?"
+        }
+    }
+
+    static func compassCalibrationClearBody(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "清除后，罗盘将恢复使用设备当前原始方向。"
+        case .english: return "After clearing, the compass will return to the device's current raw heading."
+        }
+    }
+
+    static func compassCalibrationNeedsLocationPermission(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "需要定位权限后才能校对"
+        case .english: return "Location access is required before calibration."
+        }
+    }
+
+    static func compassCalibrationNeedsLocationFix(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "暂时无法获取当前位置"
+        case .english: return "Current location is temporarily unavailable."
+        }
+    }
+
+    static func compassCalibrationNeedsHeading(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "暂时无法获取设备方向"
+        case .english: return "Device direction is temporarily unavailable."
+        }
+    }
+
+    static func compassCalibrationTrueNorthRequired(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "当前未拿到真北方向，暂时不能保存校对"
+        case .english: return "True north is unavailable right now, so calibration cannot be saved yet."
+        }
+    }
+
+    static func compassCalibrationSunUnavailable(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "当前太阳不可见，暂时无法进行太阳校对"
+        case .english: return "The sun is not visible right now, so sun calibration is unavailable."
+        }
+    }
+
+    static func compassCalibrationSavedHeadingHint(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "当前已满足保存条件"
+        case .english: return "Ready to save the current calibration."
+        }
+    }
+
+    static func compassCalibrationSaved(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "已保存指南校对"
+        case .english: return "Compass calibration saved"
+        }
+    }
+
+    static func compassCalibrationCleared(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "已清除指南校对"
+        case .english: return "Compass calibration cleared"
+        }
+    }
+
     static func legalPrivacyPolicyBody(_ lang: GTAppLanguage) -> String {
         switch lang {
         case .chinese:
@@ -757,6 +907,7 @@ enum GTDateFormatters {
     /// Bumped when date patterns change so cached formatters are not reused incorrectly.
     private nonisolated(unsafe) static var headerCache: [GTAppLanguage: DateFormatter] = [:]
     private nonisolated(unsafe) static var timeCache: [GTAppLanguage: DateFormatter] = [:]
+    private nonisolated(unsafe) static var calibrationDateCache: [GTAppLanguage: DateFormatter] = [:]
     private static func headerFormatter(_ lang: GTAppLanguage) -> DateFormatter {
         if let f = headerCache[lang] { return f }
         let f = DateFormatter()
@@ -782,6 +933,16 @@ enum GTDateFormatters {
         return f
     }
 
+    private static func calibrationDateFormatter(_ lang: GTAppLanguage) -> DateFormatter {
+        if let f = calibrationDateCache[lang] { return f }
+        let f = DateFormatter()
+        f.locale = lang.locale
+        f.dateStyle = .medium
+        f.timeStyle = .none
+        calibrationDateCache[lang] = f
+        return f
+    }
+
     static func headerLine(_ date: Date, lang: GTAppLanguage) -> String {
         headerFormatter(lang).string(from: date)
     }
@@ -793,5 +954,9 @@ enum GTDateFormatters {
     /// Twilight window endpoints on cards/widgets: **time only** (no date / 今天明天).
     static func twilightInstantLabel(_ instant: Date, lang: GTAppLanguage) -> String {
         timeFormatter(lang).string(from: instant)
+    }
+
+    static func calibrationStatusDate(_ date: Date, lang: GTAppLanguage) -> String {
+        calibrationDateFormatter(lang).string(from: date)
     }
 }

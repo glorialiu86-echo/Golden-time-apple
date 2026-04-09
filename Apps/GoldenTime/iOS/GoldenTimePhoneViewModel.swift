@@ -79,6 +79,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
 
     /// Mirrors `GTAppLanguage.phoneDisplayLanguage` from App Group preference on iPhone.
     private(set) var contentLanguage: GTAppLanguage = GTAppLanguage.widgetLanguageIOS(suite: GTAppGroup.shared)
+    private var compassHeadingOffsetDegrees: Double?
 
     @Published private(set) var latitudeText = "—"
     @Published private(set) var longitudeText = "—"
@@ -114,6 +115,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
 
     /// Device true (or magnetic) heading in degrees clockwise from north; `nil` until Core Location reports heading.
     @Published private(set) var deviceHeadingDegrees: Double?
+    @Published private(set) var deviceHeadingUsesTrueNorth = false
 
     /// Sun azimuth arcs for **each** blue-hour clip in the local civil day (compass may show 0…n sectors).
     @Published private(set) var blueSectorArcAzimuths: [(Double, Double)] = []
@@ -126,6 +128,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
 
     /// True-north moon azimuth when moon is above geometric horizon; `nil` if below.
     @Published private(set) var compassMoonBodyAzimuthDegrees: Double?
+    @Published private(set) var compassCalibrationDate: Date?
 
     /// Wall-clock instant for UI labels; updated every second (replaces `TimelineView`, which mis-sized on some simulators).
     @Published private(set) var clockNow: Date = {
@@ -145,6 +148,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     private static let tsKey = GoldenTimeLocationCache.timestampKey
     private static let pendingWidgetReloadKey = "gt.phone.pendingWidgetReload"
     private static let pendingPhoneStatePushKey = "gt.phone.pendingPhoneStatePush"
+    private static let calibrationDefaults = UserDefaults.standard
 
     private let coordFormatter: NumberFormatter = {
         let f = NumberFormatter()
@@ -164,6 +168,10 @@ final class GoldenTimePhoneViewModel: ObservableObject {
 
     private func formatTwilightInstant(_ instant: Date) -> String {
         GTDateFormatters.twilightInstantLabel(instant, lang: contentLanguage)
+    }
+
+    private func normalizeDegrees(_ value: Double) -> Double {
+        Self.normalizeDegrees(value)
     }
 
     private func triggerHeadingTickHapticIfNeeded(headingDegrees: Double) {
@@ -189,6 +197,7 @@ final class GoldenTimePhoneViewModel: ObservableObject {
     }
 
     init() {
+        loadCompassCalibration()
         if let cached = Self.loadCachedFix() {
             activeFix = cached
             updateCoordLabels(lat: cached.latitude, lon: cached.longitude)
@@ -250,14 +259,106 @@ final class GoldenTimePhoneViewModel: ObservableObject {
                 guard let self else { return }
                 self.deviceHeadingDegrees = v
                 if let h = v {
-                    self.triggerHeadingTickHapticIfNeeded(headingDegrees: h)
+                    self.triggerHeadingTickHapticIfNeeded(headingDegrees: self.correctedHeadingDegrees ?? h)
                 } else {
                     self.headingThirtyDegreeBucket = nil
                 }
             }
             .store(in: &cancellables)
 
+        reader.$headingUsesTrueNorth
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] usesTrueNorth in
+                self?.deviceHeadingUsesTrueNorth = usesTrueNorth
+            }
+            .store(in: &cancellables)
+
         reader.setHeadingUpdatesEnabled(true)
+    }
+
+    var correctedHeadingDegrees: Double? {
+        guard let raw = deviceHeadingDegrees else { return nil }
+        guard let offset = compassHeadingOffsetDegrees else { return raw }
+        return normalizeDegrees(raw + offset)
+    }
+
+    var hasCompassCalibration: Bool {
+        compassHeadingOffsetDegrees != nil
+    }
+
+    var compassCalibrationStatusText: String {
+        if let date = compassCalibrationDate {
+            return GTCopy.compassCalibrationStatusCalibrated(date: date, lang: contentLanguage)
+        }
+        return GTCopy.compassCalibrationStatusNotCalibrated(contentLanguage)
+    }
+
+    var compassCalibrationAvailabilityText: String {
+        if let reason = compassCalibrationUnavailableReason {
+            return reason
+        }
+        return deviceHeadingUsesTrueNorth
+            ? GTCopy.compassCalibrationSavedHeadingHint(contentLanguage)
+            : GTCopy.compassCalibrationTrueNorthRequired(contentLanguage)
+    }
+
+    var compassCalibrationUnavailableReason: String? {
+        let auth = locationReader?.authorizationStatus ?? locationAuthorizationStatus
+        switch auth {
+        case .denied, .restricted:
+            return GTCopy.compassCalibrationNeedsLocationPermission(contentLanguage)
+        default:
+            break
+        }
+        guard activeFix != nil else {
+            return GTCopy.compassCalibrationNeedsLocationFix(contentLanguage)
+        }
+        guard deviceHeadingDegrees != nil else {
+            return GTCopy.compassCalibrationNeedsHeading(contentLanguage)
+        }
+        guard deviceHeadingUsesTrueNorth else {
+            return GTCopy.compassCalibrationTrueNorthRequired(contentLanguage)
+        }
+        guard compassSunBodyAzimuthDegrees != nil else {
+            return GTCopy.compassCalibrationSunUnavailable(contentLanguage)
+        }
+        return nil
+    }
+
+    var canSaveCompassCalibration: Bool {
+        compassCalibrationUnavailableReason == nil
+    }
+
+    @discardableResult
+    func saveCompassCalibrationFromCurrentSunAlignment() -> Bool {
+        guard let rawHeading = deviceHeadingDegrees,
+              let sunAzimuth = compassSunBodyAzimuthDegrees,
+              deviceHeadingUsesTrueNorth
+        else {
+            return false
+        }
+        let savedAt = currentNow()
+        let offset = normalizeDegrees(sunAzimuth - rawHeading)
+        compassHeadingOffsetDegrees = offset
+        compassCalibrationDate = savedAt
+        headingThirtyDegreeBucket = nil
+        shouldSkipNextHeadingTickHaptic = true
+        Self.calibrationDefaults.set(offset, forKey: GTCompassCalibrationSettings.offsetDegreesKey)
+        Self.calibrationDefaults.set(savedAt.timeIntervalSince1970, forKey: GTCompassCalibrationSettings.calibratedAtKey)
+        Self.calibrationDefaults.set(GTCompassCalibrationSettings.sourceSun, forKey: GTCompassCalibrationSettings.sourceKey)
+        Self.calibrationDefaults.set(GTCompassCalibrationSettings.version, forKey: GTCompassCalibrationSettings.versionKey)
+        return true
+    }
+
+    func clearCompassCalibration() {
+        compassHeadingOffsetDegrees = nil
+        compassCalibrationDate = nil
+        headingThirtyDegreeBucket = nil
+        shouldSkipNextHeadingTickHaptic = true
+        Self.calibrationDefaults.removeObject(forKey: GTCompassCalibrationSettings.offsetDegreesKey)
+        Self.calibrationDefaults.removeObject(forKey: GTCompassCalibrationSettings.calibratedAtKey)
+        Self.calibrationDefaults.removeObject(forKey: GTCompassCalibrationSettings.sourceKey)
+        Self.calibrationDefaults.removeObject(forKey: GTCompassCalibrationSettings.versionKey)
     }
 
     /// Call when the persisted language preference or system locale may have changed.
@@ -614,6 +715,26 @@ final class GoldenTimePhoneViewModel: ObservableObject {
             defaults.set(true, forKey: pendingWidgetReloadKey)
             defaults.set(true, forKey: pendingPhoneStatePushKey)
         }
+    }
+
+    private func loadCompassCalibration() {
+        let defaults = Self.calibrationDefaults
+        if defaults.object(forKey: GTCompassCalibrationSettings.offsetDegreesKey) != nil {
+            let offset = defaults.double(forKey: GTCompassCalibrationSettings.offsetDegreesKey)
+            compassHeadingOffsetDegrees = normalizeDegrees(offset)
+        } else {
+            compassHeadingOffsetDegrees = nil
+        }
+        let ts = defaults.double(forKey: GTCompassCalibrationSettings.calibratedAtKey)
+        compassCalibrationDate = ts > 0 ? Date(timeIntervalSince1970: ts) : nil
+    }
+
+    private static func normalizeDegrees(_ value: Double) -> Double {
+        var normalized = value.truncatingRemainder(dividingBy: 360)
+        if normalized < 0 {
+            normalized += 360
+        }
+        return normalized
     }
 
     /// Home-screen widgets do not observe `UserDefaults`; ask WidgetKit to re-run the timeline after cache or settings change.
