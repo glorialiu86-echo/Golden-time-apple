@@ -400,6 +400,20 @@ enum GTCopy {
         }
     }
 
+    static func watchCompassCalibrationSave(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "保存校对"
+        case .english: return "Save"
+        }
+    }
+
+    static func watchCompassCalibrationClear(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "清除校对"
+        case .english: return "Clear"
+        }
+    }
+
     static func settingsStatusPrefix(_ lang: GTAppLanguage) -> String {
         switch lang {
         case .chinese: return "状态"

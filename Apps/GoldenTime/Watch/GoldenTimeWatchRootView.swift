@@ -384,7 +384,7 @@ private struct GTWatchCompassCalibrationView: View {
 
                 HStack(spacing: 8) {
                     watchCalibrationButton(
-                        title: GTCopy.compassCalibrationSave(lang),
+                        title: GTCopy.watchCompassCalibrationSave(lang),
                         background: Color(red: 0, green: 122 / 255, blue: 1),
                         foreground: .white,
                         isEnabled: model.canSaveCompassCalibration
@@ -393,7 +393,7 @@ private struct GTWatchCompassCalibrationView: View {
                     }
 
                     watchCalibrationButton(
-                        title: GTCopy.settingsCompassCalibrationClear(lang),
+                        title: GTCopy.watchCompassCalibrationClear(lang),
                         background: Color.white.opacity(0.9),
                         foreground: Color(red: 88 / 255, green: 91 / 255, blue: 99 / 255),
                         isEnabled: model.hasCompassCalibration
@@ -405,8 +405,6 @@ private struct GTWatchCompassCalibrationView: View {
                 .padding(.bottom, 8)
             }
         }
-        .navigationTitle(GTCopy.settingsCompassCalibrationTitle(lang))
-        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func watchCalibrationButton(
