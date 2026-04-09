@@ -37,6 +37,7 @@ struct GoldenTimeWatchRootView: View {
     @State private var loggedFirstTwilightRenderable = false
     @State private var loggedFirstCompassRenderable = false
     @State private var showCompassCalibration = false
+    @State private var compassCalibrationLongPressTask: Task<Void, Never>?
 
     private var lang: GTAppLanguage {
         GTAppLanguage.watchResolved(
@@ -249,9 +250,12 @@ struct GoldenTimeWatchRootView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
                 .contentShape(Rectangle())
-                .onLongPressGesture(minimumDuration: 1) {
-                    showCompassCalibration = true
-                }
+                .onLongPressGesture(
+                    minimumDuration: 1,
+                    maximumDistance: 24,
+                    pressing: handleCompassCalibrationPressing(_:),
+                    perform: {}
+                )
             } else {
                 Text(GTCopy.compassCardNeedLocation(lang))
                     .font(.caption)
@@ -323,6 +327,16 @@ struct GoldenTimeWatchRootView: View {
             hasCompletedCompassWarmup = true
             isCompassPagePresentationReady = true
             model.setCompassPageActive(true)
+        }
+    }
+
+    private func handleCompassCalibrationPressing(_ isPressing: Bool) {
+        compassCalibrationLongPressTask?.cancel()
+        guard isPressing, !showCompassCalibration else { return }
+        compassCalibrationLongPressTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled, !showCompassCalibration else { return }
+            showCompassCalibration = true
         }
     }
 }
