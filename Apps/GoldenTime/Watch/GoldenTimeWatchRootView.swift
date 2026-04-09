@@ -72,17 +72,24 @@ struct GoldenTimeWatchRootView: View {
             ZStack {
                 pageGradient
                     .ignoresSafeArea()
-                TabView(selection: $selectedPage) {
-                    watchTwilightPage(skin: skin, now: tickNow)
-                        .tag(WatchPage.twilight)
-                    watchCompassPage(skin: skin)
-                        .tag(WatchPage.compass)
+                if showCompassCalibration {
+                    GTWatchCompassCalibrationView(
+                        model: model,
+                        lang: lang
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .ignoresSafeArea()
+                    .zIndex(1)
+                } else {
+                    TabView(selection: $selectedPage) {
+                        watchTwilightPage(skin: skin, now: tickNow)
+                            .tag(WatchPage.twilight)
+                        watchCompassPage(skin: skin)
+                            .tag(WatchPage.compass)
+                    }
+                    .tabViewStyle(.verticalPage)
                 }
-                .tabViewStyle(.verticalPage)
             }
-        }
-        .fullScreenCover(isPresented: $showCompassCalibration) {
-            GTWatchCompassCalibrationView(model: model, lang: lang)
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { date in
             let now = currentNow()
@@ -323,17 +330,16 @@ struct GoldenTimeWatchRootView: View {
 private struct GTWatchCompassCalibrationView: View {
     @ObservedObject var model: GoldenTimeWatchViewModel
     let lang: GTAppLanguage
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         let skin = GTPhaseSkin(phase: model.phase)
         GeometryReader { geo in
             let buttonAreaHeight: CGFloat = 78
-            let topInset: CGFloat = 50
+            let topInset: CGFloat = 8
             let bottomInset: CGFloat = 8
             let dialHeight = max(geo.size.height - topInset - buttonAreaHeight, 1)
 
-            ZStack(alignment: .topLeading) {
+            ZStack {
                 LinearGradient(
                     colors: [skin.upper, skin.lower],
                     startPoint: .topLeading,
@@ -389,26 +395,10 @@ private struct GTWatchCompassCalibrationView: View {
                     .frame(height: buttonAreaHeight, alignment: .bottom)
                 }
                 .padding(.top, topInset)
-
-                Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .foregroundStyle(skin.ink)
-                        .frame(width: 42, height: 42)
-                        .background(
-                            Circle()
-                                .fill(Color.clear)
-                        )
-                        .overlay(
-                            Circle()
-                                .stroke(Color.orange.opacity(0.55), lineWidth: 1.6)
-                        )
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 8)
-                .padding(.leading, 8)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea()
     }
 
     private func watchCalibrationButton(
