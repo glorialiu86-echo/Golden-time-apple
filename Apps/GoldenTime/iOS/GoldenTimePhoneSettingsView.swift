@@ -573,25 +573,28 @@ private struct GTPhoneCompassCalibrationView: View {
         GTPhaseSkin(phase: model.phase)
     }
 
+    private var summaryText: String {
+        switch lang {
+        case .chinese:
+            return "\(model.compassCalibrationStatusText)。\(GTCopy.compassCalibrationPageInstruction(lang))"
+        case .english:
+            return "\(model.compassCalibrationStatusText). \(GTCopy.compassCalibrationPageInstruction(lang))"
+        }
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                VStack(spacing: 6) {
-                    Text(model.compassCalibrationStatusText)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
+                calibrationCompassCard
 
-                    Text(GTCopy.compassCalibrationPageInstruction(lang))
+                VStack(spacing: 12) {
+                    Text(summaryText)
                         .font(.footnote)
                         .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity)
 
-                calibrationCompassCard
-
-                VStack(spacing: 12) {
                     if let feedbackText {
                         Text(feedbackText)
                             .font(.footnote.weight(.semibold))
