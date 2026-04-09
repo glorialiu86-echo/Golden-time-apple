@@ -587,7 +587,7 @@ private struct GTPhoneCompassCalibrationView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(spacing: 16) {
                 calibrationCompassCard
 
                 VStack(spacing: 12) {
@@ -600,32 +600,35 @@ private struct GTPhoneCompassCalibrationView: View {
 
                     if model.hasCompassCalibration {
                         HStack(spacing: 12) {
-                            Button(GTCopy.compassCalibrationSave(lang)) {
+                            calibrationActionButton(
+                                title: GTCopy.compassCalibrationSave(lang),
+                                background: GTPhoneSettingsListColors.controlAccent,
+                                foreground: .white,
+                                showsBorder: false,
+                                isEnabled: model.canSaveCompassCalibration
+                            ) {
                                 _ = model.saveCompassCalibrationFromCurrentSunAlignment()
                             }
-                            .buttonStyle(.borderedProminent)
-                            .tint(GTPhoneSettingsListColors.controlAccent)
-                            .frame(maxWidth: .infinity)
-                            .disabled(!model.canSaveCompassCalibration)
 
-                            Button {
+                            calibrationActionButton(
+                                title: GTCopy.settingsCompassCalibrationClear(lang),
+                                background: GTPhoneSettingsListColors.rowBackground.opacity(0.9),
+                                foreground: GTPhoneSettingsListColors.rowSecondary,
+                                showsBorder: true
+                            ) {
                                 showClearConfirmation = true
-                            } label: {
-                                Text(GTCopy.settingsCompassCalibrationClear(lang))
-                                    .frame(maxWidth: .infinity)
                             }
-                            .buttonStyle(.bordered)
-                            .tint(GTPhoneSettingsListColors.rowSecondary)
-                            .frame(maxWidth: .infinity)
                         }
                     } else {
-                        Button(GTCopy.compassCalibrationSave(lang)) {
+                        calibrationActionButton(
+                            title: GTCopy.compassCalibrationSave(lang),
+                            background: GTPhoneSettingsListColors.controlAccent,
+                            foreground: .white,
+                            showsBorder: false,
+                            isEnabled: model.canSaveCompassCalibration
+                        ) {
                             _ = model.saveCompassCalibrationFromCurrentSunAlignment()
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(GTPhoneSettingsListColors.controlAccent)
-                        .frame(maxWidth: .infinity)
-                        .disabled(!model.canSaveCompassCalibration)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -666,7 +669,7 @@ private struct GTPhoneCompassCalibrationView: View {
                 chromeIsLight: skin.isLightChrome,
                 uiLanguage: lang,
                 coordinate: coord,
-                deviceHeadingDegrees: model.deviceHeadingDegrees,
+                deviceHeadingDegrees: model.correctedHeadingDegrees ?? model.deviceHeadingDegrees,
                 blueSectorArcAzimuths: model.blueSectorArcAzimuths,
                 goldenSectorArcAzimuths: model.goldenSectorArcAzimuths,
                 blueSectorColors: skin.twilightCardGradient(blue: true),
@@ -677,6 +680,7 @@ private struct GTPhoneCompassCalibrationView: View {
                 sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
                 moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees
             )
+            .frame(maxWidth: .infinity, alignment: .center)
             .frame(height: Self.calibrationDialHeight)
         } else {
             Text(GTCopy.compassCardNeedLocation(lang))
@@ -686,5 +690,36 @@ private struct GTPhoneCompassCalibrationView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: Self.calibrationDialHeight)
         }
+    }
+
+    private func calibrationActionButton(
+        title: String,
+        background: Color,
+        foreground: Color,
+        showsBorder: Bool,
+        isEnabled: Bool = true,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(foreground.opacity(isEnabled ? 1 : 0.6))
+        .background(
+            Capsule(style: .continuous)
+                .fill(background.opacity(isEnabled ? 1 : 0.55))
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .stroke(
+                    showsBorder ? GTPhoneSettingsListColors.rowSecondary.opacity(0.14) : Color.clear,
+                    lineWidth: 1
+                )
+        )
+        .contentShape(Capsule(style: .continuous))
+        .disabled(!isEnabled)
     }
 }
