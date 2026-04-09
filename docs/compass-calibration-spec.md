@@ -297,10 +297,21 @@
 
 推荐方向：
 
-- 入口位于 Watch 罗盘页
+- 入口优先位于 Watch 罗盘页长按手势
 - 用户在 Watch 上进入独立校对流程
 - Watch 使用自己的 `deviceHeadingDegrees` 与太阳方位计算 `watchHeadingOffset`
 - 结果保存在 Watch 本地
+
+推荐入口表现：
+
+- Watch 罗盘页不放常驻按钮
+- 用户长按罗盘页后进入校对入口
+- 在罗盘页下方用最小字提示入口存在
+
+提示文案方向：
+
+- 中文：`长按进入指南校对`
+- 英文：`Long press to calibrate`
 
 不推荐方案：
 
