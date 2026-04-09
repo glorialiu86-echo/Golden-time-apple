@@ -498,7 +498,6 @@ struct TwilightCompassCard: View {
                         .frame(width: side, height: side)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                         .clipShape(Circle())
-                        .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, x: 0, y: shadowY)
                 }
                 #endif
             }
@@ -553,7 +552,6 @@ struct TwilightCompassCard: View {
             .frame(width: side, height: side)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .clipShape(Circle())
-            .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, x: 0, y: shadowY)
     }
 
     @ViewBuilder
