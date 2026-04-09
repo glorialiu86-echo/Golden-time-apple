@@ -1,4 +1,5 @@
 import Combine
+import CoreLocation
 import GoldenTimeCore
 import OSLog
 import SwiftUI
@@ -220,32 +221,18 @@ struct GoldenTimeWatchRootView: View {
                 watchCompassLoadingShell(skin: skin)
             } else if let coord = model.mapCoordinate {
                 ZStack(alignment: .bottom) {
-                    GeometryReader { geo in
-                        let span = min(geo.size.width, geo.size.height)
-                        let side = max(span * 0.9, 1)
-                        TwilightCompassCard(
-                            showMapBase: compassShowsMapBase && isCompassPagePresentationReady,
-                            chromeGradient: skin.chromeGradient,
-                            compassInk: skin.ink,
-                            compassStroke: skin.panelStroke,
-                            chromeIsLight: skin.isLightChrome,
-                            uiLanguage: lang,
-                            coordinate: coord,
-                            deviceHeadingDegrees: model.correctedHeadingDegrees ?? model.deviceHeadingDegrees,
-                            blueSectorArcAzimuths: model.blueSectorArcAzimuths,
-                            goldenSectorArcAzimuths: model.goldenSectorArcAzimuths,
-                            blueSectorColors: skin.twilightCardGradient(blue: true),
-                            goldenSectorColors: skin.twilightCardGradient(blue: false),
-                            compassDayNight: model.compassDayNight,
-                            daySectorTint: skin.compassDayDiskTint,
-                            nightSectorTint: skin.compassNightDiskTint,
-                            sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
-                            moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees
-                        )
-                        .frame(width: side, height: side)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-
+                    watchCompassDial(
+                        skin: skin,
+                        lang: lang,
+                        coordinate: coord,
+                        headingDegrees: model.correctedHeadingDegrees ?? model.deviceHeadingDegrees,
+                        blueSectorArcAzimuths: model.blueSectorArcAzimuths,
+                        goldenSectorArcAzimuths: model.goldenSectorArcAzimuths,
+                        compassDayNight: model.compassDayNight,
+                        sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
+                        moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees,
+                        showMapBase: compassShowsMapBase && isCompassPagePresentationReady
+                    )
                     Text(GTCopy.watchCompassCalibrationHint(lang))
                         .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundStyle(skin.chromeSecondaryForeground)
@@ -347,33 +334,22 @@ private struct GTWatchCompassCalibrationView: View {
             )
             .ignoresSafeArea()
 
-            ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
                 if let coord = model.mapCoordinate {
-                    GeometryReader { geo in
-                        let side = max(min(geo.size.width + 18, geo.size.height - 22), 1)
-                        TwilightCompassCard(
-                            showMapBase: false,
-                            chromeGradient: skin.chromeGradient,
-                            compassInk: skin.ink,
-                            compassStroke: skin.panelStroke,
-                            chromeIsLight: skin.isLightChrome,
-                            uiLanguage: lang,
-                            coordinate: coord,
-                            deviceHeadingDegrees: model.correctedHeadingDegrees ?? model.deviceHeadingDegrees,
-                            blueSectorArcAzimuths: model.blueSectorArcAzimuths,
-                            goldenSectorArcAzimuths: model.goldenSectorArcAzimuths,
-                            blueSectorColors: skin.twilightCardGradient(blue: true),
-                            goldenSectorColors: skin.twilightCardGradient(blue: false),
-                            compassDayNight: model.compassDayNight,
-                            daySectorTint: skin.compassDayDiskTint,
-                            nightSectorTint: skin.compassNightDiskTint,
-                            sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
-                            moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees
-                        )
-                        .frame(width: side, height: side)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                    .padding(.top, 4)
+                    watchCompassDial(
+                        skin: skin,
+                        lang: lang,
+                        coordinate: coord,
+                        headingDegrees: model.correctedHeadingDegrees ?? model.deviceHeadingDegrees,
+                        blueSectorArcAzimuths: model.blueSectorArcAzimuths,
+                        goldenSectorArcAzimuths: model.goldenSectorArcAzimuths,
+                        compassDayNight: model.compassDayNight,
+                        sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
+                        moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees,
+                        showMapBase: false
+                    )
+                    .padding(.horizontal, -12)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 } else {
                     Text(GTCopy.compassCardNeedLocation(lang))
                         .font(.caption)
@@ -403,8 +379,11 @@ private struct GTWatchCompassCalibrationView: View {
                 }
                 .padding(.horizontal, 8)
                 .padding(.bottom, 8)
+                .frame(height: 68)
             }
         }
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func watchCalibrationButton(
@@ -431,5 +410,46 @@ private struct GTWatchCompassCalibrationView: View {
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
         .disabled(!isEnabled)
+    }
+}
+
+@MainActor
+@ViewBuilder
+private func watchCompassDial(
+    skin: GTPhaseSkin,
+    lang: GTAppLanguage,
+    coordinate: CLLocationCoordinate2D,
+    headingDegrees: Double?,
+    blueSectorArcAzimuths: [(Double, Double)],
+    goldenSectorArcAzimuths: [(Double, Double)],
+    compassDayNight: CompassDayNightInput?,
+    sunBodyAzimuthDegrees: Double?,
+    moonBodyAzimuthDegrees: Double?,
+    showMapBase: Bool
+) -> some View {
+    GeometryReader { geo in
+        let span = min(geo.size.width, geo.size.height)
+        let side = max(span * 0.9, 1)
+        TwilightCompassCard(
+            showMapBase: showMapBase,
+            chromeGradient: skin.chromeGradient,
+            compassInk: skin.ink,
+            compassStroke: skin.panelStroke,
+            chromeIsLight: skin.isLightChrome,
+            uiLanguage: lang,
+            coordinate: coordinate,
+            deviceHeadingDegrees: headingDegrees,
+            blueSectorArcAzimuths: blueSectorArcAzimuths,
+            goldenSectorArcAzimuths: goldenSectorArcAzimuths,
+            blueSectorColors: skin.twilightCardGradient(blue: true),
+            goldenSectorColors: skin.twilightCardGradient(blue: false),
+            compassDayNight: compassDayNight,
+            daySectorTint: skin.compassDayDiskTint,
+            nightSectorTint: skin.compassNightDiskTint,
+            sunBodyAzimuthDegrees: sunBodyAzimuthDegrees,
+            moonBodyAzimuthDegrees: moonBodyAzimuthDegrees
+        )
+        .frame(width: side, height: side)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

@@ -418,11 +418,7 @@ struct TwilightCompassCard: View {
     @ViewBuilder
     private func gradientCompassDisk(side: CGFloat) -> some View {
         ZStack {
-            LinearGradient(
-                colors: chromeGradient.map { $0.opacity(0.92) },
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            Color.clear
             compassFaceLayers(side: side, basemapBehindFace: false, chromeIsLight: chromeIsLight)
                 .allowsHitTesting(false)
         }
