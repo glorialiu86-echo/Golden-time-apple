@@ -35,6 +35,7 @@ struct GoldenTimeWatchRootView: View {
     @State private var bootstrapScheduledUptime: TimeInterval?
     @State private var loggedFirstTwilightRenderable = false
     @State private var loggedFirstCompassRenderable = false
+    @State private var showCompassCalibration = false
 
     private var lang: GTAppLanguage {
         GTAppLanguage.watchResolved(
@@ -66,16 +67,21 @@ struct GoldenTimeWatchRootView: View {
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
-        ZStack {
-            pageGradient
-                .ignoresSafeArea()
-            TabView(selection: $selectedPage) {
-                watchTwilightPage(skin: skin, now: tickNow)
-                    .tag(WatchPage.twilight)
-                watchCompassPage(skin: skin)
-                    .tag(WatchPage.compass)
+        NavigationStack {
+            ZStack {
+                pageGradient
+                    .ignoresSafeArea()
+                TabView(selection: $selectedPage) {
+                    watchTwilightPage(skin: skin, now: tickNow)
+                        .tag(WatchPage.twilight)
+                    watchCompassPage(skin: skin)
+                        .tag(WatchPage.compass)
+                }
+                .tabViewStyle(.verticalPage)
             }
-            .tabViewStyle(.verticalPage)
+            .navigationDestination(isPresented: $showCompassCalibration) {
+                GTWatchCompassCalibrationView(model: model, lang: lang)
+            }
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { date in
             let now = currentNow()
@@ -213,34 +219,45 @@ struct GoldenTimeWatchRootView: View {
             if !hasCompletedCompassWarmup || !isCompassPagePresentationReady {
                 watchCompassLoadingShell(skin: skin)
             } else if let coord = model.mapCoordinate {
-                GeometryReader { geo in
-                    let span = min(geo.size.width, geo.size.height)
-                    let side = max(span * 0.9, 1)
-                    TwilightCompassCard(
-                        showMapBase: compassShowsMapBase && isCompassPagePresentationReady,
-                        chromeGradient: skin.chromeGradient,
-                        compassInk: skin.ink,
-                        compassStroke: skin.panelStroke,
-                        chromeIsLight: skin.isLightChrome,
-                        uiLanguage: lang,
-                        coordinate: coord,
-                        deviceHeadingDegrees: model.deviceHeadingDegrees,
-                        blueSectorArcAzimuths: model.blueSectorArcAzimuths,
-                        goldenSectorArcAzimuths: model.goldenSectorArcAzimuths,
-                        blueSectorColors: skin.twilightCardGradient(blue: true),
-                        goldenSectorColors: skin.twilightCardGradient(blue: false),
-                        compassDayNight: model.compassDayNight,
-                        daySectorTint: skin.compassDayDiskTint,
-                        nightSectorTint: skin.compassNightDiskTint,
-                        sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
-                        moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees
-                    )
-                    .frame(width: side, height: side)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ZStack(alignment: .bottom) {
+                    GeometryReader { geo in
+                        let span = min(geo.size.width, geo.size.height)
+                        let side = max(span * 0.9, 1)
+                        TwilightCompassCard(
+                            showMapBase: compassShowsMapBase && isCompassPagePresentationReady,
+                            chromeGradient: skin.chromeGradient,
+                            compassInk: skin.ink,
+                            compassStroke: skin.panelStroke,
+                            chromeIsLight: skin.isLightChrome,
+                            uiLanguage: lang,
+                            coordinate: coord,
+                            deviceHeadingDegrees: model.correctedHeadingDegrees ?? model.deviceHeadingDegrees,
+                            blueSectorArcAzimuths: model.blueSectorArcAzimuths,
+                            goldenSectorArcAzimuths: model.goldenSectorArcAzimuths,
+                            blueSectorColors: skin.twilightCardGradient(blue: true),
+                            goldenSectorColors: skin.twilightCardGradient(blue: false),
+                            compassDayNight: model.compassDayNight,
+                            daySectorTint: skin.compassDayDiskTint,
+                            nightSectorTint: skin.compassNightDiskTint,
+                            sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
+                            moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees
+                        )
+                        .frame(width: side, height: side)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+
+                    Text(GTCopy.watchCompassCalibrationHint(lang))
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(skin.chromeSecondaryForeground)
+                        .padding(.bottom, 4)
                 }
                 .padding(.horizontal, -12)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onLongPressGesture(minimumDuration: 1) {
+                    showCompassCalibration = true
+                }
             } else {
                 Text(GTCopy.compassCardNeedLocation(lang))
                     .font(.caption)
@@ -313,5 +330,107 @@ struct GoldenTimeWatchRootView: View {
             isCompassPagePresentationReady = true
             model.setCompassPageActive(true)
         }
+    }
+}
+
+private struct GTWatchCompassCalibrationView: View {
+    @ObservedObject var model: GoldenTimeWatchViewModel
+    let lang: GTAppLanguage
+
+    var body: some View {
+        let skin = GTPhaseSkin(phase: model.phase)
+        ZStack {
+            LinearGradient(
+                colors: [skin.upper, skin.lower],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 10) {
+                if let coord = model.mapCoordinate {
+                    GeometryReader { geo in
+                        let span = min(geo.size.width, geo.size.height)
+                        let side = max(span * 0.9, 1)
+                        TwilightCompassCard(
+                            showMapBase: false,
+                            chromeGradient: skin.chromeGradient,
+                            compassInk: skin.ink,
+                            compassStroke: skin.panelStroke,
+                            chromeIsLight: skin.isLightChrome,
+                            uiLanguage: lang,
+                            coordinate: coord,
+                            deviceHeadingDegrees: model.correctedHeadingDegrees ?? model.deviceHeadingDegrees,
+                            blueSectorArcAzimuths: model.blueSectorArcAzimuths,
+                            goldenSectorArcAzimuths: model.goldenSectorArcAzimuths,
+                            blueSectorColors: skin.twilightCardGradient(blue: true),
+                            goldenSectorColors: skin.twilightCardGradient(blue: false),
+                            compassDayNight: model.compassDayNight,
+                            daySectorTint: skin.compassDayDiskTint,
+                            nightSectorTint: skin.compassNightDiskTint,
+                            sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
+                            moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees
+                        )
+                        .frame(width: side, height: side)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                } else {
+                    Text(GTCopy.compassCardNeedLocation(lang))
+                        .font(.caption)
+                        .foregroundStyle(skin.chromeSecondaryForeground)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+
+                HStack(spacing: 8) {
+                    watchCalibrationButton(
+                        title: GTCopy.compassCalibrationSave(lang),
+                        background: Color(red: 0, green: 122 / 255, blue: 1),
+                        foreground: .white,
+                        isEnabled: model.canSaveCompassCalibration
+                    ) {
+                        _ = model.saveCompassCalibrationFromCurrentSunAlignment()
+                    }
+
+                    watchCalibrationButton(
+                        title: GTCopy.settingsCompassCalibrationClear(lang),
+                        background: Color.white.opacity(0.9),
+                        foreground: Color(red: 88 / 255, green: 91 / 255, blue: 99 / 255),
+                        isEnabled: model.hasCompassCalibration
+                    ) {
+                        model.clearCompassCalibration()
+                    }
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 10)
+        }
+        .navigationTitle(GTCopy.settingsCompassCalibrationTitle(lang))
+    }
+
+    private func watchCalibrationButton(
+        title: String,
+        background: Color,
+        foreground: Color,
+        isEnabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .foregroundStyle(foreground.opacity(isEnabled ? 1 : 0.6))
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(background.opacity(isEnabled ? 1 : 0.55))
+                )
+                .contentShape(Capsule(style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .disabled(!isEnabled)
     }
 }

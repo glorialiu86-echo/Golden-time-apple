@@ -13,6 +13,7 @@ final class WatchLocationReader: NSObject, ObservableObject, @unchecked Sendable
     @Published private(set) var latestFix: LocationFix?
     /// Degrees clockwise from true north when available; else magnetic; `nil` until first heading update.
     @Published private(set) var headingDegrees: Double?
+    @Published private(set) var headingUsesTrueNorth = false
 
     private let manager = CLLocationManager()
     private var isAwaitingAuthorizationPrompt = false
@@ -38,6 +39,7 @@ final class WatchLocationReader: NSObject, ObservableObject, @unchecked Sendable
         default:
             manager.stopUpdatingHeading()
             headingDegrees = nil
+            headingUsesTrueNorth = false
         }
     }
 
@@ -128,8 +130,10 @@ extension WatchLocationReader: CLLocationManagerDelegate {
             guard let self else { return }
             if trueH >= 0 {
                 self.headingDegrees = trueH
+                self.headingUsesTrueNorth = true
             } else if magH >= 0 {
                 self.headingDegrees = magH
+                self.headingUsesTrueNorth = false
             }
         }
     }

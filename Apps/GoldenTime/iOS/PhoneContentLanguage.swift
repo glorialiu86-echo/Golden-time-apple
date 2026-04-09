@@ -393,6 +393,13 @@ enum GTCopy {
         }
     }
 
+    static func watchCompassCalibrationHint(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "长按罗盘校对"
+        case .english: return "Long press to calibrate"
+        }
+    }
+
     static func settingsStatusPrefix(_ lang: GTAppLanguage) -> String {
         switch lang {
         case .chinese: return "状态"

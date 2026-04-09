@@ -22,6 +22,7 @@ final class GoldenTimeWatchViewModel: ObservableObject {
     /// Created after the first frame (`startLocationPipeline`) so `CLLocationManager` init never blocks app launch on watchOS Simulator.
     private var locationReader: WatchLocationReader?
     private var cancellables = Set<AnyCancellable>()
+    private var compassHeadingOffsetDegrees = 0.0
 
     private var activeFix: LocationFix?
     private var lastEngineDayStart: Date?
@@ -39,6 +40,7 @@ final class GoldenTimeWatchViewModel: ObservableObject {
     @Published private(set) var phase: PhaseState?
     @Published private(set) var mapCoordinate: CLLocationCoordinate2D?
     @Published private(set) var deviceHeadingDegrees: Double?
+    @Published private(set) var deviceHeadingUsesTrueNorth = false
     @Published private(set) var blueSectorArcAzimuths: [(Double, Double)] = []
     @Published private(set) var goldenSectorArcAzimuths: [(Double, Double)] = []
     @Published private(set) var compassDayNight: CompassDayNightInput?
@@ -65,6 +67,7 @@ final class GoldenTimeWatchViewModel: ObservableObject {
     private(set) var contentLanguage: GTAppLanguage = GTAppLanguage.resolved()
 
     private static var defaults: UserDefaults { GTAppGroup.shared }
+    private static let calibrationDefaults = UserDefaults.standard
     private static let sunIconMinAltitudeDegrees = -50.0 / 60.0
     private static let moonIconMinAltitudeDegrees = 0.0
 
@@ -86,6 +89,7 @@ final class GoldenTimeWatchViewModel: ObservableObject {
 
     init() {
         locationHint = "…"
+        loadCompassCalibration()
 
         if let cached = Self.loadCachedFix() {
             activeFix = cached
@@ -128,6 +132,13 @@ final class GoldenTimeWatchViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
+        reader.$headingUsesTrueNorth
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] usesTrueNorth in
+                self?.deviceHeadingUsesTrueNorth = usesTrueNorth
+            }
+            .store(in: &cancellables)
+
         reader.$authorizationStatus
             .receive(on: DispatchQueue.main)
             .sink { [weak self] status in
@@ -160,6 +171,49 @@ final class GoldenTimeWatchViewModel: ObservableObject {
         rebuildDailyDerivedStateIfNeeded(now: clockNow, force: true)
         refreshTwilightPageState(now: clockNow)
         refreshCompassStateIfNeeded(now: clockNow, force: true)
+        objectWillChange.send()
+    }
+
+    var correctedHeadingDegrees: Double? {
+        guard let raw = deviceHeadingDegrees else { return nil }
+        return Self.normalizeDegrees(raw + compassHeadingOffsetDegrees)
+    }
+
+    var hasCompassCalibration: Bool {
+        compassHeadingOffsetDegrees != 0 || Self.calibrationDefaults.object(forKey: GTWatchCompassCalibrationSettings.offsetDegreesKey) != nil
+    }
+
+    var canSaveCompassCalibration: Bool {
+        guard activeFix != nil else { return false }
+        guard deviceHeadingDegrees != nil else { return false }
+        guard deviceHeadingUsesTrueNorth else { return false }
+        return compassSunBodyAzimuthDegrees != nil
+    }
+
+    @discardableResult
+    func saveCompassCalibrationFromCurrentSunAlignment() -> Bool {
+        guard let rawHeading = deviceHeadingDegrees,
+              let sunAzimuth = compassSunBodyAzimuthDegrees,
+              canSaveCompassCalibration else {
+            return false
+        }
+        let offset = Self.normalizeDegrees(sunAzimuth - rawHeading)
+        let savedAt = currentNow()
+        compassHeadingOffsetDegrees = offset
+        Self.calibrationDefaults.set(offset, forKey: GTWatchCompassCalibrationSettings.offsetDegreesKey)
+        Self.calibrationDefaults.set(savedAt.timeIntervalSince1970, forKey: GTWatchCompassCalibrationSettings.calibratedAtKey)
+        Self.calibrationDefaults.set(GTWatchCompassCalibrationSettings.sourceSun, forKey: GTWatchCompassCalibrationSettings.sourceKey)
+        Self.calibrationDefaults.set(GTWatchCompassCalibrationSettings.version, forKey: GTWatchCompassCalibrationSettings.versionKey)
+        objectWillChange.send()
+        return true
+    }
+
+    func clearCompassCalibration() {
+        compassHeadingOffsetDegrees = 0
+        Self.calibrationDefaults.removeObject(forKey: GTWatchCompassCalibrationSettings.offsetDegreesKey)
+        Self.calibrationDefaults.removeObject(forKey: GTWatchCompassCalibrationSettings.calibratedAtKey)
+        Self.calibrationDefaults.removeObject(forKey: GTWatchCompassCalibrationSettings.sourceKey)
+        Self.calibrationDefaults.removeObject(forKey: GTWatchCompassCalibrationSettings.versionKey)
         objectWillChange.send()
     }
 
@@ -384,5 +438,23 @@ final class GoldenTimeWatchViewModel: ObservableObject {
         defaults.set(fix.longitude, forKey: GoldenTimeLocationCache.longitudeKey)
         defaults.set(fix.timestamp.timeIntervalSince1970, forKey: GoldenTimeLocationCache.timestampKey)
         WidgetCenter.shared.reloadTimelines(ofKind: GTWatchWidgetKind.twilight)
+    }
+
+    private func loadCompassCalibration() {
+        let defaults = Self.calibrationDefaults
+        guard defaults.object(forKey: GTWatchCompassCalibrationSettings.offsetDegreesKey) != nil else {
+            compassHeadingOffsetDegrees = 0
+            return
+        }
+        compassHeadingOffsetDegrees = Self.normalizeDegrees(
+            defaults.double(forKey: GTWatchCompassCalibrationSettings.offsetDegreesKey)
+        )
+    }
+
+    private static func normalizeDegrees(_ value: Double) -> Double {
+        var normalized = value.truncatingRemainder(dividingBy: 360)
+        if normalized > 180 { normalized -= 360 }
+        if normalized < -180 { normalized += 360 }
+        return normalized
     }
 }

@@ -135,6 +135,16 @@ public enum GTCompassCalibrationSettings {
     public static let version = 1
 }
 
+/// Watch-only compass calibration; stored in local watch defaults so iPhone never inherits watch offsets.
+public enum GTWatchCompassCalibrationSettings {
+    public static let offsetDegreesKey = "gt.watch.compassCalibration.offsetDegrees"
+    public static let calibratedAtKey = "gt.watch.compassCalibration.calibratedAt"
+    public static let sourceKey = "gt.watch.compassCalibration.source"
+    public static let versionKey = "gt.watch.compassCalibration.version"
+    public static let sourceSun = "sun"
+    public static let version = 1
+}
+
 /// iPhone writes compass map visibility (network + debug env); Watch reads so UI matches phone without its own reachability check.
 public enum GTCompanionUISync {
     public static let showCompassMapBaseKey = "gt.companion.showCompassMapBase"
