@@ -352,7 +352,7 @@ private struct GTWatchCompassCalibrationView: View {
         GeometryReader { geo in
             let isLargeWatch = geo.size.width >= 300
             let buttonAreaHeight: CGFloat = isLargeWatch ? 60 : 58
-            let topInset: CGFloat = isLargeWatch ? 42 : 36
+            let topInset: CGFloat = isLargeWatch ? 34 : 32
             let bottomInset: CGFloat = isLargeWatch ? 16 : 10
             let dialHeight = max(geo.size.height - topInset - buttonAreaHeight, 1)
 
@@ -432,7 +432,7 @@ private struct GTWatchCompassCalibrationView: View {
                     }
                     Spacer()
                 }
-                .padding(.top, isLargeWatch ? 24 : 12)
+                .padding(.top, isLargeWatch ? 30 : 12)
                 .padding(.leading, isLargeWatch ? 22 : 12)
             }
         }
