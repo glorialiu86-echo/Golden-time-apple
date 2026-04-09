@@ -80,9 +80,9 @@ struct GoldenTimeWatchRootView: View {
                 }
                 .tabViewStyle(.verticalPage)
             }
-            .navigationDestination(isPresented: $showCompassCalibration) {
-                GTWatchCompassCalibrationView(model: model, lang: lang)
-            }
+        }
+        .fullScreenCover(isPresented: $showCompassCalibration) {
+            GTWatchCompassCalibrationView(model: model, lang: lang)
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { date in
             let now = currentNow()
@@ -323,67 +323,92 @@ struct GoldenTimeWatchRootView: View {
 private struct GTWatchCompassCalibrationView: View {
     @ObservedObject var model: GoldenTimeWatchViewModel
     let lang: GTAppLanguage
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         let skin = GTPhaseSkin(phase: model.phase)
-        ZStack {
-            LinearGradient(
-                colors: [skin.upper, skin.lower],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+        GeometryReader { geo in
+            let buttonAreaHeight: CGFloat = 78
+            let topInset: CGFloat = 50
+            let bottomInset: CGFloat = 8
+            let dialHeight = max(geo.size.height - topInset - buttonAreaHeight, 1)
 
-            VStack(spacing: 0) {
-                if let coord = model.mapCoordinate {
-                    watchCompassDial(
-                        skin: skin,
-                        lang: lang,
-                        coordinate: coord,
-                        headingDegrees: model.correctedHeadingDegrees ?? model.deviceHeadingDegrees,
-                        blueSectorArcAzimuths: model.blueSectorArcAzimuths,
-                        goldenSectorArcAzimuths: model.goldenSectorArcAzimuths,
-                        compassDayNight: model.compassDayNight,
-                        sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
-                        moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees,
-                        showMapBase: false
-                    )
-                    .padding(.horizontal, -12)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                } else {
-                    Text(GTCopy.compassCardNeedLocation(lang))
-                        .font(.caption)
-                        .foregroundStyle(skin.chromeSecondaryForeground)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
+            ZStack(alignment: .topLeading) {
+                LinearGradient(
+                    colors: [skin.upper, skin.lower],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
 
-                HStack(spacing: 8) {
-                    watchCalibrationButton(
-                        title: GTCopy.watchCompassCalibrationSave(lang),
-                        background: Color(red: 0, green: 122 / 255, blue: 1),
-                        foreground: .white,
-                        isEnabled: model.canSaveCompassCalibration
-                    ) {
-                        _ = model.saveCompassCalibrationFromCurrentSunAlignment()
+                VStack(spacing: 0) {
+                    if let coord = model.mapCoordinate {
+                        watchCompassDial(
+                            skin: skin,
+                            lang: lang,
+                            coordinate: coord,
+                            headingDegrees: model.correctedHeadingDegrees ?? model.deviceHeadingDegrees,
+                            blueSectorArcAzimuths: model.blueSectorArcAzimuths,
+                            goldenSectorArcAzimuths: model.goldenSectorArcAzimuths,
+                            compassDayNight: model.compassDayNight,
+                            sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
+                            moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees,
+                            showMapBase: false
+                        )
+                        .padding(.horizontal, -12)
+                        .frame(width: geo.size.width, height: dialHeight)
+                    } else {
+                        Text(GTCopy.compassCardNeedLocation(lang))
+                            .font(.caption)
+                            .foregroundStyle(skin.chromeSecondaryForeground)
+                            .multilineTextAlignment(.center)
+                            .frame(width: geo.size.width, height: dialHeight)
                     }
 
-                    watchCalibrationButton(
-                        title: GTCopy.watchCompassCalibrationClear(lang),
-                        background: Color.white.opacity(0.9),
-                        foreground: Color(red: 88 / 255, green: 91 / 255, blue: 99 / 255),
-                        isEnabled: model.hasCompassCalibration
-                    ) {
-                        model.clearCompassCalibration()
+                    HStack(spacing: 8) {
+                        watchCalibrationButton(
+                            title: GTCopy.watchCompassCalibrationSave(lang),
+                            background: Color(red: 0, green: 122 / 255, blue: 1),
+                            foreground: .white,
+                            isEnabled: model.canSaveCompassCalibration
+                        ) {
+                            _ = model.saveCompassCalibrationFromCurrentSunAlignment()
+                        }
+
+                        watchCalibrationButton(
+                            title: GTCopy.watchCompassCalibrationClear(lang),
+                            background: Color.white.opacity(0.9),
+                            foreground: Color(red: 88 / 255, green: 91 / 255, blue: 99 / 255),
+                            isEnabled: model.hasCompassCalibration
+                        ) {
+                            model.clearCompassCalibration()
+                        }
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, bottomInset)
+                    .frame(height: buttonAreaHeight, alignment: .bottom)
                 }
-                .padding(.horizontal, 8)
-                .padding(.bottom, 8)
-                .frame(height: 68)
+                .padding(.top, topInset)
+
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .foregroundStyle(skin.ink)
+                        .frame(width: 42, height: 42)
+                        .background(
+                            Circle()
+                                .fill(Color.clear)
+                        )
+                        .overlay(
+                            Circle()
+                                .stroke(Color.orange.opacity(0.55), lineWidth: 1.6)
+                        )
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 8)
+                .padding(.leading, 8)
             }
         }
-        .navigationTitle("")
-        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func watchCalibrationButton(
