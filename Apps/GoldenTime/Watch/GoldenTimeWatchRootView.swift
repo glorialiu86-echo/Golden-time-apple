@@ -353,7 +353,7 @@ private struct GTWatchCompassCalibrationView: View {
             let isLargeWatch = geo.size.width >= 300
             let buttonAreaHeight: CGFloat = isLargeWatch ? 60 : 58
             let topInset: CGFloat = isLargeWatch ? 46 : 40
-            let bottomInset: CGFloat = isLargeWatch ? 10 : 10
+            let bottomInset: CGFloat = isLargeWatch ? 12 : 10
             let dialHeight = max(geo.size.height - topInset - buttonAreaHeight, 1)
 
             ZStack {
@@ -377,7 +377,7 @@ private struct GTWatchCompassCalibrationView: View {
                             sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
                             moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees,
                             showMapBase: false,
-                            sideScale: isLargeWatch ? 1.04 : 1.0
+                            sideScale: isLargeWatch ? 1.04 : 1.08
                         )
                         .padding(.horizontal, -12)
                         .frame(width: geo.size.width, height: dialHeight)
@@ -432,8 +432,8 @@ private struct GTWatchCompassCalibrationView: View {
                     }
                     Spacer()
                 }
-                .padding(.top, 18)
-                .padding(.leading, 18)
+                .padding(.top, isLargeWatch ? 18 : 12)
+                .padding(.leading, isLargeWatch ? 18 : 12)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
