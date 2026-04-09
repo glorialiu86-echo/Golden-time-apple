@@ -233,6 +233,11 @@ struct GoldenTimePhoneSettingsView: View {
                     .listRowBackground(GTPhoneSettingsListColors.rowBackground)
                     .disabled(!reminderStore.isEnabled)
                     .opacity(reminderStore.isEnabled ? 1 : 0.4)
+
+                    Text(GTCopy.settingsReminderOneShotNote(lang))
+                        .font(.footnote)
+                        .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
+                        .listRowBackground(GTPhoneSettingsListColors.rowBackground)
                 } header: {
                     settingsSectionHeader(GTCopy.settingsReminderSection(lang))
                 }

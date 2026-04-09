@@ -2,15 +2,12 @@ import Foundation
 import GoldenTimeCore
 import UserNotifications
 
-/// Schedules a rolling set of local notifications before upcoming blue or golden hour windows.
+/// Schedules a one-shot local notification before the next blue or golden hour window.
 @MainActor
 final class TwilightReminderScheduler {
     static let shared = TwilightReminderScheduler()
 
     private static let reminderChimeSoundName = UNNotificationSoundName("GTTwilightReminderChime.caf")
-    /// Keep the system queue as full as iOS allows so reminders continue long after setup even if the app
-    /// is not foregrounded for a while. Local notifications cap pending requests at 64.
-    private static let maxScheduledReminders = 64
 
     private struct ScheduledReminder {
         let start: Date
@@ -62,13 +59,13 @@ final class TwilightReminderScheduler {
         let m = max(1, min(180, minutes))
 
         let reminders = debugScheduledReminders(targetRaw: targetRaw, minutes: m, now: now)
-            ?? nextSchedulableReminders(
+            ?? nextSchedulableReminder(
                 engine: engine,
                 target: target,
                 targetRaw: targetRaw,
                 minutes: m,
                 now: now
-            )
+            ).map { [$0] } ?? []
         guard !reminders.isEmpty else {
             cancelPending(clearScheduleState: true)
             lastScheduleSignature = nil
@@ -80,7 +77,6 @@ final class TwilightReminderScheduler {
             return
         }
         lastScheduleSignature = sig
-        let storedIdentifiers = suite.stringArray(forKey: GTTwilightReminderSettings.scheduledIdentifiersKey) ?? []
         let configurationFingerprint = scheduleConfigurationFingerprint(suite: suite, targetRaw: targetRaw, minutes: m)
         let shouldReplaceExisting = suite.string(forKey: GTTwilightReminderSettings.scheduleConfigurationKey) != configurationFingerprint
 
@@ -90,8 +86,7 @@ final class TwilightReminderScheduler {
                 replaceExisting: shouldReplaceExisting,
                 targetIsBlue: target == .blue,
                 minutes: m,
-                configurationFingerprint: configurationFingerprint,
-                storedIdentifiers: storedIdentifiers
+                configurationFingerprint: configurationFingerprint
             )
         }
     }
@@ -133,16 +128,15 @@ final class TwilightReminderScheduler {
         )
     }
 
-    private func nextSchedulableReminders(
+    private func nextSchedulableReminder(
         engine: GoldenTimeEngine,
         target: GTTwilightReminderSettings.Target,
         targetRaw: String,
         minutes: Int,
         now: Date
-    ) -> [ScheduledReminder] {
+    ) -> ScheduledReminder? {
         var searchDate = now
-        var reminders: [ScheduledReminder] = []
-        for _ in 0 ..< (Self.maxScheduledReminders * 2) where reminders.count < Self.maxScheduledReminders {
+        for _ in 0 ..< 4 {
             guard let reminder = reminderForNextWindow(
                 engine: engine,
                 target: target,
@@ -150,15 +144,15 @@ final class TwilightReminderScheduler {
                 minutes: minutes,
                 after: searchDate
             ) else {
-                break
+                return nil
             }
             let interval = reminder.fireDate.timeIntervalSince(now)
             if interval.isFinite, interval > 0 {
-                reminders.append(reminder)
+                return reminder
             }
             searchDate = reminder.start.addingTimeInterval(1)
         }
-        return reminders
+        return nil
     }
 
     private func reminderIdentifier(targetRaw: String, start: Date, minutes: Int) -> String {
@@ -177,13 +171,14 @@ final class TwilightReminderScheduler {
 
     private func debugScheduledReminders(targetRaw: String, minutes: Int, now: Date) -> [ScheduledReminder]? {
         guard let offsets = GTUITestLaunchOverrides.reminderOffsets else { return nil }
-        return offsets.enumerated().map { index, offset in
+        guard let offset = offsets.first else { return nil }
+        return [
             ScheduledReminder(
                 start: now.addingTimeInterval(offset + Double(minutes * 60)),
                 fireDate: now.addingTimeInterval(offset),
-                identifier: "\(GTTwilightReminderSettings.requestIdentifierPrefix).debug.\(targetRaw).\(minutes).\(index)"
+                identifier: "\(GTTwilightReminderSettings.requestIdentifierPrefix).debug.\(targetRaw).\(minutes).0"
             )
-        }
+        ]
     }
 
     private func applySchedule(
@@ -191,20 +186,25 @@ final class TwilightReminderScheduler {
         replaceExisting: Bool,
         targetIsBlue: Bool,
         minutes: Int,
-        configurationFingerprint: String,
-        storedIdentifiers: [String]
+        configurationFingerprint: String
     ) async {
         guard !Task.isCancelled else { return }
 
+        let desiredIdentifiers = Set(reminders.map(\.identifier))
+        let pendingIdentifiers = await pendingReminderIdentifiers()
+
         if replaceExisting {
-            let identifiers = await pendingReminderIdentifiers()
-            if !identifiers.isEmpty {
-                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
+            if !pendingIdentifiers.isEmpty {
+                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: pendingIdentifiers)
+            }
+        } else {
+            let obsoleteIdentifiers = pendingIdentifiers.filter { !desiredIdentifiers.contains($0) }
+            if !obsoleteIdentifiers.isEmpty {
+                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: obsoleteIdentifiers)
             }
         }
 
-        let desiredIdentifiers = Set(reminders.map(\.identifier))
-        let carriedIdentifiers = replaceExisting ? [] : storedIdentifiers.filter { desiredIdentifiers.contains($0) }
+        let carriedIdentifiers = replaceExisting ? [] : pendingIdentifiers.filter { desiredIdentifiers.contains($0) }
         let remindersToAdd = reminders.filter { !carriedIdentifiers.contains($0.identifier) }
 
         let suite = GTAppGroup.shared

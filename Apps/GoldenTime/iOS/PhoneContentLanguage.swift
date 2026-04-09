@@ -549,15 +549,22 @@ enum GTCopy {
 
     static func settingsReminderSection(_ lang: GTAppLanguage) -> String {
         switch lang {
-        case .chinese: return "时段提醒"
-        case .english: return "Twilight alerts"
+        case .chinese: return "一次性时段提醒"
+        case .english: return "One-time twilight alert"
         }
     }
 
     static func settingsReminderToggle(_ lang: GTAppLanguage) -> String {
         switch lang {
-        case .chinese: return "开启提醒"
-        case .english: return "Enable alerts"
+        case .chinese: return "开启下一次提醒"
+        case .english: return "Enable next alert"
+        }
+    }
+
+    static func settingsReminderOneShotNote(_ lang: GTAppLanguage) -> String {
+        switch lang {
+        case .chinese: return "提醒只会触发一次。触发后如需下次提醒，请重新开启。"
+        case .english: return "This alert fires once. Turn it on again after it fires if you want the next one."
         }
     }
 
