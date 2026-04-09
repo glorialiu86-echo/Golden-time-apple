@@ -87,6 +87,11 @@ struct GoldenTimePhoneRootView: View {
             }
             .onAppear {
                 model.syncContentLanguageWithAppPreference()
+                if GTUITestLaunchOverrides.disablesLiveLocation {
+                    hasShownInitialCompassOverlay = true
+                    showInitialCompassOverlay = false
+                    return
+                }
                 if !hasShownInitialCompassOverlay {
                     hasShownInitialCompassOverlay = true
                     showInitialCompassOverlay = true
@@ -103,7 +108,11 @@ struct GoldenTimePhoneRootView: View {
                 hasUnlockedStartupSync = false
                 needsDeferredCompanionSync = true
                 model.syncContentLanguageWithAppPreference()
-                model.beginForegroundLocationSession(requestImmediately: true)
+                if GTUITestLaunchOverrides.disablesLiveLocation {
+                    showInitialCompassOverlay = false
+                } else {
+                    model.beginForegroundLocationSession(requestImmediately: true)
+                }
                 allowCompassMapBase = true
                 if scenePhase == .active {
                     scheduleStartupSyncUnlock()
@@ -142,12 +151,15 @@ struct GoldenTimePhoneRootView: View {
                     }
                     guard hasBootstrapped, needsForegroundResume else { return }
                     needsForegroundResume = false
+                    guard !GTUITestLaunchOverrides.disablesLiveLocation else { return }
                     model.beginForegroundLocationSession(requestImmediately: true)
                 case .background:
                     initialCompassOverlayTask?.cancel()
                     startupSyncTask?.cancel()
                     needsForegroundResume = true
-                    model.endForegroundLocationSession()
+                    if !GTUITestLaunchOverrides.disablesLiveLocation {
+                        model.endForegroundLocationSession()
+                    }
                     flushDeferredExternalSync()
                 default:
                     initialCompassOverlayTask?.cancel()
@@ -424,6 +436,7 @@ struct GoldenTimePhoneRootView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(GTCopy.a11ySettings(lang))
+        .accessibilityIdentifier("gt.phone.settingsButton")
     }
 
     /// Writes effective language mirror + compass map flag for Watch; does **not** overwrite the user’s language preference key.

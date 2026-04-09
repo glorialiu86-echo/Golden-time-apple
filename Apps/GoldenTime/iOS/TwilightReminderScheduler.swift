@@ -2,20 +2,24 @@ import Foundation
 import GoldenTimeCore
 import UserNotifications
 
-/// Schedules a single local notification before the next blue or golden hour window (from in-app settings).
+/// Schedules a rolling set of local notifications before upcoming blue or golden hour windows.
 @MainActor
 final class TwilightReminderScheduler {
     static let shared = TwilightReminderScheduler()
 
     private static let reminderChimeSoundName = UNNotificationSoundName("GTTwilightReminderChime.caf")
+    /// Keep the system queue as full as iOS allows so reminders continue long after setup even if the app
+    /// is not foregrounded for a while. Local notifications cap pending requests at 64.
+    private static let maxScheduledReminders = 64
 
     private struct ScheduledReminder {
         let start: Date
         let fireDate: Date
-        let signature: String
+        let identifier: String
     }
 
     private var lastScheduleSignature: String?
+    private var rescheduleTask: Task<Void, Never>?
 
     private init() {}
 
@@ -38,6 +42,7 @@ final class TwilightReminderScheduler {
 
     func reschedule(engine: GoldenTimeEngine, now: Date) {
         let suite = GTAppGroup.shared
+        rescheduleTask?.cancel()
         guard suite.bool(forKey: GTTwilightReminderSettings.enabledKey) else {
             cancelPending(clearScheduleState: true)
             lastScheduleSignature = nil
@@ -56,68 +61,53 @@ final class TwilightReminderScheduler {
         let minutes = storedMinutes ?? GTTwilightReminderSettings.defaultMinutesBefore
         let m = max(1, min(180, minutes))
 
-        if let pendingReminder = reminderForNextWindow(engine: engine, target: target, targetRaw: targetRaw, minutes: m, after: now),
-           pendingReminder.fireDate <= now,
-           suite.string(forKey: GTTwilightReminderSettings.scheduledSignatureKey) == pendingReminder.signature
-        {
-            lastScheduleSignature = pendingReminder.signature
-            return
-        }
-
-        guard let reminder = nextSchedulableReminder(
-            engine: engine,
-            target: target,
-            targetRaw: targetRaw,
-            minutes: m,
-            now: now
-        ) else {
+        let reminders = debugScheduledReminders(targetRaw: targetRaw, minutes: m, now: now)
+            ?? nextSchedulableReminders(
+                engine: engine,
+                target: target,
+                targetRaw: targetRaw,
+                minutes: m,
+                now: now
+            )
+        guard !reminders.isEmpty else {
             cancelPending(clearScheduleState: true)
             lastScheduleSignature = nil
             return
         }
 
-        let sig = reminder.signature
+        let sig = reminders.map(\.identifier).joined(separator: ",")
         if lastScheduleSignature == sig {
             return
         }
-
-        let interval = max(1, reminder.fireDate.timeIntervalSince(now))
-        guard interval.isFinite, interval < 86400 * 8 else {
-            cancelPending(clearScheduleState: true)
-            lastScheduleSignature = nil
-            return
-        }
-
         lastScheduleSignature = sig
-        cancelPending(clearScheduleState: true)
+        let storedIdentifiers = suite.stringArray(forKey: GTTwilightReminderSettings.scheduledIdentifiersKey) ?? []
+        let configurationFingerprint = scheduleConfigurationFingerprint(suite: suite, targetRaw: targetRaw, minutes: m)
+        let shouldReplaceExisting = suite.string(forKey: GTTwilightReminderSettings.scheduleConfigurationKey) != configurationFingerprint
 
-        let lang = GTAppLanguage.widgetLanguageIOS(suite: suite)
-        let content = UNMutableNotificationContent()
-        content.title = GTCopy.reminderNotificationTitle(blue: target == .blue, lang: lang)
-        content.body = GTCopy.reminderNotificationBody(blue: target == .blue, minutes: m, lang: lang)
-        // Bundled short chime (~0.2s); avoids system default tri-tone “alarm” feel.
-        content.sound = UNNotificationSound(named: Self.reminderChimeSoundName)
-        content.userInfo["scheduleSignature"] = sig
-
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
-        let request = UNNotificationRequest(
-            identifier: GTTwilightReminderSettings.pendingRequestId,
-            content: content,
-            trigger: trigger
-        )
-        UNUserNotificationCenter.current().add(request) { [weak self] error in
-            Task { @MainActor [weak self] in
-                self?.finishScheduling(signature: sig, error: error)
-            }
+        rescheduleTask = Task { @MainActor [weak self] in
+            await self?.applySchedule(
+                reminders: reminders,
+                replaceExisting: shouldReplaceExisting,
+                targetIsBlue: target == .blue,
+                minutes: m,
+                configurationFingerprint: configurationFingerprint,
+                storedIdentifiers: storedIdentifiers
+            )
         }
     }
 
     func cancelPending(clearScheduleState: Bool = true) {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(
-            withIdentifiers: [GTTwilightReminderSettings.pendingRequestId]
-        )
+        rescheduleTask?.cancel()
+        Task {
+            let identifiers = await pendingReminderIdentifiers()
+            guard !identifiers.isEmpty else { return }
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
+        }
         guard clearScheduleState else { return }
-        GTAppGroup.shared.removeObject(forKey: GTTwilightReminderSettings.scheduledSignatureKey)
+        let suite = GTAppGroup.shared
+        suite.removeObject(forKey: GTTwilightReminderSettings.scheduledSignatureKey)
+        suite.removeObject(forKey: GTTwilightReminderSettings.scheduledIdentifiersKey)
+        suite.removeObject(forKey: GTTwilightReminderSettings.scheduleConfigurationKey)
     }
 
     private func reminderForNextWindow(
@@ -138,19 +128,20 @@ final class TwilightReminderScheduler {
         return ScheduledReminder(
             start: window.start,
             fireDate: window.start.addingTimeInterval(-Double(minutes * 60)),
-            signature: scheduleSignature(targetRaw: targetRaw, start: window.start, minutes: minutes)
+            identifier: reminderIdentifier(targetRaw: targetRaw, start: window.start, minutes: minutes)
         )
     }
 
-    private func nextSchedulableReminder(
+    private func nextSchedulableReminders(
         engine: GoldenTimeEngine,
         target: GTTwilightReminderSettings.Target,
         targetRaw: String,
         minutes: Int,
         now: Date
-    ) -> ScheduledReminder? {
+    ) -> [ScheduledReminder] {
         var searchDate = now
-        for _ in 0 ..< 12 {
+        var reminders: [ScheduledReminder] = []
+        for _ in 0 ..< (Self.maxScheduledReminders * 2) where reminders.count < Self.maxScheduledReminders {
             guard let reminder = reminderForNextWindow(
                 engine: engine,
                 target: target,
@@ -158,30 +149,135 @@ final class TwilightReminderScheduler {
                 minutes: minutes,
                 after: searchDate
             ) else {
-                return nil
+                break
             }
-            if reminder.fireDate > now {
-                return reminder
+            let interval = reminder.fireDate.timeIntervalSince(now)
+            if interval.isFinite, interval > 0 {
+                reminders.append(reminder)
             }
             searchDate = reminder.start.addingTimeInterval(1)
         }
-        return nil
+        return reminders
     }
 
-    private func scheduleSignature(targetRaw: String, start: Date, minutes: Int) -> String {
-        "\(targetRaw)|\(Int(start.timeIntervalSince1970))|\(minutes)"
+    private func reminderIdentifier(targetRaw: String, start: Date, minutes: Int) -> String {
+        "\(GTTwilightReminderSettings.requestIdentifierPrefix).\(targetRaw).\(minutes).\(Int(start.timeIntervalSince1970))"
     }
 
-    private func finishScheduling(signature: String, error: Error?) {
-        if let error {
-            if lastScheduleSignature == signature {
-                lastScheduleSignature = nil
+    private func scheduleConfigurationFingerprint(suite: UserDefaults, targetRaw: String, minutes: Int) -> String {
+        let latitude = suite.object(forKey: GoldenTimeLocationCache.latitudeKey) == nil
+            ? "nil"
+            : String(format: "%.5f", suite.double(forKey: GoldenTimeLocationCache.latitudeKey))
+        let longitude = suite.object(forKey: GoldenTimeLocationCache.longitudeKey) == nil
+            ? "nil"
+            : String(format: "%.5f", suite.double(forKey: GoldenTimeLocationCache.longitudeKey))
+        return "\(targetRaw)|\(minutes)|\(TimeZone.autoupdatingCurrent.identifier)|\(latitude)|\(longitude)"
+    }
+
+    private func debugScheduledReminders(targetRaw: String, minutes: Int, now: Date) -> [ScheduledReminder]? {
+        guard let offsets = GTUITestLaunchOverrides.reminderOffsets else { return nil }
+        return offsets.enumerated().map { index, offset in
+            ScheduledReminder(
+                start: now.addingTimeInterval(offset + Double(minutes * 60)),
+                fireDate: now.addingTimeInterval(offset),
+                identifier: "\(GTTwilightReminderSettings.requestIdentifierPrefix).debug.\(targetRaw).\(minutes).\(index)"
+            )
+        }
+    }
+
+    private func applySchedule(
+        reminders: [ScheduledReminder],
+        replaceExisting: Bool,
+        targetIsBlue: Bool,
+        minutes: Int,
+        configurationFingerprint: String,
+        storedIdentifiers: [String]
+    ) async {
+        guard !Task.isCancelled else { return }
+
+        if replaceExisting {
+            let identifiers = await pendingReminderIdentifiers()
+            if !identifiers.isEmpty {
+                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
             }
-            GTAppGroup.shared.removeObject(forKey: GTTwilightReminderSettings.scheduledSignatureKey)
-            NSLog("[TwilightReminderScheduler] Failed to schedule notification: %@", error.localizedDescription)
+        }
+
+        let desiredIdentifiers = Set(reminders.map(\.identifier))
+        let carriedIdentifiers = replaceExisting ? [] : storedIdentifiers.filter { desiredIdentifiers.contains($0) }
+        let remindersToAdd = reminders.filter { !carriedIdentifiers.contains($0.identifier) }
+
+        let suite = GTAppGroup.shared
+        let lang = GTAppLanguage.widgetLanguageIOS(suite: suite)
+        var successfulIdentifiers = carriedIdentifiers
+        for reminder in remindersToAdd {
+            guard !Task.isCancelled else { return }
+            do {
+                try await addRequest(
+                    for: reminder,
+                    targetIsBlue: targetIsBlue,
+                    minutes: minutes,
+                    lang: lang
+                )
+                successfulIdentifiers.append(reminder.identifier)
+            } catch {
+                NSLog(
+                    "[TwilightReminderScheduler] Failed to schedule notification %@: %@",
+                    reminder.identifier,
+                    error.localizedDescription
+                )
+            }
+        }
+
+        let persistedSignature = successfulIdentifiers.joined(separator: ",")
+        if successfulIdentifiers.isEmpty {
+            suite.removeObject(forKey: GTTwilightReminderSettings.scheduledSignatureKey)
+            suite.removeObject(forKey: GTTwilightReminderSettings.scheduledIdentifiersKey)
+            suite.removeObject(forKey: GTTwilightReminderSettings.scheduleConfigurationKey)
+            lastScheduleSignature = nil
             return
         }
-        GTAppGroup.shared.set(signature, forKey: GTTwilightReminderSettings.scheduledSignatureKey)
+        suite.set(persistedSignature, forKey: GTTwilightReminderSettings.scheduledSignatureKey)
+        suite.set(successfulIdentifiers, forKey: GTTwilightReminderSettings.scheduledIdentifiersKey)
+        suite.set(configurationFingerprint, forKey: GTTwilightReminderSettings.scheduleConfigurationKey)
+        lastScheduleSignature = persistedSignature
+    }
+
+    private func addRequest(
+        for reminder: ScheduledReminder,
+        targetIsBlue: Bool,
+        minutes: Int,
+        lang: GTAppLanguage
+    ) async throws {
+        let interval = reminder.fireDate.timeIntervalSinceNow
+        guard interval.isFinite, interval > 0 else {
+            throw NSError(domain: "TwilightReminderScheduler", code: 1)
+        }
+        let content = UNMutableNotificationContent()
+        content.title = GTCopy.reminderNotificationTitle(blue: targetIsBlue, lang: lang)
+        content.body = GTCopy.reminderNotificationBody(blue: targetIsBlue, minutes: minutes, lang: lang)
+        content.sound = UNNotificationSound(named: Self.reminderChimeSoundName)
+        content.userInfo["scheduleIdentifier"] = reminder.identifier
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
+        let request = UNNotificationRequest(identifier: reminder.identifier, content: content, trigger: trigger)
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: ())
+                }
+            }
+        }
+    }
+
+    private func pendingReminderIdentifiers() async -> [String] {
+        let prefix = GTTwilightReminderSettings.requestIdentifierPrefix
+        return await withCheckedContinuation { continuation in
+            UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+                continuation.resume(returning: requests.map(\.identifier).filter { $0.hasPrefix(prefix) })
+            }
+        }
     }
 }
 

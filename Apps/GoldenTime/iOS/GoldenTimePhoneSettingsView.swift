@@ -1,6 +1,7 @@
 import CoreLocation
 import GoldenTimeCore
 import SwiftUI
+import UserNotifications
 
 /// Fixed sRGB for settings `List` cells — never `Color.primary` / `.secondary` / phase `tint`, which can render white-on-white on grouped rows.
 private enum GTPhoneSettingsListColors {
@@ -24,6 +25,7 @@ private enum GTPhoneSettingsLegalSheet: String, Identifiable {
 struct GoldenTimePhoneSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
+    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var model: GoldenTimePhoneViewModel
 
     @AppStorage(GTAppLanguage.storageKey, store: GTAppGroup.shared) private var langPreferenceRaw: String =
@@ -36,6 +38,9 @@ struct GoldenTimePhoneSettingsView: View {
     @AppStorage(GTTwilightReminderSettings.minutesBeforeKey, store: GTAppGroup.shared) private var reminderMinutes: Int =
         GTTwilightReminderSettings.defaultMinutesBefore
     @State private var legalSheet: GTPhoneSettingsLegalSheet?
+    @State private var reminderDebugPendingCount = "0"
+    @State private var reminderDebugDeliveredCount = "0"
+    @State private var reminderDebugPlanCount = "0"
 
     private static let reminderMinuteChoices = [5, 10, 15, 20, 30, 45, 60]
 
@@ -61,6 +66,10 @@ struct GoldenTimePhoneSettingsView: View {
 
     private var skin: GTPhaseSkin {
         GTPhaseSkin(phase: model.phase)
+    }
+
+    private var showsReminderDebugDiagnostics: Bool {
+        GTUITestLaunchOverrides.isEnabled
     }
 
     private var locationStatusWord: String {
@@ -121,6 +130,34 @@ struct GoldenTimePhoneSettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                if showsReminderDebugDiagnostics {
+                    Section {
+                        debugMetricRow(
+                            title: "Pending",
+                            value: reminderDebugPendingCount,
+                            identifier: "gt.phone.debug.reminderPendingCount"
+                        )
+                        debugMetricRow(
+                            title: "Delivered",
+                            value: reminderDebugDeliveredCount,
+                            identifier: "gt.phone.debug.reminderDeliveredCount"
+                        )
+                        debugMetricRow(
+                            title: "Planned",
+                            value: reminderDebugPlanCount,
+                            identifier: "gt.phone.debug.reminderPlanCount"
+                        )
+                        Button("Refresh Notification Debug") {
+                            Task { await refreshReminderDiagnostics() }
+                        }
+                        .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
+                        .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+                        .accessibilityIdentifier("gt.phone.debug.refreshReminderDiagnostics")
+                    } header: {
+                        settingsSectionHeader("Notification Debug")
+                    }
+                }
+
                 Section {
                     Toggle(isOn: $reminderEnabled) {
                         Text(GTCopy.settingsReminderToggle(lang))
@@ -128,16 +165,20 @@ struct GoldenTimePhoneSettingsView: View {
                     }
                     .tint(GTPhoneSettingsListColors.controlAccent)
                     .listRowBackground(GTPhoneSettingsListColors.rowBackground)
-                        .onChange(of: reminderEnabled) { _, on in
-                            if on {
-                                Task { @MainActor in
-                                    _ = await TwilightReminderScheduler.shared.requestAuthorizationIfNeeded()
-                                    model.refreshTwilightReminderSchedule()
-                                }
-                            } else {
+                    .accessibilityIdentifier("gt.phone.reminderEnabledToggle")
+                    .onChange(of: reminderEnabled) { _, on in
+                        GTAppGroup.shared.set(on, forKey: GTTwilightReminderSettings.enabledKey)
+                        if on {
+                            Task { @MainActor in
+                                _ = await TwilightReminderScheduler.shared.requestAuthorizationIfNeeded()
                                 model.refreshTwilightReminderSchedule()
+                                await refreshReminderDiagnostics()
                             }
+                        } else {
+                            model.refreshTwilightReminderSchedule()
+                            Task { await refreshReminderDiagnostics() }
                         }
+                    }
 
                     Picker(selection: $reminderTargetRaw) {
                         Text(GTCopy.settingsReminderTargetBlue(lang)).tag(GTTwilightReminderSettings.Target.blue.rawValue)
@@ -151,9 +192,11 @@ struct GoldenTimePhoneSettingsView: View {
                     .listRowBackground(GTPhoneSettingsListColors.rowBackground)
                     .disabled(!reminderEnabled)
                     .opacity(reminderEnabled ? 1 : 0.4)
-                    .onChange(of: reminderTargetRaw) { _, _ in
+                    .onChange(of: reminderTargetRaw) { _, value in
+                        GTAppGroup.shared.set(value, forKey: GTTwilightReminderSettings.targetKey)
                         guard reminderEnabled else { return }
                         model.refreshTwilightReminderSchedule()
+                        Task { await refreshReminderDiagnostics() }
                     }
 
                     Picker(selection: $reminderMinutes) {
@@ -169,9 +212,11 @@ struct GoldenTimePhoneSettingsView: View {
                     .listRowBackground(GTPhoneSettingsListColors.rowBackground)
                     .disabled(!reminderEnabled)
                     .opacity(reminderEnabled ? 1 : 0.4)
-                    .onChange(of: reminderMinutes) { _, _ in
+                    .onChange(of: reminderMinutes) { _, value in
+                        GTAppGroup.shared.set(value, forKey: GTTwilightReminderSettings.minutesBeforeKey)
                         guard reminderEnabled else { return }
                         model.refreshTwilightReminderSchedule()
+                        Task { await refreshReminderDiagnostics() }
                     }
                 } header: {
                     settingsSectionHeader(GTCopy.settingsReminderSection(lang))
@@ -261,6 +306,7 @@ struct GoldenTimePhoneSettingsView: View {
                 .listRowSeparator(.hidden)
             }
             // Transparent list over a dark phase gradient: without this, UIKit often resolves row labels as “dark content” (light text) → white on white cells.
+            .accessibilityIdentifier("gt.phone.settingsSheet")
             .environment(\.colorScheme, .light)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
@@ -289,6 +335,14 @@ struct GoldenTimePhoneSettingsView: View {
             )
             .sheet(item: $legalSheet) { sheet in
                 legalSheetView(sheet)
+            }
+            .task {
+                guard showsReminderDebugDiagnostics else { return }
+                await refreshReminderDiagnostics()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard showsReminderDebugDiagnostics, phase == .active else { return }
+                Task { await refreshReminderDiagnostics() }
             }
         }
     }
@@ -357,6 +411,25 @@ struct GoldenTimePhoneSettingsView: View {
         .buttonStyle(.plain)
     }
 
+    private func debugMetricRow(title: String, value: String, identifier: String) -> some View {
+        HStack(spacing: 10) {
+            Text(title)
+                .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
+            Spacer(minLength: 12)
+            Text(value)
+                .font(.body.monospacedDigit())
+                .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
+                .accessibilityIdentifier(identifier)
+                .accessibilityLabel(identifier)
+                .accessibilityValue(value)
+        }
+        .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+        .accessibilityElement(children: .ignore)
+        .accessibilityIdentifier(identifier)
+        .accessibilityLabel(title)
+        .accessibilityValue(value)
+    }
+
     @ViewBuilder
     private func legalSheetView(_ sheet: GTPhoneSettingsLegalSheet) -> some View {
         NavigationStack {
@@ -407,5 +480,26 @@ struct GoldenTimePhoneSettingsView: View {
         case .support:
             return GTCopy.legalSupportBody(lang)
         }
+    }
+
+    @MainActor
+    private func refreshReminderDiagnostics() async {
+        let center = UNUserNotificationCenter.current()
+        let prefix = GTTwilightReminderSettings.requestIdentifierPrefix
+        let pendingCount: Int = await withCheckedContinuation { continuation in
+            center.getPendingNotificationRequests { requests in
+                continuation.resume(returning: requests.filter { $0.identifier.hasPrefix(prefix) }.count)
+            }
+        }
+        let deliveredCount: Int = await withCheckedContinuation { continuation in
+            center.getDeliveredNotifications { notifications in
+                continuation.resume(returning: notifications.filter { $0.request.identifier.hasPrefix(prefix) }.count)
+            }
+        }
+        reminderDebugPendingCount = String(pendingCount)
+        reminderDebugDeliveredCount = String(deliveredCount)
+        reminderDebugPlanCount = String(
+            GTAppGroup.shared.stringArray(forKey: GTTwilightReminderSettings.scheduledIdentifiersKey)?.count ?? 0
+        )
     }
 }
