@@ -108,6 +108,7 @@ final class TwilightReminderScheduler {
         suite.removeObject(forKey: GTTwilightReminderSettings.scheduledSignatureKey)
         suite.removeObject(forKey: GTTwilightReminderSettings.scheduledIdentifiersKey)
         suite.removeObject(forKey: GTTwilightReminderSettings.scheduleConfigurationKey)
+        suite.synchronize()
     }
 
     private func reminderForNextWindow(
@@ -233,12 +234,14 @@ final class TwilightReminderScheduler {
             suite.removeObject(forKey: GTTwilightReminderSettings.scheduledSignatureKey)
             suite.removeObject(forKey: GTTwilightReminderSettings.scheduledIdentifiersKey)
             suite.removeObject(forKey: GTTwilightReminderSettings.scheduleConfigurationKey)
+            suite.synchronize()
             lastScheduleSignature = nil
             return
         }
         suite.set(persistedSignature, forKey: GTTwilightReminderSettings.scheduledSignatureKey)
         suite.set(successfulIdentifiers, forKey: GTTwilightReminderSettings.scheduledIdentifiersKey)
         suite.set(configurationFingerprint, forKey: GTTwilightReminderSettings.scheduleConfigurationKey)
+        suite.synchronize()
         lastScheduleSignature = persistedSignature
     }
 

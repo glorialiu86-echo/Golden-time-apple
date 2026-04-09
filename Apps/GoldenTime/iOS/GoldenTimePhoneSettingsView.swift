@@ -64,6 +64,55 @@ struct GoldenTimePhoneSettingsView: View {
         )
     }
 
+    private var reminderEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { reminderEnabled },
+            set: { on in
+                reminderEnabled = on
+                GTAppGroup.shared.set(on, forKey: GTTwilightReminderSettings.enabledKey)
+                persistReminderPreferenceChange()
+                if on {
+                    Task { @MainActor in
+                        _ = await TwilightReminderScheduler.shared.requestAuthorizationIfNeeded()
+                        model.refreshTwilightReminderSchedule()
+                        await refreshReminderDiagnostics()
+                    }
+                } else {
+                    model.refreshTwilightReminderSchedule()
+                    Task { await refreshReminderDiagnostics() }
+                }
+            }
+        )
+    }
+
+    private var reminderTargetBinding: Binding<String> {
+        Binding(
+            get: { reminderTargetRaw },
+            set: { value in
+                reminderTargetRaw = value
+                GTAppGroup.shared.set(value, forKey: GTTwilightReminderSettings.targetKey)
+                persistReminderPreferenceChange()
+                guard reminderEnabled else { return }
+                model.refreshTwilightReminderSchedule()
+                Task { await refreshReminderDiagnostics() }
+            }
+        )
+    }
+
+    private var reminderMinutesBinding: Binding<Int> {
+        Binding(
+            get: { reminderMinutes },
+            set: { value in
+                reminderMinutes = value
+                GTAppGroup.shared.set(value, forKey: GTTwilightReminderSettings.minutesBeforeKey)
+                persistReminderPreferenceChange()
+                guard reminderEnabled else { return }
+                model.refreshTwilightReminderSchedule()
+                Task { await refreshReminderDiagnostics() }
+            }
+        )
+    }
+
     private var skin: GTPhaseSkin {
         GTPhaseSkin(phase: model.phase)
     }
@@ -127,6 +176,20 @@ struct GoldenTimePhoneSettingsView: View {
         return !isAuthorizationRow
     }
 
+    private func persistReminderPreferenceChange() {
+        let didSync = GTAppGroup.shared.synchronize()
+        #if DEBUG
+        NSLog(
+            "[GTReminderSettings] synced=%@ enabled=%@ target=%@ minutes=%ld",
+            didSync ? "true" : "false",
+            GTAppGroup.shared.bool(forKey: GTTwilightReminderSettings.enabledKey) ? "true" : "false",
+            GTAppGroup.shared.string(forKey: GTTwilightReminderSettings.targetKey)
+                ?? GTTwilightReminderSettings.Target.blue.rawValue,
+            reminderMinutes
+        )
+        #endif
+    }
+
     var body: some View {
         NavigationStack {
             List {
@@ -159,28 +222,15 @@ struct GoldenTimePhoneSettingsView: View {
                 }
 
                 Section {
-                    Toggle(isOn: $reminderEnabled) {
+                    Toggle(isOn: reminderEnabledBinding) {
                         Text(GTCopy.settingsReminderToggle(lang))
                             .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
                     }
                     .tint(GTPhoneSettingsListColors.controlAccent)
                     .listRowBackground(GTPhoneSettingsListColors.rowBackground)
                     .accessibilityIdentifier("gt.phone.reminderEnabledToggle")
-                    .onChange(of: reminderEnabled) { _, on in
-                        GTAppGroup.shared.set(on, forKey: GTTwilightReminderSettings.enabledKey)
-                        if on {
-                            Task { @MainActor in
-                                _ = await TwilightReminderScheduler.shared.requestAuthorizationIfNeeded()
-                                model.refreshTwilightReminderSchedule()
-                                await refreshReminderDiagnostics()
-                            }
-                        } else {
-                            model.refreshTwilightReminderSchedule()
-                            Task { await refreshReminderDiagnostics() }
-                        }
-                    }
 
-                    Picker(selection: $reminderTargetRaw) {
+                    Picker(selection: reminderTargetBinding) {
                         Text(GTCopy.settingsReminderTargetBlue(lang)).tag(GTTwilightReminderSettings.Target.blue.rawValue)
                         Text(GTCopy.settingsReminderTargetGolden(lang)).tag(GTTwilightReminderSettings.Target.golden.rawValue)
                     } label: {
@@ -192,14 +242,8 @@ struct GoldenTimePhoneSettingsView: View {
                     .listRowBackground(GTPhoneSettingsListColors.rowBackground)
                     .disabled(!reminderEnabled)
                     .opacity(reminderEnabled ? 1 : 0.4)
-                    .onChange(of: reminderTargetRaw) { _, value in
-                        GTAppGroup.shared.set(value, forKey: GTTwilightReminderSettings.targetKey)
-                        guard reminderEnabled else { return }
-                        model.refreshTwilightReminderSchedule()
-                        Task { await refreshReminderDiagnostics() }
-                    }
 
-                    Picker(selection: $reminderMinutes) {
+                    Picker(selection: reminderMinutesBinding) {
                         ForEach(Self.reminderMinuteChoices, id: \.self) { m in
                             Text("\(m) \(GTCopy.settingsReminderLeadTimeSuffix(lang))").tag(m)
                         }
@@ -212,12 +256,6 @@ struct GoldenTimePhoneSettingsView: View {
                     .listRowBackground(GTPhoneSettingsListColors.rowBackground)
                     .disabled(!reminderEnabled)
                     .opacity(reminderEnabled ? 1 : 0.4)
-                    .onChange(of: reminderMinutes) { _, value in
-                        GTAppGroup.shared.set(value, forKey: GTTwilightReminderSettings.minutesBeforeKey)
-                        guard reminderEnabled else { return }
-                        model.refreshTwilightReminderSchedule()
-                        Task { await refreshReminderDiagnostics() }
-                    }
                 } header: {
                     settingsSectionHeader(GTCopy.settingsReminderSection(lang))
                 }
