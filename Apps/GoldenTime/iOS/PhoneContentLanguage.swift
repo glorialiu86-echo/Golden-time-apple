@@ -655,8 +655,8 @@ enum GTCopy {
 
     static func compassCalibrationPageInstruction(_ lang: GTAppLanguage) -> String {
         switch lang {
-        case .chinese: return "请保持手机基本水平，并将手机顶部对准当前太阳方向。"
-        case .english: return "Keep your phone roughly level, and point the top of the phone toward the sun."
+        case .chinese: return "将手机顶部对准当前太阳方向，再保存校对。"
+        case .english: return "Point the top of your phone toward the sun, then save calibration."
         }
     }
 

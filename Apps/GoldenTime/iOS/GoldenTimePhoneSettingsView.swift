@@ -555,7 +555,8 @@ struct GoldenTimePhoneSettingsView: View {
 }
 
 private struct GTPhoneCompassCalibrationView: View {
-    @Environment(\.dismiss) private var dismiss
+    private static let calibrationDialHeight: CGFloat = 336
+
     @Environment(\.locale) private var locale
     @ObservedObject var model: GoldenTimePhoneViewModel
     @AppStorage(GTAppLanguage.storageKey, store: GTAppGroup.shared) private var langPreferenceRaw: String =
@@ -573,71 +574,66 @@ private struct GTPhoneCompassCalibrationView: View {
     }
 
     var body: some View {
-        List {
-            Section {
-                Text(model.compassCalibrationStatusText)
-                    .font(.body)
-                    .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
-                    .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(spacing: 6) {
+                    Text(model.compassCalibrationStatusText)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
 
-                if let feedbackText {
-                    Text(feedbackText)
+                    Text(GTCopy.compassCalibrationPageInstruction(lang))
                         .font(.footnote)
-                        .foregroundStyle(GTPhoneSettingsListColors.successText)
-                        .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+                        .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-            }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            Section {
-                Text(GTCopy.compassCalibrationPageInstruction(lang))
-                    .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+                calibrationCompassCard
 
-                Text(GTCopy.compassCalibrationPageAction(lang))
-                    .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .listRowBackground(GTPhoneSettingsListColors.rowBackground)
-
-                Text(GTCopy.compassCalibrationPagePersistence(lang))
-                    .font(.footnote)
-                    .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .listRowBackground(GTPhoneSettingsListColors.rowBackground)
-            }
-
-            Section {
-                Text(model.compassCalibrationAvailabilityText)
-                    .font(.footnote)
-                    .foregroundStyle(model.canSaveCompassCalibration ? GTPhoneSettingsListColors.successText : GTPhoneSettingsListColors.rowSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .listRowBackground(GTPhoneSettingsListColors.rowBackground)
-            }
-
-            Section {
-                Button(GTCopy.compassCalibrationSave(lang)) {
-                    guard model.saveCompassCalibrationFromCurrentSunAlignment() else { return }
-                    feedbackText = GTCopy.compassCalibrationSaved(lang)
-                }
-                .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
-                .listRowBackground(GTPhoneSettingsListColors.rowBackground)
-                .disabled(!model.canSaveCompassCalibration)
-
-                Button(GTCopy.compassCalibrationCancel(lang)) {
-                    dismiss()
-                }
-                .foregroundStyle(GTPhoneSettingsListColors.rowLabel)
-                .listRowBackground(GTPhoneSettingsListColors.rowBackground)
-
-                if model.hasCompassCalibration {
-                    Button(role: .destructive) {
-                        showClearConfirmation = true
-                    } label: {
-                        Text(GTCopy.settingsCompassCalibrationClear(lang))
+                VStack(spacing: 12) {
+                    if let feedbackText {
+                        Text(feedbackText)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(GTPhoneSettingsListColors.successText)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
                     }
-                    .listRowBackground(GTPhoneSettingsListColors.rowBackground)
+
+                    if !model.canSaveCompassCalibration {
+                        Text(model.compassCalibrationAvailabilityText)
+                            .font(.footnote)
+                            .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity)
+                    }
+
+                    Button(GTCopy.compassCalibrationSave(lang)) {
+                        guard model.saveCompassCalibrationFromCurrentSunAlignment() else { return }
+                        feedbackText = GTCopy.compassCalibrationSaved(lang)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(GTPhoneSettingsListColors.controlAccent)
+                    .frame(maxWidth: .infinity)
+                    .disabled(!model.canSaveCompassCalibration)
+
+                    if model.hasCompassCalibration {
+                        Button {
+                            showClearConfirmation = true
+                        } label: {
+                            Text(GTCopy.settingsCompassCalibrationClear(lang))
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.plain)
+                        .font(.footnote)
+                        .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
+                    }
                 }
+                .frame(maxWidth: .infinity)
             }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
         }
         .environment(\.colorScheme, .light)
         .navigationTitle(GTCopy.settingsCompassCalibrationTitle(lang))
@@ -660,5 +656,44 @@ private struct GTPhoneCompassCalibrationView: View {
         } message: {
             Text(GTCopy.compassCalibrationClearBody(lang))
         }
+    }
+
+    @ViewBuilder
+    private var calibrationCompassCard: some View {
+        VStack(spacing: 12) {
+            if let coord = model.mapCoordinate {
+                TwilightCompassCard(
+                    showMapBase: false,
+                    chromeGradient: skin.chromeGradient,
+                    compassInk: skin.ink,
+                    compassStroke: skin.panelStroke,
+                    chromeIsLight: skin.isLightChrome,
+                    uiLanguage: lang,
+                    coordinate: coord,
+                    deviceHeadingDegrees: model.deviceHeadingDegrees,
+                    blueSectorArcAzimuths: model.blueSectorArcAzimuths,
+                    goldenSectorArcAzimuths: model.goldenSectorArcAzimuths,
+                    blueSectorColors: skin.twilightCardGradient(blue: true),
+                    goldenSectorColors: skin.twilightCardGradient(blue: false),
+                    compassDayNight: model.compassDayNight,
+                    daySectorTint: skin.compassDayDiskTint,
+                    nightSectorTint: skin.compassNightDiskTint,
+                    sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
+                    moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees
+                )
+                .frame(height: Self.calibrationDialHeight)
+            } else {
+                Text(GTCopy.compassCardNeedLocation(lang))
+                    .font(.caption)
+                    .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: Self.calibrationDialHeight)
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity)
+        .background(GTPhoneSettingsListColors.rowBackground.opacity(0.96))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
