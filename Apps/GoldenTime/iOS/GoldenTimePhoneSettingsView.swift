@@ -562,7 +562,6 @@ private struct GTPhoneCompassCalibrationView: View {
     @AppStorage(GTAppLanguage.storageKey, store: GTAppGroup.shared) private var langPreferenceRaw: String =
         GTAppLanguage.followSystemStorageValue
     @State private var showClearConfirmation = false
-    @State private var feedbackText: String?
 
     private var lang: GTAppLanguage {
         let _ = locale.identifier
@@ -576,9 +575,13 @@ private struct GTPhoneCompassCalibrationView: View {
     private var summaryText: String {
         switch lang {
         case .chinese:
-            return "\(model.compassCalibrationStatusText)。\(GTCopy.compassCalibrationPageInstruction(lang))"
+            let base = "\(model.compassCalibrationStatusText)。\(GTCopy.compassCalibrationPageInstruction(lang))"
+            guard !model.canSaveCompassCalibration else { return base }
+            return "\(base) \(model.compassCalibrationAvailabilityText)。"
         case .english:
-            return "\(model.compassCalibrationStatusText). \(GTCopy.compassCalibrationPageInstruction(lang))"
+            let base = "\(model.compassCalibrationStatusText). \(GTCopy.compassCalibrationPageInstruction(lang))"
+            guard !model.canSaveCompassCalibration else { return base }
+            return "\(base) \(model.compassCalibrationAvailabilityText)"
         }
     }
 
@@ -595,42 +598,34 @@ private struct GTPhoneCompassCalibrationView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity)
 
-                    if let feedbackText {
-                        Text(feedbackText)
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(GTPhoneSettingsListColors.successText)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity)
-                    }
-
-                    if !model.canSaveCompassCalibration {
-                        Text(model.compassCalibrationAvailabilityText)
-                            .font(.footnote)
-                            .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity)
-                    }
-
-                    Button(GTCopy.compassCalibrationSave(lang)) {
-                        guard model.saveCompassCalibrationFromCurrentSunAlignment() else { return }
-                        feedbackText = GTCopy.compassCalibrationSaved(lang)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(GTPhoneSettingsListColors.controlAccent)
-                    .frame(maxWidth: .infinity)
-                    .disabled(!model.canSaveCompassCalibration)
-
                     if model.hasCompassCalibration {
-                        Button {
-                            showClearConfirmation = true
-                        } label: {
-                            Text(GTCopy.settingsCompassCalibrationClear(lang))
-                                .frame(maxWidth: .infinity)
+                        HStack(spacing: 12) {
+                            Button(GTCopy.compassCalibrationSave(lang)) {
+                                _ = model.saveCompassCalibrationFromCurrentSunAlignment()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(GTPhoneSettingsListColors.controlAccent)
+                            .frame(maxWidth: .infinity)
+                            .disabled(!model.canSaveCompassCalibration)
+
+                            Button {
+                                showClearConfirmation = true
+                            } label: {
+                                Text(GTCopy.settingsCompassCalibrationClear(lang))
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(GTPhoneSettingsListColors.rowSecondary)
+                            .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.plain)
-                        .font(.footnote)
-                        .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
+                    } else {
+                        Button(GTCopy.compassCalibrationSave(lang)) {
+                            _ = model.saveCompassCalibrationFromCurrentSunAlignment()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(GTPhoneSettingsListColors.controlAccent)
+                        .frame(maxWidth: .infinity)
+                        .disabled(!model.canSaveCompassCalibration)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -653,7 +648,6 @@ private struct GTPhoneCompassCalibrationView: View {
         .alert(GTCopy.compassCalibrationClearTitle(lang), isPresented: $showClearConfirmation) {
             Button(GTCopy.settingsCompassCalibrationClear(lang), role: .destructive) {
                 model.clearCompassCalibration()
-                feedbackText = GTCopy.compassCalibrationCleared(lang)
             }
             Button(GTCopy.compassCalibrationCancel(lang), role: .cancel) {}
         } message: {
@@ -663,40 +657,34 @@ private struct GTPhoneCompassCalibrationView: View {
 
     @ViewBuilder
     private var calibrationCompassCard: some View {
-        VStack(spacing: 12) {
-            if let coord = model.mapCoordinate {
-                TwilightCompassCard(
-                    showMapBase: false,
-                    chromeGradient: skin.chromeGradient,
-                    compassInk: skin.ink,
-                    compassStroke: skin.panelStroke,
-                    chromeIsLight: skin.isLightChrome,
-                    uiLanguage: lang,
-                    coordinate: coord,
-                    deviceHeadingDegrees: model.deviceHeadingDegrees,
-                    blueSectorArcAzimuths: model.blueSectorArcAzimuths,
-                    goldenSectorArcAzimuths: model.goldenSectorArcAzimuths,
-                    blueSectorColors: skin.twilightCardGradient(blue: true),
-                    goldenSectorColors: skin.twilightCardGradient(blue: false),
-                    compassDayNight: model.compassDayNight,
-                    daySectorTint: skin.compassDayDiskTint,
-                    nightSectorTint: skin.compassNightDiskTint,
-                    sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
-                    moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees
-                )
+        if let coord = model.mapCoordinate {
+            TwilightCompassCard(
+                showMapBase: false,
+                chromeGradient: skin.chromeGradient,
+                compassInk: skin.ink,
+                compassStroke: skin.panelStroke,
+                chromeIsLight: skin.isLightChrome,
+                uiLanguage: lang,
+                coordinate: coord,
+                deviceHeadingDegrees: model.deviceHeadingDegrees,
+                blueSectorArcAzimuths: model.blueSectorArcAzimuths,
+                goldenSectorArcAzimuths: model.goldenSectorArcAzimuths,
+                blueSectorColors: skin.twilightCardGradient(blue: true),
+                goldenSectorColors: skin.twilightCardGradient(blue: false),
+                compassDayNight: model.compassDayNight,
+                daySectorTint: skin.compassDayDiskTint,
+                nightSectorTint: skin.compassNightDiskTint,
+                sunBodyAzimuthDegrees: model.compassSunBodyAzimuthDegrees,
+                moonBodyAzimuthDegrees: model.compassMoonBodyAzimuthDegrees
+            )
+            .frame(height: Self.calibrationDialHeight)
+        } else {
+            Text(GTCopy.compassCardNeedLocation(lang))
+                .font(.caption)
+                .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
                 .frame(height: Self.calibrationDialHeight)
-            } else {
-                Text(GTCopy.compassCardNeedLocation(lang))
-                    .font(.caption)
-                    .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: Self.calibrationDialHeight)
-            }
         }
-        .padding(18)
-        .frame(maxWidth: .infinity)
-        .background(GTPhoneSettingsListColors.rowBackground.opacity(0.96))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
