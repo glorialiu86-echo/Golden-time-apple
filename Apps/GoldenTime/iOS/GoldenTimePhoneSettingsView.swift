@@ -699,21 +699,22 @@ private struct GTPhoneCompassCalibrationView: View {
                 .font(.headline)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
+                .foregroundStyle(foreground.opacity(isEnabled ? 1 : 0.6))
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(background.opacity(isEnabled ? 1 : 0.55))
+                )
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(
+                            showsBorder ? GTPhoneSettingsListColors.rowSecondary.opacity(0.14) : Color.clear,
+                            lineWidth: 1
+                        )
+                )
+                .contentShape(Capsule(style: .continuous))
         }
         .buttonStyle(.plain)
-        .foregroundStyle(foreground.opacity(isEnabled ? 1 : 0.6))
-        .background(
-            Capsule(style: .continuous)
-                .fill(background.opacity(isEnabled ? 1 : 0.55))
-        )
-        .overlay(
-            Capsule(style: .continuous)
-                .stroke(
-                    showsBorder ? GTPhoneSettingsListColors.rowSecondary.opacity(0.14) : Color.clear,
-                    lineWidth: 1
-                )
-        )
-        .contentShape(Capsule(style: .continuous))
+        .frame(maxWidth: .infinity)
         .disabled(!isEnabled)
     }
 }
