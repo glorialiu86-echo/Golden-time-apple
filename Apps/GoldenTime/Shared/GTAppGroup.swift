@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import OSLog
 #if canImport(WidgetKit)
@@ -144,6 +145,65 @@ public enum GTTwilightReminderSettings {
     public enum Target: String, CaseIterable {
         case blue
         case golden
+    }
+}
+
+@MainActor
+public final class GTTwilightReminderStore: ObservableObject {
+    @Published public private(set) var isEnabled: Bool
+    @Published public private(set) var target: GTTwilightReminderSettings.Target
+    @Published public private(set) var minutesBefore: Int
+
+    private let defaults: UserDefaults
+
+    public init(defaults: UserDefaults = GTAppGroup.shared) {
+        self.defaults = defaults
+        isEnabled = defaults.bool(forKey: GTTwilightReminderSettings.enabledKey)
+        let targetRaw = defaults.string(forKey: GTTwilightReminderSettings.targetKey)
+            ?? GTTwilightReminderSettings.Target.blue.rawValue
+        target = GTTwilightReminderSettings.Target(rawValue: targetRaw) ?? .blue
+        let storedMinutes = defaults.object(forKey: GTTwilightReminderSettings.minutesBeforeKey) as? Int
+        minutesBefore = Self.clampedMinutes(storedMinutes ?? GTTwilightReminderSettings.defaultMinutesBefore)
+    }
+
+    public func reloadFromPersistentStore() {
+        let nextEnabled = defaults.bool(forKey: GTTwilightReminderSettings.enabledKey)
+        let targetRaw = defaults.string(forKey: GTTwilightReminderSettings.targetKey)
+            ?? GTTwilightReminderSettings.Target.blue.rawValue
+        let nextTarget = GTTwilightReminderSettings.Target(rawValue: targetRaw) ?? .blue
+        let storedMinutes = defaults.object(forKey: GTTwilightReminderSettings.minutesBeforeKey) as? Int
+        let nextMinutes = Self.clampedMinutes(storedMinutes ?? GTTwilightReminderSettings.defaultMinutesBefore)
+
+        guard nextEnabled != isEnabled || nextTarget != target || nextMinutes != minutesBefore else { return }
+        isEnabled = nextEnabled
+        target = nextTarget
+        minutesBefore = nextMinutes
+    }
+
+    public func setEnabled(_ enabled: Bool) {
+        guard enabled != isEnabled else { return }
+        isEnabled = enabled
+        defaults.set(enabled, forKey: GTTwilightReminderSettings.enabledKey)
+        defaults.synchronize()
+    }
+
+    public func setTarget(_ nextTarget: GTTwilightReminderSettings.Target) {
+        guard nextTarget != target else { return }
+        target = nextTarget
+        defaults.set(nextTarget.rawValue, forKey: GTTwilightReminderSettings.targetKey)
+        defaults.synchronize()
+    }
+
+    public func setMinutesBefore(_ value: Int) {
+        let nextMinutes = Self.clampedMinutes(value)
+        guard nextMinutes != minutesBefore else { return }
+        minutesBefore = nextMinutes
+        defaults.set(nextMinutes, forKey: GTTwilightReminderSettings.minutesBeforeKey)
+        defaults.synchronize()
+    }
+
+    private static func clampedMinutes(_ value: Int) -> Int {
+        max(1, min(180, value))
     }
 }
 

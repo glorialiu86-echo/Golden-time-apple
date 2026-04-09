@@ -29,10 +29,6 @@ enum GTUITestLaunchOverrides {
         environment[modeEnvironmentKey] == "1" || CommandLine.arguments.contains(modeLaunchArgument)
     }
 
-    private static func debugLog(_ message: String) {
-        NSLog("[GTUITestLaunchOverrides] %@", message)
-    }
-
     private static var explicitSession: String? {
         guard let raw = environment[sessionEnvironmentKey], !raw.isEmpty else { return nil }
         return raw
@@ -98,21 +94,13 @@ enum GTUITestLaunchOverrides {
     }
 
     static func bootstrap() {
-        debugLog(
-            "bootstrap start xctest=\(isRunningUnderXCTest) explicitMode=\(hasExplicitUITestMode) " +
-                "session=\(explicitSession ?? "nil")"
-        )
         guard let session = explicitSession else {
-            debugLog("bootstrap skipped")
             return
         }
         let suite = GTAppGroup.shared
         GTAppGroup.migrateStandardToSharedIfNeeded()
 
-        guard suite.string(forKey: persistedSessionKey) != session else {
-            debugLog("bootstrap reused existing session \(session)")
-            return
-        }
+        guard suite.string(forKey: persistedSessionKey) != session else { return }
         suite.set(session, forKey: persistedSessionKey)
         suite.set(environment[disableLiveLocationEnvironmentKey] == "1", forKey: persistedDisableLiveLocationKey)
         if let rawOffsets = environment[reminderOffsetsEnvironmentKey], !rawOffsets.isEmpty {
@@ -134,11 +122,7 @@ enum GTUITestLaunchOverrides {
         suite.removeObject(forKey: GTTwilightReminderSettings.scheduledSignatureKey)
         suite.removeObject(forKey: GTTwilightReminderSettings.scheduledIdentifiersKey)
         suite.removeObject(forKey: GTTwilightReminderSettings.scheduleConfigurationKey)
-        let didSync = suite.synchronize()
-        debugLog(
-            "bootstrap synced=\(didSync) persistedSession=\(suite.string(forKey: persistedSessionKey) ?? "nil") " +
-                "enabled=\(suite.bool(forKey: GTTwilightReminderSettings.enabledKey))"
-        )
+        suite.synchronize()
         let center = UNUserNotificationCenter.current()
         center.removeAllPendingNotificationRequests()
         center.removeAllDeliveredNotifications()
