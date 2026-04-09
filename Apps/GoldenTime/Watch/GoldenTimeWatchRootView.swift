@@ -347,11 +347,10 @@ private struct GTWatchCompassCalibrationView: View {
             )
             .ignoresSafeArea()
 
-            VStack(spacing: 10) {
+            ZStack(alignment: .bottom) {
                 if let coord = model.mapCoordinate {
                     GeometryReader { geo in
-                        let span = min(geo.size.width, geo.size.height)
-                        let side = max(span * 0.9, 1)
+                        let side = max(min(geo.size.width + 18, geo.size.height - 22), 1)
                         TwilightCompassCard(
                             showMapBase: false,
                             chromeGradient: skin.chromeGradient,
@@ -374,6 +373,7 @@ private struct GTWatchCompassCalibrationView: View {
                         .frame(width: side, height: side)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
+                    .padding(.top, 4)
                 } else {
                     Text(GTCopy.compassCardNeedLocation(lang))
                         .font(.caption)
@@ -401,11 +401,12 @@ private struct GTWatchCompassCalibrationView: View {
                         model.clearCompassCalibration()
                     }
                 }
+                .padding(.horizontal, 8)
+                .padding(.bottom, 8)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 10)
         }
         .navigationTitle(GTCopy.settingsCompassCalibrationTitle(lang))
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func watchCalibrationButton(
