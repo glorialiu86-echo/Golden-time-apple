@@ -335,8 +335,8 @@ private struct GTWatchCompassCalibrationView: View {
         let skin = GTPhaseSkin(phase: model.phase)
         GeometryReader { geo in
             let buttonAreaHeight: CGFloat = 78
-            let topInset: CGFloat = 8
-            let bottomInset: CGFloat = 8
+            let topInset: CGFloat = 22
+            let bottomInset: CGFloat = 18
             let dialHeight = max(geo.size.height - topInset - buttonAreaHeight, 1)
 
             ZStack {
