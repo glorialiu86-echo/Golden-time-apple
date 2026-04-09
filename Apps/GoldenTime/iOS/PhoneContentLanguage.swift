@@ -631,13 +631,6 @@ enum GTCopy {
         }
     }
 
-    static func settingsLegalFooter(_ lang: GTAppLanguage) -> String {
-        switch lang {
-        case .chinese: return "本页提供 App 内隐私说明与支持信息；正式上架前请同步发布公开网页版本。"
-        case .english: return "This page includes in-app privacy and support details. Publish matching public web pages before release."
-        }
-    }
-
     static func compassCalibrationStatusNotCalibrated(_ lang: GTAppLanguage) -> String {
         switch lang {
         case .chinese: return "未校对"

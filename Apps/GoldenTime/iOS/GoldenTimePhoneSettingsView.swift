@@ -324,12 +324,6 @@ struct GoldenTimePhoneSettingsView: View {
                             legalButton(title: GTCopy.settingsSupport(lang), sheet: .support)
                         }
                         .frame(maxWidth: .infinity)
-
-                        Text(GTCopy.settingsLegalFooter(lang))
-                            .font(.footnote)
-                            .foregroundStyle(GTPhoneSettingsListColors.rowSecondary)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity)
                     }
                     .padding(.vertical, 4)
                     .listRowInsets(EdgeInsets(top: 10, leading: 18, bottom: 8, trailing: 18))
