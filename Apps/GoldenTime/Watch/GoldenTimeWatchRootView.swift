@@ -355,6 +355,7 @@ private struct GTWatchCompassCalibrationView: View {
             let topInset: CGFloat = isLargeWatch ? 34 : 32
             let bottomInset: CGFloat = isLargeWatch ? 16 : 10
             let dialHeight = max(geo.size.height - topInset - buttonAreaHeight, 1)
+            let dialYOffset: CGFloat = isLargeWatch ? -14 : -8
 
             ZStack {
                 LinearGradient(
@@ -381,6 +382,7 @@ private struct GTWatchCompassCalibrationView: View {
                         )
                         .padding(.horizontal, -12)
                         .frame(width: geo.size.width, height: dialHeight)
+                        .offset(y: dialYOffset)
                     } else {
                         Text(GTCopy.compassCardNeedLocation(lang))
                             .font(.caption)
@@ -432,8 +434,8 @@ private struct GTWatchCompassCalibrationView: View {
                     }
                     Spacer()
                 }
-                .padding(.top, isLargeWatch ? 30 : 12)
-                .padding(.leading, isLargeWatch ? 22 : 12)
+                .padding(.top, isLargeWatch ? 36 : 14)
+                .padding(.leading, isLargeWatch ? 26 : 14)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
